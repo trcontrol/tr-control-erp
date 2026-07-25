@@ -15,6 +15,8 @@ export const ROUTES = {
   customersNew: "/customers/new",
   suppliers: "/suppliers",
   suppliersNew: "/suppliers/new",
+  products: "/products",
+  productsNew: "/products/new",
   finance: "/finance",
   financeNew: "/finance/new",
   authCallback: "/api/auth/callback",
@@ -43,6 +45,71 @@ export function financeDetailPath(id: string) {
 export function financeEditPath(id: string) {
   return `/finance/${id}/edit`;
 }
+
+export function productDetailPath(id: string) {
+  return `/products/${id}`;
+}
+
+export function productEditPath(id: string) {
+  return `/products/${id}/edit`;
+}
+
+export const PRODUCT_IMAGES_BUCKET = "product-images";
+
+export const PRODUCT_STATUS = {
+  active: "active",
+  inactive: "inactive",
+} as const;
+
+export type ProductStatus =
+  (typeof PRODUCT_STATUS)[keyof typeof PRODUCT_STATUS];
+
+export const PRODUCT_STATUS_OPTIONS = [
+  { value: PRODUCT_STATUS.active, label: "Ativo" },
+  { value: PRODUCT_STATUS.inactive, label: "Inativo" },
+] as const;
+
+export const PRODUCT_TYPES = {
+  product: "product",
+  service: "service",
+} as const;
+
+export type ProductItemType =
+  (typeof PRODUCT_TYPES)[keyof typeof PRODUCT_TYPES];
+
+export const PRODUCT_TYPE_OPTIONS = [
+  { value: PRODUCT_TYPES.product, label: "Produto" },
+  { value: PRODUCT_TYPES.service, label: "Serviço" },
+] as const;
+
+export const PRODUCT_UNITS = [
+  { value: "UN", label: "UN — Unidade" },
+  { value: "PC", label: "PC — Peça" },
+  { value: "CX", label: "CX — Caixa" },
+  { value: "KG", label: "KG — Quilograma" },
+  { value: "G", label: "G — Grama" },
+  { value: "L", label: "L — Litro" },
+  { value: "ML", label: "ML — Mililitro" },
+  { value: "M", label: "M — Metro" },
+  { value: "M2", label: "M² — Metro quadrado" },
+  { value: "M3", label: "M³ — Metro cúbico" },
+  { value: "PAR", label: "PAR — Par" },
+  { value: "DZ", label: "DZ — Dúzia" },
+] as const;
+
+export const PRODUCT_CATEGORIES = [
+  "Geral",
+  "Eletrônicos",
+  "Informática",
+  "Alimentos",
+  "Bebidas",
+  "Higiene",
+  "Limpeza",
+  "Vestuário",
+  "Ferramentas",
+  "Serviços",
+  "Outros",
+] as const;
 
 export const FINANCIAL_ENTRY_TYPES = {
   payable: "payable",

@@ -253,6 +253,62 @@ export type FinancialEntryUpdate = Partial<
   company_id?: string;
 };
 
+export type ProductRow = {
+  id: string;
+  company_id: string;
+  product_type: "product" | "service" | string;
+  internal_code: string | null;
+  sku: string | null;
+  barcode: string | null;
+  name: string;
+  description: string | null;
+  category: string | null;
+  brand: string | null;
+  unit: string | null;
+  ncm: string | null;
+  cost_price: number | string;
+  sale_price: number | string;
+  current_stock: number | string;
+  min_stock: number | string;
+  max_stock: number | string | null;
+  stock_location: string | null;
+  image_url: string | null;
+  status: "active" | "inactive" | string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProductInsert = {
+  id?: string;
+  company_id: string;
+  product_type: string;
+  internal_code?: string | null;
+  sku?: string | null;
+  barcode?: string | null;
+  name: string;
+  description?: string | null;
+  category?: string | null;
+  brand?: string | null;
+  unit?: string | null;
+  ncm?: string | null;
+  cost_price?: number;
+  sale_price?: number;
+  current_stock?: number;
+  min_stock?: number;
+  max_stock?: number | null;
+  stock_location?: string | null;
+  image_url?: string | null;
+  status?: string;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type ProductUpdate = Partial<Omit<ProductInsert, "company_id">> & {
+  company_id?: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -314,6 +370,20 @@ export type Database = {
             columns: ["supplier_id"];
             isOneToOne: false;
             referencedRelation: "suppliers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      products: {
+        Row: ProductRow;
+        Insert: ProductInsert;
+        Update: ProductUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "products_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
             referencedColumns: ["id"];
           },
         ];
@@ -404,5 +474,6 @@ export type Company = Tables<"companies">;
 export type Customer = Tables<"customers">;
 export type Supplier = Tables<"suppliers">;
 export type FinancialEntry = Tables<"financial_entries">;
+export type Product = Tables<"products">;
 export type Profile = Tables<"profiles">;
 export type CompanyMember = Tables<"company_members">;

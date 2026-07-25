@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Building2,
   LayoutDashboard,
+  Package,
   Settings,
   Truck,
   Users,
@@ -19,6 +20,7 @@ const navigation = [
   { name: "Empresas", href: ROUTES.companies, icon: Building2 },
   { name: "Clientes", href: ROUTES.customers, icon: UsersRound },
   { name: "Fornecedores", href: ROUTES.suppliers, icon: Truck },
+  { name: "Produtos", href: ROUTES.products, icon: Package },
   { name: "Financeiro", href: ROUTES.finance, icon: Wallet },
   { name: "Usuários", href: "/users", icon: Users },
   { name: "Configurações", href: "/settings", icon: Settings },

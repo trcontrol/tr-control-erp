@@ -10,7 +10,7 @@ export type UserProfile = Profile & {
 };
 
 export type TenantContext = {
-  company: Company | null;
+  company: CompanyWithMembership | null;
   membership: CompanyMember | null;
   role: CompanyRole | null;
 };

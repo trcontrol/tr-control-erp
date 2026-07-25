@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,8 +17,17 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/constants";
 
+function getSafeRedirect(redirectTo: string | null) {
+  if (!redirectTo || !redirectTo.startsWith("/") || redirectTo.startsWith("//")) {
+    return ROUTES.dashboard;
+  }
+
+  return redirectTo;
+}
+
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -29,20 +38,30 @@ export function LoginForm() {
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (authError) {
-      setError(authError.message);
+      if (authError) {
+        setError(authError.message);
+        return;
+      }
+
+      router.push(getSafeRedirect(searchParams.get("redirectTo")));
+      router.refresh();
+    } catch (err) {
+      console.error("Erro no login:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Erro inesperado ao entrar. Tente novamente."
+      );
+    } finally {
       setLoading(false);
-      return;
     }
-
-    router.push(ROUTES.dashboard);
-    router.refresh();
   }
 
   return (
@@ -72,7 +91,15 @@ export function LoginForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Senha</Label>
+              <Link
+                href={ROUTES.forgotPassword}
+                className="text-xs text-primary hover:underline"
+              >
+                Esqueceu a senha?
+              </Link>
+            </div>
             <Input
               id="password"
               type="password"

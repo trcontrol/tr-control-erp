@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ChevronsUpDown, LogOut } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -44,6 +44,9 @@ export function Header({ userEmail }: HeaderProps) {
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="gap-2">
             <Avatar className="h-6 w-6">
+              {company?.logo_url ? (
+                <AvatarImage src={company.logo_url} alt={company.name} />
+              ) : null}
               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
             </Avatar>
             <span className="max-w-[200px] truncate">

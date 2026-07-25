@@ -6,37 +6,100 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+export type CompanyRow = {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  logo_url: string | null;
+  legal_name: string | null;
+  cnpj: string | null;
+  state_registration: string | null;
+  municipal_registration: string | null;
+  tax_regime: string | null;
+  zip_code: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  website: string | null;
+  responsible_name: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CompanyInsert = {
+  id?: string;
+  name: string;
+  slug: string;
+  plan?: string;
+  logo_url?: string | null;
+  legal_name?: string | null;
+  cnpj?: string | null;
+  state_registration?: string | null;
+  municipal_registration?: string | null;
+  tax_regime?: string | null;
+  zip_code?: string | null;
+  street?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  email?: string | null;
+  website?: string | null;
+  responsible_name?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CompanyUpdate = {
+  id?: string;
+  name?: string;
+  slug?: string;
+  plan?: string;
+  logo_url?: string | null;
+  legal_name?: string | null;
+  cnpj?: string | null;
+  state_registration?: string | null;
+  municipal_registration?: string | null;
+  tax_regime?: string | null;
+  zip_code?: string | null;
+  street?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  email?: string | null;
+  website?: string | null;
+  responsible_name?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type Database = {
   public: {
     Tables: {
       companies: {
-        Row: {
-          id: string;
-          name: string;
-          slug: string;
-          plan: string;
-          logo_url: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          slug: string;
-          plan?: string;
-          logo_url?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          slug?: string;
-          plan?: string;
-          logo_url?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
+        Row: CompanyRow;
+        Insert: CompanyInsert;
+        Update: CompanyUpdate;
         Relationships: [];
       };
       profiles: {
@@ -103,10 +166,18 @@ export type Database = {
         ];
       };
     };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
-    Enums: Record<string, never>;
-    CompositeTypes: Record<string, never>;
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
   };
 };
 

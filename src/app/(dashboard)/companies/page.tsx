@@ -1,10 +1,4 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { CompaniesView } from "@/components/companies/companies-view";
 import { getUserCompanies } from "@/lib/auth/session";
 
 export const metadata = {
@@ -12,51 +6,28 @@ export const metadata = {
 };
 
 export default async function CompaniesPage() {
-  const companies = await getUserCompanies();
+  const { companies, error, debug } = await getUserCompanies();
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Empresas</h1>
         <p className="text-muted-foreground">
-          Gerencie as empresas vinculadas à sua conta
+          Cadastre e atualize os dados da empresa ativa
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {companies.length === 0 ? (
-          <Card className="col-span-full">
-            <CardHeader>
-              <CardTitle>Nenhuma empresa encontrada</CardTitle>
-              <CardDescription>
-                Crie uma empresa ao se cadastrar ou entre em contato com um
-                administrador para receber um convite.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        ) : (
-          companies.map((company) => (
-            <Card key={company.id}>
-              <CardHeader>
-                <CardTitle>{company.name}</CardTitle>
-                <CardDescription>/{company.slug}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Plano</span>
-                  <span className="font-medium capitalize">{company.plan}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Seu papel</span>
-                  <span className="font-medium capitalize">
-                    {company.membership.role}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+      {error ? (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          <p className="font-medium">Erro temporário da consulta de empresas</p>
+          <p className="mt-1">{error}</p>
+          <pre className="mt-3 overflow-x-auto rounded bg-background/60 p-3 text-xs text-foreground">
+            {JSON.stringify(debug, null, 2)}
+          </pre>
+        </div>
+      ) : null}
+
+      <CompaniesView companies={companies} loadError={error} />
     </div>
   );
 }

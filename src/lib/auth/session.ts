@@ -1,5 +1,36 @@
 import { createClient } from "@/lib/supabase/server";
+import type { Company, CompanyMember } from "@/types/database";
 import type { CompanyWithMembership } from "@/types";
+
+export type UserCompaniesResult = {
+  companies: CompanyWithMembership[];
+  error: string | null;
+  debug: {
+    userId: string | null;
+    userEmail: string | null;
+    membersCount: number;
+    companiesCount: number;
+    memberCompanyIds: string[];
+  };
+};
+
+function emptyResult(
+  error: string | null,
+  debug?: Partial<UserCompaniesResult["debug"]>
+): UserCompaniesResult {
+  return {
+    companies: [],
+    error,
+    debug: {
+      userId: null,
+      userEmail: null,
+      membersCount: 0,
+      companiesCount: 0,
+      memberCompanyIds: [],
+      ...debug,
+    },
+  };
+}
 
 export async function getSession() {
   const supabase = await createClient();
@@ -10,63 +41,127 @@ export async function getSession() {
   return user;
 }
 
-export async function getUserCompanies(): Promise<CompanyWithMembership[]> {
+/**
+ * Carrega empresas do usuário autenticado.
+ * Usa duas consultas (members → companies) para evitar falhas silenciosas
+ * do embed PostgREST e para respeitar RLS em cada tabela.
+ */
+export async function getUserCompanies(): Promise<UserCompaniesResult> {
   const supabase = await createClient();
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
 
-  if (!user) return [];
+  if (userError) {
+    return emptyResult(
+      `Falha ao obter sessão autenticada: ${userError.message}`
+    );
+  }
 
-  const { data, error } = await supabase
+  if (!user) {
+    return emptyResult("Sessão autenticada ausente (auth.getUser retornou null).");
+  }
+
+  const {
+    data: memberships,
+    error: membershipsError,
+  } = await supabase
     .from("company_members")
-    .select(
-      `
-      id,
-      role,
-      created_at,
-      company:companies (
-        id,
-        name,
-        slug,
-        plan,
-        logo_url,
-        created_at,
-        updated_at
-      )
-    `
-    )
+    .select("id, company_id, user_id, role, created_at")
     .eq("user_id", user.id);
 
-  if (error || !data) return [];
+  if (membershipsError) {
+    return emptyResult(
+      `Erro ao consultar company_members: ${membershipsError.message}`,
+      {
+        userId: user.id,
+        userEmail: user.email ?? null,
+      }
+    );
+  }
 
-  type MemberRow = {
-    id: string;
-    role: string;
-    created_at: string;
-    company: CompanyWithMembership | null;
+  const memberRows = (memberships ?? []) as Pick<
+    CompanyMember,
+    "id" | "company_id" | "user_id" | "role" | "created_at"
+  >[];
+
+  const memberCompanyIds = memberRows.map((row) => row.company_id);
+
+  if (memberRows.length === 0) {
+    return emptyResult(
+      "Nenhum vínculo em company_members para este usuário (user_id = auth.uid()).",
+      {
+        userId: user.id,
+        userEmail: user.email ?? null,
+        membersCount: 0,
+        memberCompanyIds: [],
+      }
+    );
+  }
+
+  const { data: companiesData, error: companiesError } = await supabase
+    .from("companies")
+    .select("*")
+    .in("id", memberCompanyIds);
+
+  if (companiesError) {
+    return emptyResult(
+      `Erro ao consultar companies: ${companiesError.message}`,
+      {
+        userId: user.id,
+        userEmail: user.email ?? null,
+        membersCount: memberRows.length,
+        memberCompanyIds,
+      }
+    );
+  }
+
+  const companies = (companiesData ?? []) as Company[];
+  const companiesById = new Map(companies.map((company) => [company.id, company]));
+
+  const result: CompanyWithMembership[] = memberRows
+    .map((membership) => {
+      const company = companiesById.get(membership.company_id);
+      if (!company) return null;
+
+      return {
+        ...company,
+        membership: {
+          id: membership.id,
+          company_id: membership.company_id,
+          user_id: membership.user_id,
+          role: membership.role,
+          created_at: membership.created_at,
+        },
+      };
+    })
+    .filter((row): row is CompanyWithMembership => row !== null);
+
+  let error: string | null = null;
+
+  if (result.length === 0) {
+    error =
+      "Vínculos encontrados em company_members, mas nenhuma empresa retornada por companies (possível bloqueio de RLS no SELECT de companies).";
+  }
+
+  return {
+    companies: result,
+    error,
+    debug: {
+      userId: user.id,
+      userEmail: user.email ?? null,
+      membersCount: memberRows.length,
+      companiesCount: result.length,
+      memberCompanyIds,
+    },
   };
-
-  return (data as MemberRow[])
-    .filter((row): row is MemberRow & { company: CompanyWithMembership } =>
-      row.company !== null
-    )
-    .map((row) => ({
-      ...row.company,
-      membership: {
-        id: row.id,
-        company_id: row.company.id,
-        user_id: user.id,
-        role: row.role,
-        created_at: row.created_at,
-      },
-    }));
 }
 
 export async function getActiveCompany(
   companySlug?: string
 ): Promise<CompanyWithMembership | null> {
-  const companies = await getUserCompanies();
+  const { companies } = await getUserCompanies();
 
   if (companies.length === 0) return null;
   if (!companySlug) return companies[0];

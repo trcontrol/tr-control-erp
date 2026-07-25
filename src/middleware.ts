@@ -2,8 +2,21 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/middleware";
 import { ROUTES } from "@/lib/constants";
 
-const PUBLIC_ROUTES = [ROUTES.home, ROUTES.login, ROUTES.register];
-const AUTH_ROUTES = [ROUTES.login, ROUTES.register];
+const PUBLIC_ROUTES = [
+  ROUTES.home,
+  ROUTES.login,
+  ROUTES.register,
+  ROUTES.forgotPassword,
+  ROUTES.resetPassword,
+  ROUTES.authCallback,
+] as const;
+
+/** Rotas de auth onde usuário logado deve ir para o dashboard */
+const AUTH_ROUTES = [
+  ROUTES.login,
+  ROUTES.register,
+  ROUTES.forgotPassword,
+] as const;
 
 export async function middleware(request: NextRequest) {
   const { supabase, supabaseResponse } = createClient(request);

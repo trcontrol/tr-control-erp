@@ -1,29 +1,36 @@
-type SupabaseEnvVar =
-  | "NEXT_PUBLIC_SUPABASE_URL"
-  | "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY";
-
 export type SupabaseEnv = {
   url: string;
   publishableKey: string;
 };
 
-function getEnvVar(name: SupabaseEnvVar): string {
-  const value = process.env[name]?.trim();
+function isValidEnvValue(value: string | undefined): value is string {
+  const trimmed = value?.trim();
+  return Boolean(trimmed && !trimmed.startsWith("your-"));
+}
 
-  if (!value || value.startsWith("your-")) {
+export function getSupabaseEnv(): SupabaseEnv {
+  // Acesso estático obrigatório: Next.js só embute NEXT_PUBLIC_* no cliente assim.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabasePublishableKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!isValidEnvValue(supabaseUrl)) {
     throw new Error(
-      `Variável de ambiente ausente ou inválida: ${name}. ` +
+      "Variável de ambiente ausente ou inválida: NEXT_PUBLIC_SUPABASE_URL. " +
         "Configure o arquivo .env.local com as credenciais do Supabase."
     );
   }
 
-  return value;
-}
+  if (!isValidEnvValue(supabasePublishableKey)) {
+    throw new Error(
+      "Variável de ambiente ausente ou inválida: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY. " +
+        "Configure o arquivo .env.local com as credenciais do Supabase."
+    );
+  }
 
-export function getSupabaseEnv(): SupabaseEnv {
   return {
-    url: getEnvVar("NEXT_PUBLIC_SUPABASE_URL"),
-    publishableKey: getEnvVar("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
+    url: supabaseUrl.trim(),
+    publishableKey: supabasePublishableKey.trim(),
   };
 }
 

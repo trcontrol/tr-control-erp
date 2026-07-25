@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { LoginForm } from "@/components/auth/login-form";
 import { APP_NAME } from "@/lib/constants";
 
@@ -14,7 +15,15 @@ export default function LoginPage() {
           Acesse sua conta para continuar
         </p>
       </div>
-      <LoginForm />
+      <Suspense
+        fallback={
+          <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">
+            Carregando...
+          </div>
+        }
+      >
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }

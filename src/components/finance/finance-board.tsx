@@ -33,7 +33,7 @@ import {
 import {
   listFinancialEntries,
   markFinancialEntrySettled,
-  type FinancialEntryWithCustomer,
+  type FinancialEntryWithRelations,
 } from "@/lib/finance/actions";
 import {
   formatCurrency,
@@ -55,7 +55,7 @@ export function FinanceBoard() {
   const [tab, setTab] = useState<FinancialEntryType>(
     FINANCIAL_ENTRY_TYPES.payable
   );
-  const [entries, setEntries] = useState<FinancialEntryWithCustomer[]>([]);
+  const [entries, setEntries] = useState<FinancialEntryWithRelations[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [periodFrom, setPeriodFrom] = useState("");
@@ -133,7 +133,7 @@ export function FinanceBoard() {
     );
   }, [entries]);
 
-  async function handleSettle(entry: FinancialEntryWithCustomer) {
+  async function handleSettle(entry: FinancialEntryWithRelations) {
     if (!company?.id) return;
 
     setSettlingId(entry.id);
@@ -344,6 +344,7 @@ export function FinanceBoard() {
                     </td>
                     <td className="px-4 py-3">
                       {entry.party_name ||
+                        entry.supplier?.full_name ||
                         entry.customer?.full_name ||
                         "—"}
                     </td>
@@ -431,6 +432,7 @@ export function FinanceBoard() {
                     </span>
                     <span>
                       {entry.party_name ||
+                        entry.supplier?.full_name ||
                         entry.customer?.full_name ||
                         "—"}
                     </span>

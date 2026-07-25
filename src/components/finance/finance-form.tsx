@@ -37,14 +37,21 @@ import {
   todayISODate,
 } from "@/lib/finance/format";
 import { listCustomers } from "@/lib/customers/actions";
+import { listSuppliers } from "@/lib/suppliers/actions";
 import { useTenant } from "@/providers/tenant-provider";
-import type { Customer, FinancialEntry, FinancialEntryInsert } from "@/types/database";
+import type {
+  Customer,
+  FinancialEntry,
+  FinancialEntryInsert,
+  Supplier,
+} from "@/types/database";
 
 type FinanceFormState = {
   entry_type: FinancialEntryType;
   description: string;
   category: string;
   customer_id: string;
+  supplier_id: string;
   party_name: string;
   amount: string;
   issue_date: string;
@@ -75,6 +82,7 @@ function toFormState(
     description: entry?.description ?? "",
     category: entry?.category ?? "",
     customer_id: entry?.customer_id ?? "",
+    supplier_id: entry?.supplier_id ?? "",
     party_name: entry?.party_name ?? "",
     amount:
       entry?.amount != null
@@ -103,6 +111,7 @@ export function FinanceForm({ mode, entry, defaultType }: FinanceFormProps) {
     toFormState(entry, defaultType)
   );
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof FinanceFormState, string>>
   >({});
@@ -116,6 +125,12 @@ export function FinanceForm({ mode, entry, defaultType }: FinanceFormProps) {
     void listCustomers({ companyId: company.id, status: "active" }).then(
       (result) => {
         if (result.data) setCustomers(result.data);
+      }
+    );
+
+    void listSuppliers({ companyId: company.id, status: "active" }).then(
+      (result) => {
+        if (result.data) setSuppliers(result.data);
       }
     );
   }, [company?.id]);
@@ -161,16 +176,22 @@ export function FinanceForm({ mode, entry, defaultType }: FinanceFormProps) {
 
     setLoading(true);
 
+    const isPayable = form.entry_type === FINANCIAL_ENTRY_TYPES.payable;
     const selectedCustomer = customers.find((item) => item.id === form.customer_id);
+    const selectedSupplier = suppliers.find((item) => item.id === form.supplier_id);
+
     const payload: FinancialEntryInsert = {
       company_id: company.id,
       entry_type: form.entry_type,
       description: form.description.trim(),
       category: form.category.trim() || null,
-      customer_id: form.customer_id || null,
+      customer_id: isPayable ? null : form.customer_id || null,
+      supplier_id: isPayable ? form.supplier_id || null : null,
       party_name:
         form.party_name.trim() ||
-        selectedCustomer?.full_name ||
+        (isPayable
+          ? selectedSupplier?.full_name
+          : selectedCustomer?.full_name) ||
         null,
       amount: parseCurrencyInput(form.amount),
       issue_date: form.issue_date,
@@ -246,9 +267,15 @@ export function FinanceForm({ mode, entry, defaultType }: FinanceFormProps) {
               <Select
                 id="entry_type"
                 value={form.entry_type}
-                onChange={(e) =>
-                  updateField("entry_type", e.target.value as FinancialEntryType)
-                }
+                onChange={(e) => {
+                  const nextType = e.target.value as FinancialEntryType;
+                  updateField("entry_type", nextType);
+                  if (nextType === FINANCIAL_ENTRY_TYPES.payable) {
+                    updateField("customer_id", "");
+                  } else {
+                    updateField("supplier_id", "");
+                  }
+                }}
               >
                 {FINANCIAL_ENTRY_TYPE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -309,35 +336,68 @@ export function FinanceForm({ mode, entry, defaultType }: FinanceFormProps) {
               />
               <FieldError message={fieldErrors.amount} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="customer_id">{partyLabel} (cadastro)</Label>
-              <Select
-                id="customer_id"
-                value={form.customer_id}
-                onChange={(e) => {
-                  const customerId = e.target.value;
-                  updateField("customer_id", customerId);
-                  const selected = customers.find((item) => item.id === customerId);
-                  if (selected && !form.party_name) {
-                    updateField("party_name", selected.full_name);
-                  }
-                }}
-              >
-                <option value="">Nenhum</option>
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>
-                    {customer.full_name}
-                  </option>
-                ))}
-              </Select>
-            </div>
+            {form.entry_type === FINANCIAL_ENTRY_TYPES.payable ? (
+              <div className="space-y-2">
+                <Label htmlFor="supplier_id">Fornecedor (cadastro)</Label>
+                <Select
+                  id="supplier_id"
+                  value={form.supplier_id}
+                  onChange={(e) => {
+                    const supplierId = e.target.value;
+                    updateField("supplier_id", supplierId);
+                    const selected = suppliers.find(
+                      (item) => item.id === supplierId
+                    );
+                    if (selected) {
+                      updateField("party_name", selected.full_name);
+                    }
+                  }}
+                >
+                  <option value="">Nenhum</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.full_name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="customer_id">Cliente (cadastro)</Label>
+                <Select
+                  id="customer_id"
+                  value={form.customer_id}
+                  onChange={(e) => {
+                    const customerId = e.target.value;
+                    updateField("customer_id", customerId);
+                    const selected = customers.find(
+                      (item) => item.id === customerId
+                    );
+                    if (selected) {
+                      updateField("party_name", selected.full_name);
+                    }
+                  }}
+                >
+                  <option value="">Nenhum</option>
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.full_name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="party_name">{partyLabel}</Label>
               <Input
                 id="party_name"
                 value={form.party_name}
                 onChange={(e) => updateField("party_name", e.target.value)}
-                placeholder="Nome do cliente ou fornecedor"
+                placeholder={
+                  form.entry_type === FINANCIAL_ENTRY_TYPES.payable
+                    ? "Nome do fornecedor"
+                    : "Nome do cliente"
+                }
               />
             </div>
             <div className="space-y-2">

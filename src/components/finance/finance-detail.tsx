@@ -24,12 +24,12 @@ import {
 import {
   deleteFinancialEntry,
   markFinancialEntrySettled,
-  type FinancialEntryWithCustomer,
+  type FinancialEntryWithRelations,
 } from "@/lib/finance/actions";
 import { formatCurrency, formatDateBR } from "@/lib/finance/format";
 
 type FinanceDetailProps = {
-  entry: FinancialEntryWithCustomer;
+  entry: FinancialEntryWithRelations;
   companyId: string;
 };
 
@@ -187,7 +187,11 @@ export function FinanceDetail({ entry, companyId }: FinanceDetailProps) {
           <InfoItem label="Categoria" value={entry.category} />
           <InfoItem
             label={isPayable ? "Fornecedor" : "Cliente"}
-            value={entry.party_name || entry.customer?.full_name}
+            value={
+              entry.party_name ||
+              entry.supplier?.full_name ||
+              entry.customer?.full_name
+            }
           />
           <InfoItem
             label="Data de emissão"

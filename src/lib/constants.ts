@@ -13,6 +13,8 @@ export const ROUTES = {
   companies: "/companies",
   customers: "/customers",
   customersNew: "/customers/new",
+  suppliers: "/suppliers",
+  suppliersNew: "/suppliers/new",
   finance: "/finance",
   financeNew: "/finance/new",
   authCallback: "/api/auth/callback",
@@ -24,6 +26,14 @@ export function customerDetailPath(id: string) {
 
 export function customerEditPath(id: string) {
   return `/customers/${id}/edit`;
+}
+
+export function supplierDetailPath(id: string) {
+  return `/suppliers/${id}`;
+}
+
+export function supplierEditPath(id: string) {
+  return `/suppliers/${id}/edit`;
 }
 
 export function financeDetailPath(id: string) {
@@ -113,6 +123,21 @@ export type CustomerStatus =
 export const CUSTOMER_STATUS_OPTIONS = [
   { value: CUSTOMER_STATUS.active, label: "Ativo" },
   { value: CUSTOMER_STATUS.inactive, label: "Inativo" },
+] as const;
+
+export const SUPPLIER_STATUS = CUSTOMER_STATUS;
+export type SupplierStatus = CustomerStatus;
+export const SUPPLIER_STATUS_OPTIONS = CUSTOMER_STATUS_OPTIONS;
+
+export const SUPPLIER_CATEGORIES = [
+  "Materiais",
+  "Serviços",
+  "Transportes",
+  "Tecnologia",
+  "Utilidades",
+  "Imobiliário",
+  "Consultoria",
+  "Outros",
 ] as const;
 
 export const COMPANY_ROLES = {

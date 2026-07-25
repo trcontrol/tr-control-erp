@@ -7,14 +7,14 @@ import { FinanceForm } from "@/components/finance/finance-form";
 import { FinancePageShell } from "@/components/finance/finance-page-shell";
 import {
   getFinancialEntry,
-  type FinancialEntryWithCustomer,
+  type FinancialEntryWithRelations,
 } from "@/lib/finance/actions";
 import { useTenant } from "@/providers/tenant-provider";
 
 export default function EditFinancePage() {
   const params = useParams<{ id: string }>();
   const { company } = useTenant();
-  const [entry, setEntry] = useState<FinancialEntryWithCustomer | null>(null);
+  const [entry, setEntry] = useState<FinancialEntryWithRelations | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 

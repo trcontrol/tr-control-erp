@@ -11,9 +11,25 @@ type Result<T> =
   | { data: T; error: null }
   | { data: null; error: { message: string } };
 
-export type FinancialEntryWithCustomer = FinancialEntry & {
+export type FinancialEntryWithRelations = FinancialEntry & {
   customer?: { id: string; full_name: string } | null;
+  supplier?: { id: string; full_name: string } | null;
 };
+
+/** @deprecated use FinancialEntryWithRelations */
+export type FinancialEntryWithCustomer = FinancialEntryWithRelations;
+
+const ENTRY_SELECT = `
+  *,
+  customer:customers (
+    id,
+    full_name
+  ),
+  supplier:suppliers (
+    id,
+    full_name
+  )
+`;
 
 export async function listFinancialEntries(params: {
   companyId: string;
@@ -22,20 +38,12 @@ export async function listFinancialEntries(params: {
   search?: string;
   periodFrom?: string;
   periodTo?: string;
-}): Promise<Result<FinancialEntryWithCustomer[]>> {
+}): Promise<Result<FinancialEntryWithRelations[]>> {
   const supabase = createClient();
 
   let query = supabase
     .from("financial_entries")
-    .select(
-      `
-      *,
-      customer:customers (
-        id,
-        full_name
-      )
-    `
-    )
+    .select(ENTRY_SELECT)
     .eq("company_id", params.companyId)
     .order("due_date", { ascending: true });
 
@@ -64,7 +72,7 @@ export async function listFinancialEntries(params: {
     return { data: null, error: { message: error.message } };
   }
 
-  let entries = (data ?? []) as FinancialEntryWithCustomer[];
+  let entries = (data ?? []) as FinancialEntryWithRelations[];
 
   entries = entries.map((entry) => ({
     ...entry,
@@ -81,19 +89,11 @@ export async function listFinancialEntries(params: {
 export async function getFinancialEntry(
   companyId: string,
   entryId: string
-): Promise<Result<FinancialEntryWithCustomer>> {
+): Promise<Result<FinancialEntryWithRelations>> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("financial_entries")
-    .select(
-      `
-      *,
-      customer:customers (
-        id,
-        full_name
-      )
-    `
-    )
+    .select(ENTRY_SELECT)
     .eq("company_id", companyId)
     .eq("id", entryId)
     .maybeSingle();
@@ -106,7 +106,7 @@ export async function getFinancialEntry(
     return { data: null, error: { message: "Lançamento não encontrado." } };
   }
 
-  const entry = data as FinancialEntryWithCustomer;
+  const entry = data as FinancialEntryWithRelations;
 
   return {
     data: {

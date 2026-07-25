@@ -3,18 +3,16 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { FinanceDetail } from "@/components/finance/finance-detail";
-import { FinancePageShell } from "@/components/finance/finance-page-shell";
-import {
-  getFinancialEntry,
-  type FinancialEntryWithRelations,
-} from "@/lib/finance/actions";
+import { SupplierDetail } from "@/components/suppliers/supplier-detail";
+import { SupplierPageShell } from "@/components/suppliers/supplier-page-shell";
+import { getSupplier } from "@/lib/suppliers/actions";
 import { useTenant } from "@/providers/tenant-provider";
+import type { Supplier } from "@/types/database";
 
-export default function FinanceDetailPage() {
+export default function SupplierDetailPage() {
   const params = useParams<{ id: string }>();
   const { company } = useTenant();
-  const [entry, setEntry] = useState<FinancialEntryWithRelations | null>(null);
+  const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -31,18 +29,18 @@ export default function FinanceDetailPage() {
       setLoading(true);
       setError(null);
 
-      const result = await getFinancialEntry(company!.id, params.id);
+      const result = await getSupplier(company!.id, params.id);
 
       if (!active) return;
 
       if (result.error || !result.data) {
-        setEntry(null);
-        setError(result.error?.message ?? "Lançamento não encontrado.");
+        setSupplier(null);
+        setError(result.error?.message ?? "Fornecedor não encontrado.");
         setLoading(false);
         return;
       }
 
-      setEntry(result.data);
+      setSupplier(result.data);
       setLoading(false);
     }
 
@@ -54,22 +52,22 @@ export default function FinanceDetailPage() {
   }, [company, params.id]);
 
   return (
-    <FinancePageShell
-      title="Detalhes do lançamento"
-      description="Visualização completa do lançamento financeiro"
+    <SupplierPageShell
+      title="Detalhes do fornecedor"
+      description="Visualização completa do cadastro"
     >
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Carregando lançamento...
+          Carregando fornecedor...
         </div>
-      ) : error || !entry || !company ? (
+      ) : error || !supplier || !company ? (
         <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-          {error ?? "Lançamento não encontrado."}
+          {error ?? "Fornecedor não encontrado."}
         </div>
       ) : (
-        <FinanceDetail entry={entry} companyId={company.id} />
+        <SupplierDetail supplier={supplier} companyId={company.id} />
       )}
-    </FinancePageShell>
+    </SupplierPageShell>
   );
 }

@@ -147,10 +147,67 @@ export type CustomerUpdate = Partial<Omit<CustomerInsert, "company_id">> & {
   company_id?: string;
 };
 
+export type SupplierRow = {
+  id: string;
+  company_id: string;
+  person_type: "individual" | "company" | string;
+  full_name: string;
+  trade_name: string | null;
+  document: string | null;
+  secondary_document: string | null;
+  email: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  zip_code: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
+  contact_name: string | null;
+  category: string | null;
+  notes: string | null;
+  status: "active" | "inactive" | string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupplierInsert = {
+  id?: string;
+  company_id: string;
+  person_type: string;
+  full_name: string;
+  trade_name?: string | null;
+  document?: string | null;
+  secondary_document?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  zip_code?: string | null;
+  street?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  contact_name?: string | null;
+  category?: string | null;
+  notes?: string | null;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type SupplierUpdate = Partial<Omit<SupplierInsert, "company_id">> & {
+  company_id?: string;
+};
+
 export type FinancialEntryRow = {
   id: string;
   company_id: string;
   customer_id: string | null;
+  supplier_id: string | null;
   entry_type: "payable" | "receivable" | string;
   description: string;
   category: string | null;
@@ -172,6 +229,7 @@ export type FinancialEntryInsert = {
   id?: string;
   company_id: string;
   customer_id?: string | null;
+  supplier_id?: string | null;
   entry_type: string;
   description: string;
   category?: string | null;
@@ -218,6 +276,20 @@ export type Database = {
           },
         ];
       };
+      suppliers: {
+        Row: SupplierRow;
+        Insert: SupplierInsert;
+        Update: SupplierUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       financial_entries: {
         Row: FinancialEntryRow;
         Insert: FinancialEntryInsert;
@@ -235,6 +307,13 @@ export type Database = {
             columns: ["customer_id"];
             isOneToOne: false;
             referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "financial_entries_supplier_id_fkey";
+            columns: ["supplier_id"];
+            isOneToOne: false;
+            referencedRelation: "suppliers";
             referencedColumns: ["id"];
           },
         ];
@@ -323,6 +402,7 @@ export type Tables<T extends keyof Database["public"]["Tables"]> =
 
 export type Company = Tables<"companies">;
 export type Customer = Tables<"customers">;
+export type Supplier = Tables<"suppliers">;
 export type FinancialEntry = Tables<"financial_entries">;
 export type Profile = Tables<"profiles">;
 export type CompanyMember = Tables<"company_members">;

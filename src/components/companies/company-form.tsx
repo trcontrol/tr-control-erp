@@ -69,7 +69,6 @@ type CompanyFormProps = {
 const REQUIRED_FIELDS: Array<keyof CompanyFormState> = [
   "name",
   "legal_name",
-  "cnpj",
   "zip_code",
   "street",
   "number",
@@ -274,7 +273,7 @@ export function CompanyForm({ company }: CompanyFormProps) {
       const payload: CompanyUpdate = {
         name: form.name.trim(),
         legal_name: form.legal_name.trim(),
-        cnpj: formatCnpj(form.cnpj),
+        cnpj: form.cnpj.trim() ? formatCnpj(form.cnpj) : null,
         state_registration: form.state_registration.trim() || null,
         municipal_registration: form.municipal_registration.trim() || null,
         tax_regime: form.tax_regime || null,
@@ -420,13 +419,12 @@ export function CompanyForm({ company }: CompanyFormProps) {
               <FieldError message={fieldErrors.legal_name} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cnpj">CNPJ *</Label>
+              <Label htmlFor="cnpj">CNPJ</Label>
               <Input
                 id="cnpj"
                 value={form.cnpj}
                 onChange={(e) => updateField("cnpj", formatCnpj(e.target.value))}
                 placeholder="00.000.000/0000-00"
-                required
               />
               <FieldError message={fieldErrors.cnpj} />
             </div>

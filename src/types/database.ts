@@ -93,6 +93,60 @@ export type CompanyUpdate = {
   updated_at?: string;
 };
 
+export type CustomerRow = {
+  id: string;
+  company_id: string;
+  person_type: "individual" | "company" | string;
+  full_name: string;
+  trade_name: string | null;
+  document: string | null;
+  secondary_document: string | null;
+  birth_date: string | null;
+  email: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  zip_code: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
+  notes: string | null;
+  status: "active" | "inactive" | string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CustomerInsert = {
+  id?: string;
+  company_id: string;
+  person_type: string;
+  full_name: string;
+  trade_name?: string | null;
+  document?: string | null;
+  secondary_document?: string | null;
+  birth_date?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  zip_code?: string | null;
+  street?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  notes?: string | null;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CustomerUpdate = Partial<Omit<CustomerInsert, "company_id">> & {
+  company_id?: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -101,6 +155,20 @@ export type Database = {
         Insert: CompanyInsert;
         Update: CompanyUpdate;
         Relationships: [];
+      };
+      customers: {
+        Row: CustomerRow;
+        Insert: CustomerInsert;
+        Update: CustomerUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "customers_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       profiles: {
         Row: {
@@ -185,5 +253,6 @@ export type Tables<T extends keyof Database["public"]["Tables"]> =
   Database["public"]["Tables"][T]["Row"];
 
 export type Company = Tables<"companies">;
+export type Customer = Tables<"customers">;
 export type Profile = Tables<"profiles">;
 export type CompanyMember = Tables<"company_members">;

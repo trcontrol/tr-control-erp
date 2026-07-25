@@ -11,8 +11,43 @@ export const ROUTES = {
   resetPassword: "/reset-password",
   dashboard: "/dashboard",
   companies: "/companies",
+  customers: "/customers",
+  customersNew: "/customers/new",
   authCallback: "/api/auth/callback",
 } as const;
+
+export function customerDetailPath(id: string) {
+  return `/customers/${id}`;
+}
+
+export function customerEditPath(id: string) {
+  return `/customers/${id}/edit`;
+}
+
+export const PERSON_TYPES = {
+  individual: "individual",
+  company: "company",
+} as const;
+
+export type PersonType = (typeof PERSON_TYPES)[keyof typeof PERSON_TYPES];
+
+export const PERSON_TYPE_OPTIONS = [
+  { value: PERSON_TYPES.individual, label: "Pessoa física" },
+  { value: PERSON_TYPES.company, label: "Pessoa jurídica" },
+] as const;
+
+export const CUSTOMER_STATUS = {
+  active: "active",
+  inactive: "inactive",
+} as const;
+
+export type CustomerStatus =
+  (typeof CUSTOMER_STATUS)[keyof typeof CUSTOMER_STATUS];
+
+export const CUSTOMER_STATUS_OPTIONS = [
+  { value: CUSTOMER_STATUS.active, label: "Ativo" },
+  { value: CUSTOMER_STATUS.inactive, label: "Inativo" },
+] as const;
 
 export const COMPANY_ROLES = {
   owner: "owner",

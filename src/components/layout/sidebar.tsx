@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Settings,
   Users,
+  UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/constants";
@@ -14,6 +15,7 @@ import { ROUTES } from "@/lib/constants";
 const navigation = [
   { name: "Dashboard", href: ROUTES.dashboard, icon: LayoutDashboard },
   { name: "Empresas", href: ROUTES.companies, icon: Building2 },
+  { name: "Clientes", href: ROUTES.customers, icon: UsersRound },
   { name: "Usuários", href: "/users", icon: Users },
   { name: "Configurações", href: "/settings", icon: Settings },
 ];
@@ -32,7 +34,10 @@ export function Sidebar() {
 
       <nav className="flex flex-1 flex-col gap-1 p-4">
         {navigation.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive =
+            pathname === item.href ||
+            (item.href !== ROUTES.dashboard &&
+              pathname.startsWith(`${item.href}/`));
           const Icon = item.icon;
 
           return (

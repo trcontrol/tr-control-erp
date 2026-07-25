@@ -13,6 +13,8 @@ export const ROUTES = {
   companies: "/companies",
   customers: "/customers",
   customersNew: "/customers/new",
+  finance: "/finance",
+  financeNew: "/finance/new",
   authCallback: "/api/auth/callback",
 } as const;
 
@@ -23,6 +25,70 @@ export function customerDetailPath(id: string) {
 export function customerEditPath(id: string) {
   return `/customers/${id}/edit`;
 }
+
+export function financeDetailPath(id: string) {
+  return `/finance/${id}`;
+}
+
+export function financeEditPath(id: string) {
+  return `/finance/${id}/edit`;
+}
+
+export const FINANCIAL_ENTRY_TYPES = {
+  payable: "payable",
+  receivable: "receivable",
+} as const;
+
+export type FinancialEntryType =
+  (typeof FINANCIAL_ENTRY_TYPES)[keyof typeof FINANCIAL_ENTRY_TYPES];
+
+export const FINANCIAL_ENTRY_TYPE_OPTIONS = [
+  { value: FINANCIAL_ENTRY_TYPES.payable, label: "Contas a pagar" },
+  { value: FINANCIAL_ENTRY_TYPES.receivable, label: "Contas a receber" },
+] as const;
+
+export const FINANCIAL_STATUS = {
+  pending: "pending",
+  paid: "paid",
+  received: "received",
+  overdue: "overdue",
+  cancelled: "cancelled",
+} as const;
+
+export type FinancialStatus =
+  (typeof FINANCIAL_STATUS)[keyof typeof FINANCIAL_STATUS];
+
+export const FINANCIAL_STATUS_OPTIONS = [
+  { value: FINANCIAL_STATUS.pending, label: "Pendente" },
+  { value: FINANCIAL_STATUS.paid, label: "Pago" },
+  { value: FINANCIAL_STATUS.received, label: "Recebido" },
+  { value: FINANCIAL_STATUS.overdue, label: "Vencido" },
+  { value: FINANCIAL_STATUS.cancelled, label: "Cancelado" },
+] as const;
+
+export const FINANCIAL_CATEGORIES = [
+  "Aluguel",
+  "Salários",
+  "Fornecedores",
+  "Impostos",
+  "Serviços",
+  "Vendas",
+  "Comissões",
+  "Utilidades",
+  "Marketing",
+  "Outros",
+] as const;
+
+export const PAYMENT_METHODS = [
+  { value: "pix", label: "PIX" },
+  { value: "boleto", label: "Boleto" },
+  { value: "credit_card", label: "Cartão de crédito" },
+  { value: "debit_card", label: "Cartão de débito" },
+  { value: "bank_transfer", label: "Transferência" },
+  { value: "cash", label: "Dinheiro" },
+  { value: "check", label: "Cheque" },
+  { value: "other", label: "Outro" },
+] as const;
 
 export const PERSON_TYPES = {
   individual: "individual",

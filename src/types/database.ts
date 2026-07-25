@@ -147,6 +147,54 @@ export type CustomerUpdate = Partial<Omit<CustomerInsert, "company_id">> & {
   company_id?: string;
 };
 
+export type FinancialEntryRow = {
+  id: string;
+  company_id: string;
+  customer_id: string | null;
+  entry_type: "payable" | "receivable" | string;
+  description: string;
+  category: string | null;
+  party_name: string | null;
+  amount: number | string;
+  issue_date: string;
+  due_date: string;
+  payment_date: string | null;
+  status: "pending" | "paid" | "received" | "overdue" | "cancelled" | string;
+  payment_method: string | null;
+  document_number: string | null;
+  notes: string | null;
+  is_recurring: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FinancialEntryInsert = {
+  id?: string;
+  company_id: string;
+  customer_id?: string | null;
+  entry_type: string;
+  description: string;
+  category?: string | null;
+  party_name?: string | null;
+  amount: number;
+  issue_date: string;
+  due_date: string;
+  payment_date?: string | null;
+  status?: string;
+  payment_method?: string | null;
+  document_number?: string | null;
+  notes?: string | null;
+  is_recurring?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type FinancialEntryUpdate = Partial<
+  Omit<FinancialEntryInsert, "company_id">
+> & {
+  company_id?: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -166,6 +214,27 @@ export type Database = {
             columns: ["company_id"];
             isOneToOne: false;
             referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      financial_entries: {
+        Row: FinancialEntryRow;
+        Insert: FinancialEntryInsert;
+        Update: FinancialEntryUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "financial_entries_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "financial_entries_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customers";
             referencedColumns: ["id"];
           },
         ];
@@ -254,5 +323,6 @@ export type Tables<T extends keyof Database["public"]["Tables"]> =
 
 export type Company = Tables<"companies">;
 export type Customer = Tables<"customers">;
+export type FinancialEntry = Tables<"financial_entries">;
 export type Profile = Tables<"profiles">;
 export type CompanyMember = Tables<"company_members">;

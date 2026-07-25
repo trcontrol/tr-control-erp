@@ -11,6 +11,7 @@ import {
   Users,
   UsersRound,
   Wallet,
+  Warehouse,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/constants";
@@ -21,6 +22,7 @@ const navigation = [
   { name: "Clientes", href: ROUTES.customers, icon: UsersRound },
   { name: "Fornecedores", href: ROUTES.suppliers, icon: Truck },
   { name: "Produtos", href: ROUTES.products, icon: Package },
+  { name: "Estoque", href: ROUTES.stock, icon: Warehouse },
   { name: "Financeiro", href: ROUTES.finance, icon: Wallet },
   { name: "Usuários", href: "/users", icon: Users },
   { name: "Configurações", href: "/settings", icon: Settings },

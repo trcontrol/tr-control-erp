@@ -268,6 +268,7 @@ export type ProductRow = {
   ncm: string | null;
   cost_price: number | string;
   sale_price: number | string;
+  tracks_stock: boolean;
   current_stock: number | string;
   min_stock: number | string;
   max_stock: number | string | null;
@@ -294,6 +295,7 @@ export type ProductInsert = {
   ncm?: string | null;
   cost_price?: number;
   sale_price?: number;
+  tracks_stock?: boolean;
   current_stock?: number;
   min_stock?: number;
   max_stock?: number | null;
@@ -303,6 +305,44 @@ export type ProductInsert = {
   notes?: string | null;
   created_at?: string;
   updated_at?: string;
+};
+
+export type StockMovementRow = {
+  id: string;
+  company_id: string;
+  product_id: string;
+  movement_type: "entry" | "exit" | "adjustment" | "inventory" | string;
+  quantity: number | string;
+  quantity_delta: number | string | null;
+  previous_stock: number | string | null;
+  new_stock: number | string | null;
+  movement_date: string;
+  notes: string | null;
+  responsible_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StockMovementInsert = {
+  id?: string;
+  company_id: string;
+  product_id: string;
+  movement_type: string;
+  quantity: number;
+  quantity_delta?: number | null;
+  previous_stock?: number | null;
+  new_stock?: number | null;
+  movement_date?: string;
+  notes?: string | null;
+  responsible_user_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type StockMovementUpdate = Partial<
+  Omit<StockMovementInsert, "company_id">
+> & {
+  company_id?: string;
 };
 
 export type ProductUpdate = Partial<Omit<ProductInsert, "company_id">> & {
@@ -384,6 +424,34 @@ export type Database = {
             columns: ["company_id"];
             isOneToOne: false;
             referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      stock_movements: {
+        Row: StockMovementRow;
+        Insert: StockMovementInsert;
+        Update: StockMovementUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_movements_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_movements_responsible_user_id_fkey";
+            columns: ["responsible_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -475,5 +543,6 @@ export type Customer = Tables<"customers">;
 export type Supplier = Tables<"suppliers">;
 export type FinancialEntry = Tables<"financial_entries">;
 export type Product = Tables<"products">;
+export type StockMovement = Tables<"stock_movements">;
 export type Profile = Tables<"profiles">;
 export type CompanyMember = Tables<"company_members">;

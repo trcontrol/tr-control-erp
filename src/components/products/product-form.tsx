@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ImagePlus, Loader2, Package, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,9 @@ import {
   PRODUCT_TYPES,
   PRODUCT_UNITS,
   ROUTES,
+  TRACK_STOCK_OPTIONS,
   productDetailPath,
+  stockProductHistoryPath,
   type ProductItemType,
 } from "@/lib/constants";
 import {
@@ -58,6 +61,7 @@ type ProductFormState = {
   ncm: string;
   cost_price: string;
   sale_price: string;
+  tracks_stock: "true" | "false";
   current_stock: string;
   min_stock: string;
   max_stock: string;
@@ -70,14 +74,34 @@ type ProductFormState = {
 type ProductFormProps = {
   mode: "create" | "edit";
   product?: Product;
+  onSuccess?: (product: Product) => void;
+  onCancel?: () => void;
+  /** Quando true, não navega após salvar e chama onSuccess. */
+  stayOnSuccess?: boolean;
+  /** Força controle de estoque (útil no cadastro rápido do módulo Estoque). */
+  requireTracksStock?: boolean;
 };
 
-function toFormState(product?: Product): ProductFormState {
+function toFormState(
+  product?: Product,
+  options?: { requireTracksStock?: boolean }
+): ProductFormState {
+  const productType =
+    product?.product_type === PRODUCT_TYPES.service
+      ? PRODUCT_TYPES.service
+      : PRODUCT_TYPES.product;
+  const tracksStock = options?.requireTracksStock
+    ? "true"
+    : product == null
+      ? productType === PRODUCT_TYPES.service
+        ? "false"
+        : "true"
+      : product.tracks_stock === false
+        ? "false"
+        : "true";
+
   return {
-    product_type:
-      product?.product_type === PRODUCT_TYPES.service
-        ? PRODUCT_TYPES.service
-        : PRODUCT_TYPES.product,
+    product_type: productType,
     internal_code: product?.internal_code ?? "",
     sku: product?.sku ?? "",
     barcode: product?.barcode ?? "",
@@ -89,6 +113,7 @@ function toFormState(product?: Product): ProductFormState {
     ncm: product?.ncm ?? "",
     cost_price: amountToCurrencyInput(product?.cost_price ?? 0),
     sale_price: amountToCurrencyInput(product?.sale_price ?? 0),
+    tracks_stock: tracksStock,
     current_stock: formatStockInput(product?.current_stock ?? 0),
     min_stock: formatStockInput(product?.min_stock ?? 0),
     max_stock:
@@ -105,11 +130,20 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-xs text-destructive">{message}</p>;
 }
 
-export function ProductForm({ mode, product }: ProductFormProps) {
+export function ProductForm({
+  mode,
+  product,
+  onSuccess,
+  onCancel,
+  stayOnSuccess = false,
+  requireTracksStock = false,
+}: ProductFormProps) {
   const router = useRouter();
   const { company } = useTenant();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [form, setForm] = useState<ProductFormState>(() => toFormState(product));
+  const [form, setForm] = useState<ProductFormState>(() =>
+    toFormState(product, { requireTracksStock })
+  );
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof ProductFormState, string>>
   >({});
@@ -117,6 +151,9 @@ export function ProductForm({ mode, product }: ProductFormProps) {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  const tracksStock = requireTracksStock || form.tracks_stock === "true";
+  const stockLocked = mode === "edit" && tracksStock;
 
   const margin = useMemo(() => {
     const cost = parseCurrencyInput(form.cost_price || "0");
@@ -129,7 +166,17 @@ export function ProductForm({ mode, product }: ProductFormProps) {
     key: K,
     value: ProductFormState[K]
   ) {
-    setForm((current) => ({ ...current, [key]: value }));
+    setForm((current) => {
+      const next = { ...current, [key]: value };
+      if (key === "product_type" && mode === "create" && !requireTracksStock) {
+        next.tracks_stock =
+          value === PRODUCT_TYPES.service ? "false" : "true";
+      }
+      if (requireTracksStock) {
+        next.tracks_stock = "true";
+      }
+      return next;
+    });
     setFieldErrors((current) => ({ ...current, [key]: undefined }));
     setSuccess(null);
   }
@@ -146,14 +193,19 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 
     if (!form.name.trim()) nextErrors.name = "Campo obrigatório";
     if (!form.product_type) nextErrors.product_type = "Campo obrigatório";
+    if (!form.tracks_stock) nextErrors.tracks_stock = "Campo obrigatório";
     if (Number.isNaN(cost) || cost < 0) nextErrors.cost_price = "Valor inválido";
     if (Number.isNaN(sale) || sale < 0) nextErrors.sale_price = "Valor inválido";
-    if (Number.isNaN(currentStock)) nextErrors.current_stock = "Estoque inválido";
-    if (Number.isNaN(minStock) || minStock < 0) {
-      nextErrors.min_stock = "Estoque mínimo inválido";
-    }
-    if (maxStock != null && (Number.isNaN(maxStock) || maxStock < 0)) {
-      nextErrors.max_stock = "Estoque máximo inválido";
+    if (tracksStock) {
+      if (Number.isNaN(currentStock)) {
+        nextErrors.current_stock = "Estoque inválido";
+      }
+      if (Number.isNaN(minStock) || minStock < 0) {
+        nextErrors.min_stock = "Estoque mínimo inválido";
+      }
+      if (maxStock != null && (Number.isNaN(maxStock) || maxStock < 0)) {
+        nextErrors.max_stock = "Estoque máximo inválido";
+      }
     }
 
     setFieldErrors(nextErrors);
@@ -232,12 +284,25 @@ export function ProductForm({ mode, product }: ProductFormProps) {
       ncm: form.ncm.trim() || null,
       cost_price: parseCurrencyInput(form.cost_price || "0"),
       sale_price: parseCurrencyInput(form.sale_price || "0"),
-      current_stock: parseStockInput(form.current_stock || "0"),
-      min_stock: parseStockInput(form.min_stock || "0"),
-      max_stock: form.max_stock
-        ? parseStockInput(form.max_stock)
-        : null,
-      stock_location: form.stock_location.trim() || null,
+      tracks_stock: tracksStock,
+      current_stock: tracksStock
+        ? stockLocked
+          ? parseStockInput(formatStockInput(product?.current_stock ?? 0))
+          : parseStockInput(form.current_stock || "0")
+        : parseStockInput(formatStockInput(product?.current_stock ?? 0)),
+      min_stock: tracksStock
+        ? parseStockInput(form.min_stock || "0")
+        : parseStockInput(formatStockInput(product?.min_stock ?? 0)),
+      max_stock: tracksStock
+        ? form.max_stock
+          ? parseStockInput(form.max_stock)
+          : null
+        : product?.max_stock == null
+          ? null
+          : parseStockInput(formatStockInput(product.max_stock)),
+      stock_location: tracksStock
+        ? form.stock_location.trim() || null
+        : product?.stock_location ?? null,
       image_url: form.image_url || null,
       status: form.status || PRODUCT_STATUS.active,
       notes: form.notes.trim() || null,
@@ -259,6 +324,14 @@ export function ProductForm({ mode, product }: ProductFormProps) {
           ? "Produto cadastrado com sucesso."
           : "Produto atualizado com sucesso."
       );
+
+      if (stayOnSuccess || onSuccess) {
+        onSuccess?.(result.data);
+        if (stayOnSuccess) {
+          return;
+        }
+      }
+
       router.push(productDetailPath(result.data.id));
       router.refresh();
     } catch (err) {
@@ -524,48 +597,106 @@ export function ProductForm({ mode, product }: ProductFormProps) {
         <CardHeader>
           <CardTitle>Estoque</CardTitle>
           <CardDescription>
-            Controle básico preparado para integrações futuras
+            Defina se este item participa do controle de estoque
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="current_stock">Estoque atual</Label>
-              <Input
-                id="current_stock"
-                value={form.current_stock}
-                onChange={(e) => updateField("current_stock", e.target.value)}
-              />
-              <FieldError message={fieldErrors.current_stock} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="min_stock">Estoque mínimo</Label>
-              <Input
-                id="min_stock"
-                value={form.min_stock}
-                onChange={(e) => updateField("min_stock", e.target.value)}
-              />
-              <FieldError message={fieldErrors.min_stock} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="max_stock">Estoque máximo</Label>
-              <Input
-                id="max_stock"
-                value={form.max_stock}
-                onChange={(e) => updateField("max_stock", e.target.value)}
-              />
-              <FieldError message={fieldErrors.max_stock} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="stock_location">Localização no estoque</Label>
-              <Input
-                id="stock_location"
-                value={form.stock_location}
-                onChange={(e) => updateField("stock_location", e.target.value)}
-                placeholder="Ex.: Prateleira A1"
-              />
+              <Label htmlFor="tracks_stock">Controlar estoque? *</Label>
+              <Select
+                id="tracks_stock"
+                value={requireTracksStock ? "true" : form.tracks_stock}
+                onChange={(e) =>
+                  updateField(
+                    "tracks_stock",
+                    e.target.value === "false" ? "false" : "true"
+                  )
+                }
+                disabled={requireTracksStock}
+                required
+              >
+                {TRACK_STOCK_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+              {requireTracksStock ? (
+                <p className="text-xs text-muted-foreground">
+                  Produtos criados a partir do Estoque controlam saldo
+                  automaticamente.
+                </p>
+              ) : null}
+              <FieldError message={fieldErrors.tracks_stock} />
             </div>
           </div>
+
+          {!tracksStock ? (
+            <p className="text-sm text-muted-foreground">
+              Este item não participa das movimentações de estoque.
+            </p>
+          ) : (
+            <>
+              {stockLocked ? (
+                <p className="text-sm text-muted-foreground">
+                  O estoque atual é atualizado pelas movimentações do módulo
+                  Estoque.{" "}
+                  {product ? (
+                    <Link
+                      href={stockProductHistoryPath(product.id)}
+                      className="font-medium text-primary underline-offset-4 hover:underline"
+                    >
+                      Ver histórico
+                    </Link>
+                  ) : null}
+                </p>
+              ) : null}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2">
+                  <Label htmlFor="current_stock">Estoque atual</Label>
+                  <Input
+                    id="current_stock"
+                    value={form.current_stock}
+                    onChange={(e) =>
+                      updateField("current_stock", e.target.value)
+                    }
+                    disabled={stockLocked}
+                  />
+                  <FieldError message={fieldErrors.current_stock} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="min_stock">Estoque mínimo</Label>
+                  <Input
+                    id="min_stock"
+                    value={form.min_stock}
+                    onChange={(e) => updateField("min_stock", e.target.value)}
+                  />
+                  <FieldError message={fieldErrors.min_stock} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="max_stock">Estoque máximo</Label>
+                  <Input
+                    id="max_stock"
+                    value={form.max_stock}
+                    onChange={(e) => updateField("max_stock", e.target.value)}
+                  />
+                  <FieldError message={fieldErrors.max_stock} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stock_location">Localização no estoque</Label>
+                  <Input
+                    id="stock_location"
+                    value={form.stock_location}
+                    onChange={(e) =>
+                      updateField("stock_location", e.target.value)
+                    }
+                    placeholder="Ex.: Prateleira A1"
+                  />
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -585,11 +716,15 @@ export function ProductForm({ mode, product }: ProductFormProps) {
           <Button
             type="button"
             variant="outline"
-            onClick={() =>
+            onClick={() => {
+              if (onCancel) {
+                onCancel();
+                return;
+              }
               router.push(
                 product ? productDetailPath(product.id) : ROUTES.products
-              )
-            }
+              );
+            }}
           >
             Cancelar
           </Button>

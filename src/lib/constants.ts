@@ -17,6 +17,12 @@ export const ROUTES = {
   suppliersNew: "/suppliers/new",
   products: "/products",
   productsNew: "/products/new",
+  stock: "/stock",
+  stockMovements: "/stock/movements",
+  stockEntry: "/stock/entry",
+  stockExit: "/stock/exit",
+  stockAdjustment: "/stock/adjustment",
+  stockInventory: "/stock/inventory",
   finance: "/finance",
   financeNew: "/finance/new",
   authCallback: "/api/auth/callback",
@@ -54,6 +60,14 @@ export function productEditPath(id: string) {
   return `/products/${id}/edit`;
 }
 
+export function stockProductHistoryPath(productId: string) {
+  return `/stock/products/${productId}`;
+}
+
+export function stockMovementDetailPath(id: string) {
+  return `/stock/movements/${id}`;
+}
+
 export const PRODUCT_IMAGES_BUCKET = "product-images";
 
 export const PRODUCT_STATUS = {
@@ -80,6 +94,38 @@ export type ProductItemType =
 export const PRODUCT_TYPE_OPTIONS = [
   { value: PRODUCT_TYPES.product, label: "Produto" },
   { value: PRODUCT_TYPES.service, label: "Serviço" },
+] as const;
+
+export const TRACK_STOCK_OPTIONS = [
+  { value: "true", label: "Sim" },
+  { value: "false", label: "Não" },
+] as const;
+
+export const STOCK_MOVEMENT_TYPES = {
+  entry: "entry",
+  exit: "exit",
+  adjustment: "adjustment",
+  inventory: "inventory",
+} as const;
+
+export type StockMovementType =
+  (typeof STOCK_MOVEMENT_TYPES)[keyof typeof STOCK_MOVEMENT_TYPES];
+
+export const STOCK_MOVEMENT_TYPE_OPTIONS = [
+  { value: STOCK_MOVEMENT_TYPES.entry, label: "Entrada" },
+  { value: STOCK_MOVEMENT_TYPES.exit, label: "Saída" },
+  { value: STOCK_MOVEMENT_TYPES.adjustment, label: "Ajuste" },
+  { value: STOCK_MOVEMENT_TYPES.inventory, label: "Inventário" },
+] as const;
+
+export const STOCK_ADJUSTMENT_DIRECTIONS = {
+  increase: "increase",
+  decrease: "decrease",
+} as const;
+
+export const STOCK_ADJUSTMENT_DIRECTION_OPTIONS = [
+  { value: STOCK_ADJUSTMENT_DIRECTIONS.increase, label: "Aumentar estoque" },
+  { value: STOCK_ADJUSTMENT_DIRECTIONS.decrease, label: "Diminuir estoque" },
 ] as const;
 
 export const PRODUCT_UNITS = [

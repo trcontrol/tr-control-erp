@@ -50,7 +50,9 @@ export function formatStockInput(value: number | string | null | undefined) {
 export function isLowStock(product: {
   current_stock: number | string;
   min_stock: number | string;
+  tracks_stock?: boolean | null;
 }) {
+  if (product.tracks_stock === false) return false;
   return toNumberAmount(product.current_stock) < toNumberAmount(product.min_stock);
 }
 

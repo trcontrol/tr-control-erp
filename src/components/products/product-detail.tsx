@@ -17,7 +17,9 @@ import {
   PRODUCT_STATUS_OPTIONS,
   PRODUCT_TYPE_OPTIONS,
   ROUTES,
+  TRACK_STOCK_OPTIONS,
   productEditPath,
+  stockProductHistoryPath,
 } from "@/lib/constants";
 import { deleteProduct } from "@/lib/products/actions";
 import {
@@ -98,7 +100,7 @@ export function ProductDetail({ product, companyId }: ProductDetailProps) {
         </div>
       ) : null}
 
-      {lowStock ? (
+      {product.tracks_stock !== false && lowStock ? (
         <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
@@ -137,6 +139,13 @@ export function ProductDetail({ product, companyId }: ProductDetailProps) {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            {product.tracks_stock !== false ? (
+              <Button asChild variant="outline">
+                <Link href={stockProductHistoryPath(product.id)}>
+                  Histórico de estoque
+                </Link>
+              </Button>
+            ) : null}
             <Button asChild variant="outline">
               <Link href={productEditPath(product.id)}>
                 <Pencil className="h-4 w-4" />
@@ -181,6 +190,13 @@ export function ProductDetail({ product, companyId }: ProductDetailProps) {
             label="Tipo"
             value={labelFromOptions(PRODUCT_TYPE_OPTIONS, product.product_type)}
           />
+          <InfoItem
+            label="Controlar estoque?"
+            value={labelFromOptions(
+              TRACK_STOCK_OPTIONS,
+              product.tracks_stock === false ? "false" : "true"
+            )}
+          />
           <InfoItem label="Código interno" value={product.internal_code} />
           <InfoItem label="SKU" value={product.sku} />
           <InfoItem label="Código de barras" value={product.barcode} />
@@ -195,24 +211,33 @@ export function ProductDetail({ product, companyId }: ProductDetailProps) {
             value={formatCurrency(product.sale_price)}
           />
           <InfoItem label="Margem de lucro" value={formatPercent(margin)} />
-          <InfoItem
-            label="Estoque atual"
-            value={formatStockQuantity(product.current_stock, product.unit)}
-            emphasize={lowStock}
-          />
-          <InfoItem
-            label="Estoque mínimo"
-            value={formatStockQuantity(product.min_stock, product.unit)}
-          />
-          <InfoItem
-            label="Estoque máximo"
-            value={
-              product.max_stock == null
-                ? null
-                : formatStockQuantity(product.max_stock, product.unit)
-            }
-          />
-          <InfoItem label="Localização" value={product.stock_location} />
+          {product.tracks_stock !== false ? (
+            <>
+              <InfoItem
+                label="Estoque atual"
+                value={formatStockQuantity(product.current_stock, product.unit)}
+                emphasize={lowStock}
+              />
+              <InfoItem
+                label="Estoque mínimo"
+                value={formatStockQuantity(product.min_stock, product.unit)}
+              />
+              <InfoItem
+                label="Estoque máximo"
+                value={
+                  product.max_stock == null
+                    ? null
+                    : formatStockQuantity(product.max_stock, product.unit)
+                }
+              />
+              <InfoItem label="Localização" value={product.stock_location} />
+            </>
+          ) : (
+            <InfoItem
+              label="Estoque"
+              value="Este item não participa do controle de estoque"
+            />
+          )}
         </CardContent>
       </Card>
 

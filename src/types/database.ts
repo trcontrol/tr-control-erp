@@ -221,6 +221,8 @@ export type FinancialEntryRow = {
   document_number: string | null;
   notes: string | null;
   is_recurring: boolean;
+  source_type: string | null;
+  source_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -243,6 +245,8 @@ export type FinancialEntryInsert = {
   document_number?: string | null;
   notes?: string | null;
   is_recurring?: boolean;
+  source_type?: string | null;
+  source_id?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -319,6 +323,8 @@ export type StockMovementRow = {
   movement_date: string;
   notes: string | null;
   responsible_user_id: string | null;
+  source_type: string | null;
+  source_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -335,8 +341,117 @@ export type StockMovementInsert = {
   movement_date?: string;
   notes?: string | null;
   responsible_user_id?: string | null;
+  source_type?: string | null;
+  source_id?: string | null;
   created_at?: string;
   updated_at?: string;
+};
+
+export type PurchaseRow = {
+  id: string;
+  company_id: string;
+  supplier_id: string | null;
+  status: "draft" | "confirmed" | "cancelled" | string;
+  purchase_date: string;
+  due_date: string | null;
+  payment_method: string | null;
+  document_number: string | null;
+  notes: string | null;
+  freight_amount: number | string;
+  discount_amount: number | string;
+  items_subtotal: number | string;
+  total_amount: number | string;
+  payment_terms: string | null;
+  stock_posted: boolean;
+  finance_posted: boolean;
+  cost_posted: boolean;
+  financial_entry_id: string | null;
+  confirmed_at: string | null;
+  confirmed_by: string | null;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
+  cancelled_reason: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PurchaseInsert = {
+  id?: string;
+  company_id: string;
+  supplier_id?: string | null;
+  status?: string;
+  purchase_date?: string;
+  due_date?: string | null;
+  payment_method?: string | null;
+  document_number?: string | null;
+  notes?: string | null;
+  freight_amount?: number;
+  discount_amount?: number;
+  items_subtotal?: number;
+  total_amount?: number;
+  payment_terms?: string | null;
+  stock_posted?: boolean;
+  finance_posted?: boolean;
+  cost_posted?: boolean;
+  financial_entry_id?: string | null;
+  confirmed_at?: string | null;
+  confirmed_by?: string | null;
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
+  cancelled_reason?: string | null;
+  created_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type PurchaseUpdate = Partial<Omit<PurchaseInsert, "company_id">> & {
+  company_id?: string;
+};
+
+export type PurchaseItemRow = {
+  id: string;
+  company_id: string;
+  purchase_id: string;
+  product_id: string;
+  quantity: number | string;
+  unit_cost: number | string;
+  discount_amount: number | string;
+  line_total: number | string;
+  tracks_stock_snapshot: boolean | null;
+  stock_movement_id: string | null;
+  net_unit_cost: number | string | null;
+  cost_before: number | string | null;
+  cost_after: number | string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PurchaseItemInsert = {
+  id?: string;
+  company_id: string;
+  purchase_id: string;
+  product_id: string;
+  quantity: number;
+  unit_cost: number;
+  discount_amount?: number;
+  line_total?: number;
+  tracks_stock_snapshot?: boolean | null;
+  stock_movement_id?: string | null;
+  net_unit_cost?: number | null;
+  cost_before?: number | null;
+  cost_after?: number | null;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type PurchaseItemUpdate = Partial<
+  Omit<PurchaseItemInsert, "company_id" | "purchase_id">
+> & {
+  company_id?: string;
+  purchase_id?: string;
 };
 
 export type StockMovementUpdate = Partial<
@@ -456,6 +571,62 @@ export type Database = {
           },
         ];
       };
+      purchases: {
+        Row: PurchaseRow;
+        Insert: PurchaseInsert;
+        Update: PurchaseUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "purchases_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchases_supplier_id_fkey";
+            columns: ["supplier_id"];
+            isOneToOne: false;
+            referencedRelation: "suppliers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchases_financial_entry_id_fkey";
+            columns: ["financial_entry_id"];
+            isOneToOne: false;
+            referencedRelation: "financial_entries";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      purchase_items: {
+        Row: PurchaseItemRow;
+        Insert: PurchaseItemInsert;
+        Update: PurchaseItemUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "purchase_items_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_items_purchase_id_fkey";
+            columns: ["purchase_id"];
+            isOneToOne: false;
+            referencedRelation: "purchases";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_items_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           id: string;
@@ -524,7 +695,18 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      confirm_purchase: {
+        Args: { p_purchase_id: string };
+        Returns: PurchaseRow;
+      };
+      cancel_purchase: {
+        Args: { p_purchase_id: string; p_reason: string | null };
+        Returns: PurchaseRow;
+      };
+      recalculate_purchase_totals: {
+        Args: { p_purchase_id: string };
+        Returns: null;
+      };
     };
     Enums: {
       [_ in never]: never;
@@ -544,5 +726,7 @@ export type Supplier = Tables<"suppliers">;
 export type FinancialEntry = Tables<"financial_entries">;
 export type Product = Tables<"products">;
 export type StockMovement = Tables<"stock_movements">;
+export type Purchase = Tables<"purchases">;
+export type PurchaseItem = Tables<"purchase_items">;
 export type Profile = Tables<"profiles">;
 export type CompanyMember = Tables<"company_members">;

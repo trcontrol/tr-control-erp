@@ -23,6 +23,8 @@ export const ROUTES = {
   stockExit: "/stock/exit",
   stockAdjustment: "/stock/adjustment",
   stockInventory: "/stock/inventory",
+  purchases: "/purchases",
+  purchasesNew: "/purchases/new",
   finance: "/finance",
   financeNew: "/finance/new",
   authCallback: "/api/auth/callback",
@@ -66,6 +68,14 @@ export function stockProductHistoryPath(productId: string) {
 
 export function stockMovementDetailPath(id: string) {
   return `/stock/movements/${id}`;
+}
+
+export function purchaseDetailPath(id: string) {
+  return `/purchases/${id}`;
+}
+
+export function purchaseEditPath(id: string) {
+  return `/purchases/${id}/edit`;
 }
 
 export const PRODUCT_IMAGES_BUCKET = "product-images";
@@ -126,6 +136,21 @@ export const STOCK_ADJUSTMENT_DIRECTIONS = {
 export const STOCK_ADJUSTMENT_DIRECTION_OPTIONS = [
   { value: STOCK_ADJUSTMENT_DIRECTIONS.increase, label: "Aumentar estoque" },
   { value: STOCK_ADJUSTMENT_DIRECTIONS.decrease, label: "Diminuir estoque" },
+] as const;
+
+export const PURCHASE_STATUS = {
+  draft: "draft",
+  confirmed: "confirmed",
+  cancelled: "cancelled",
+} as const;
+
+export type PurchaseStatus =
+  (typeof PURCHASE_STATUS)[keyof typeof PURCHASE_STATUS];
+
+export const PURCHASE_STATUS_OPTIONS = [
+  { value: PURCHASE_STATUS.draft, label: "Rascunho" },
+  { value: PURCHASE_STATUS.confirmed, label: "Confirmada" },
+  { value: PURCHASE_STATUS.cancelled, label: "Cancelada" },
 ] as const;
 
 export const PRODUCT_UNITS = [

@@ -29,6 +29,7 @@ export const ROUTES = {
   salesNew: "/sales/new",
   finance: "/finance",
   financeNew: "/finance/new",
+  cashFlow: "/cash-flow",
   authCallback: "/api/auth/callback",
 } as const;
 
@@ -260,6 +261,63 @@ export const PAYMENT_METHODS = [
   { value: "cash", label: "Dinheiro" },
   { value: "check", label: "Cheque" },
   { value: "other", label: "Outro" },
+] as const;
+
+export const CASH_FLOW_MODES = {
+  realized: "realized",
+  projected: "projected",
+} as const;
+
+export type CashFlowMode =
+  (typeof CASH_FLOW_MODES)[keyof typeof CASH_FLOW_MODES];
+
+export const CASH_FLOW_MODE_OPTIONS = [
+  { value: CASH_FLOW_MODES.realized, label: "Realizado" },
+  { value: CASH_FLOW_MODES.projected, label: "Projetado" },
+] as const;
+
+export const CASH_FLOW_DIRECTIONS = {
+  all: "all",
+  inflow: "inflow",
+  outflow: "outflow",
+} as const;
+
+export const CASH_FLOW_DIRECTION_OPTIONS = [
+  { value: CASH_FLOW_DIRECTIONS.all, label: "Entradas e saídas" },
+  { value: CASH_FLOW_DIRECTIONS.inflow, label: "Entradas" },
+  { value: CASH_FLOW_DIRECTIONS.outflow, label: "Saídas" },
+] as const;
+
+export const CASH_FLOW_ORIGINS = {
+  sale: "sale",
+  purchase: "purchase",
+  manual: "manual",
+  other: "other",
+} as const;
+
+export type CashFlowOrigin =
+  (typeof CASH_FLOW_ORIGINS)[keyof typeof CASH_FLOW_ORIGINS];
+
+export const CASH_FLOW_ORIGIN_OPTIONS = [
+  { value: CASH_FLOW_ORIGINS.sale, label: "Venda" },
+  { value: CASH_FLOW_ORIGINS.purchase, label: "Compra" },
+  { value: CASH_FLOW_ORIGINS.manual, label: "Lançamento manual" },
+  { value: CASH_FLOW_ORIGINS.other, label: "Outro" },
+] as const;
+
+export const CASH_FLOW_GRAINS = {
+  day: "day",
+  week: "week",
+  month: "month",
+} as const;
+
+export type CashFlowGrain =
+  (typeof CASH_FLOW_GRAINS)[keyof typeof CASH_FLOW_GRAINS];
+
+export const CASH_FLOW_GRAIN_OPTIONS = [
+  { value: CASH_FLOW_GRAINS.day, label: "Diária" },
+  { value: CASH_FLOW_GRAINS.week, label: "Semanal" },
+  { value: CASH_FLOW_GRAINS.month, label: "Mensal" },
 ] as const;
 
 export const PERSON_TYPES = {

@@ -202,6 +202,7 @@ export function FinanceForm({ mode, entry, defaultType }: FinanceFormProps) {
       document_number: form.document_number.trim() || null,
       notes: form.notes.trim() || null,
       is_recurring: form.is_recurring === "yes",
+      ...(mode === "create" ? { source_type: "manual" } : {}),
     };
 
     try {

@@ -223,6 +223,9 @@ export type FinancialEntryRow = {
   is_recurring: boolean;
   source_type: string | null;
   source_id: string | null;
+  bank_account_id: string | null;
+  is_reconciled: boolean;
+  reconciled_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -247,8 +250,56 @@ export type FinancialEntryInsert = {
   is_recurring?: boolean;
   source_type?: string | null;
   source_id?: string | null;
+  bank_account_id?: string | null;
+  is_reconciled?: boolean;
+  reconciled_at?: string | null;
   created_at?: string;
   updated_at?: string;
+};
+
+export type CashFlowDashboard = {
+  as_of: string;
+  mode: "realized" | "projected" | string;
+  grain: "day" | "week" | "month" | string;
+  period_from: string;
+  period_to: string;
+  kpis: {
+    current_balance: number | string;
+    realized_inflows: number | string;
+    realized_outflows: number | string;
+    period_balance: number | string;
+    open_receivables: number | string;
+    open_payables: number | string;
+    realized_opening_balance: number | string;
+    projected_opening_balance: number | string;
+  };
+  series: Array<{
+    bucket: string;
+    realized_inflows: number | string;
+    realized_outflows: number | string;
+    realized_net: number | string;
+    projected_inflows: number | string;
+    projected_outflows: number | string;
+    projected_net: number | string;
+    realized_balance: number | string;
+    projected_balance: number | string;
+  }>;
+  movements: Array<{
+    id: string;
+    flow_date: string;
+    date_is_estimated: boolean;
+    description: string;
+    category: string | null;
+    origin: string;
+    payment_method: string | null;
+    inflow: number | string;
+    outflow: number | string;
+    running_balance: number | string;
+    status: string;
+    entry_type: string;
+    party_name: string | null;
+    source_id: string | null;
+  }>;
 };
 
 export type FinancialEntryUpdate = Partial<
@@ -849,7 +900,41 @@ export type Database = {
       };
     };
     Views: {
-      [_ in never]: never;
+      cash_flow_entries: {
+        Row: {
+          id: string;
+          company_id: string;
+          customer_id: string | null;
+          supplier_id: string | null;
+          entry_type: string;
+          description: string;
+          category: string | null;
+          party_name: string | null;
+          amount: number | string;
+          issue_date: string;
+          due_date: string;
+          payment_date: string | null;
+          status: string;
+          payment_method: string | null;
+          document_number: string | null;
+          notes: string | null;
+          source_type: string | null;
+          source_id: string | null;
+          bank_account_id: string | null;
+          is_reconciled: boolean;
+          reconciled_at: string | null;
+          created_at: string;
+          updated_at: string;
+          flow_mode: string;
+          flow_date: string | null;
+          date_is_estimated: boolean;
+          inflow_amount: number | string;
+          outflow_amount: number | string;
+          signed_amount: number | string;
+          origin_key: string;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       confirm_purchase: {
@@ -875,6 +960,33 @@ export type Database = {
       recalculate_sale_totals: {
         Args: { p_sale_id: string };
         Returns: null;
+      };
+      get_cash_flow_dashboard: {
+        Args: {
+          p_company_id: string;
+          p_period_from: string;
+          p_period_to: string;
+          p_mode?: string;
+          p_direction?: string | null;
+          p_status?: string | null;
+          p_category?: string | null;
+          p_payment_method?: string | null;
+          p_origin?: string | null;
+          p_grain?: string;
+        };
+        Returns: CashFlowDashboard;
+      };
+      cash_flow_origin_key: {
+        Args: { p_source_type: string | null };
+        Returns: string;
+      };
+      cash_flow_realized_date: {
+        Args: {
+          p_payment_date: string | null;
+          p_due_date: string | null;
+          p_issue_date: string | null;
+        };
+        Returns: string;
       };
     };
     Enums: {

@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Package,
   Settings,
+  ArrowLeftRight,
   ShoppingBag,
   ShoppingCart,
   Truck,
@@ -28,6 +29,7 @@ const navigation = [
   { name: "Compras", href: ROUTES.purchases, icon: ShoppingCart },
   { name: "Vendas", href: ROUTES.sales, icon: ShoppingBag },
   { name: "Financeiro", href: ROUTES.finance, icon: Wallet },
+  { name: "Fluxo de Caixa", href: ROUTES.cashFlow, icon: ArrowLeftRight },
   { name: "Usuários", href: "/users", icon: Users },
   { name: "Configurações", href: "/settings", icon: Settings },
 ];

@@ -123,7 +123,10 @@ export async function createFinancialEntry(
   const supabase = createClient();
   const { data, error } = await supabase
     .from("financial_entries")
-    .insert(payload as never)
+    .insert({
+      ...payload,
+      source_type: payload.source_type || "manual",
+    } as never)
     .select("*")
     .single();
 

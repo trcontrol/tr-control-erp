@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
-  Package,
   Scale,
   ShoppingBag,
   ShoppingCart,
@@ -27,7 +26,6 @@ type ExecutiveKpiGridProps = {
   showFinance?: boolean;
   showSales?: boolean;
   showPurchases?: boolean;
-  showStock?: boolean;
 };
 
 function KpiCard({
@@ -36,40 +34,44 @@ function KpiCard({
   hint,
   icon: Icon,
   tone = "default",
-  format = "currency",
 }: {
   title: string;
   value: number;
   hint: string;
   icon: React.ComponentType<{ className?: string }>;
   tone?: "default" | "positive" | "negative" | "warning";
-  format?: "currency" | "integer";
 }) {
   return (
     <Card
       className={cn(
-        tone === "warning" && "border-rose-200 bg-rose-50/40 dark:bg-rose-950/20"
+        "border-[var(--brand-navy)]/10 shadow-sm",
+        tone === "warning" &&
+          "border-[var(--brand-coral)]/30 bg-[var(--brand-coral)]/5"
       )}
     >
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium text-[var(--brand-navy)]">
+          {title}
+        </CardTitle>
         <Icon
           className={cn(
             "h-4 w-4 text-muted-foreground",
-            tone === "warning" && "text-rose-600"
+            tone === "warning" && "text-[var(--brand-coral)]",
+            tone === "positive" && "text-emerald-600",
+            tone === "negative" && "text-[var(--brand-coral)]"
           )}
         />
       </CardHeader>
       <CardContent>
         <div
           className={cn(
-            "text-2xl font-bold",
+            "text-2xl font-bold text-[var(--brand-navy)]",
             tone === "positive" && "text-emerald-700",
-            tone === "negative" && "text-rose-700",
-            tone === "warning" && "text-rose-700"
+            tone === "negative" && "text-[var(--brand-coral)]",
+            tone === "warning" && "text-[var(--brand-coral)]"
           )}
         >
-          {format === "integer" ? value.toLocaleString("pt-BR") : formatCurrency(value)}
+          {formatCurrency(value)}
         </div>
         <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
       </CardContent>
@@ -82,7 +84,6 @@ export function ExecutiveKpiGrid({
   showFinance = true,
   showSales = true,
   showPurchases = true,
-  showStock = true,
 }: ExecutiveKpiGridProps) {
   const monthResult = toNumberAmount(kpis.month_result);
   const overdueTotal = toNumberAmount(kpis.overdue_total);
@@ -135,14 +136,14 @@ export function ExecutiveKpiGrid({
           />
           <Card
             className={cn(
-              "sm:col-span-2",
+              "border-[var(--brand-navy)]/10 shadow-sm sm:col-span-2",
               overdueTotal > 0 &&
-                "border-rose-200 bg-rose-50/40 dark:bg-rose-950/20"
+                "border-[var(--brand-coral)]/30 bg-[var(--brand-coral)]/5"
             )}
           >
             <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
               <div>
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-sm font-medium text-[var(--brand-navy)]">
                   Valores vencidos
                 </CardTitle>
                 <CardDescription className="mt-1">
@@ -152,7 +153,7 @@ export function ExecutiveKpiGrid({
               <AlertTriangle
                 className={cn(
                   "h-4 w-4 text-muted-foreground",
-                  overdueTotal > 0 && "text-rose-600"
+                  overdueTotal > 0 && "text-[var(--brand-coral)]"
                 )}
               />
             </CardHeader>
@@ -161,8 +162,8 @@ export function ExecutiveKpiGrid({
                 <p className="text-xs text-muted-foreground">Total vencido</p>
                 <p
                   className={cn(
-                    "text-xl font-bold",
-                    overdueTotal > 0 && "text-rose-700"
+                    "text-xl font-bold text-[var(--brand-navy)]",
+                    overdueTotal > 0 && "text-[var(--brand-coral)]"
                   )}
                 >
                   {formatCurrency(overdueTotal)}
@@ -170,13 +171,13 @@ export function ExecutiveKpiGrid({
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Vencido a receber</p>
-                <p className="text-xl font-bold">
+                <p className="text-xl font-bold text-[var(--brand-navy)]">
                   {formatCurrency(toNumberAmount(kpis.overdue_receivables))}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Vencido a pagar</p>
-                <p className="text-xl font-bold">
+                <p className="text-xl font-bold text-[var(--brand-navy)]">
                   {formatCurrency(toNumberAmount(kpis.overdue_payables))}
                 </p>
               </div>
@@ -185,8 +186,8 @@ export function ExecutiveKpiGrid({
         </div>
       ) : null}
 
-      {(showSales || showPurchases || showStock) && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {(showSales || showPurchases) && (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {showSales ? (
             <>
               <KpiCard
@@ -210,28 +211,6 @@ export function ExecutiveKpiGrid({
               hint={`${toNumberAmount(kpis.confirmed_purchases_count)} compra(s) confirmada(s)`}
               icon={ShoppingCart}
             />
-          ) : null}
-          {showStock ? (
-            <>
-              <KpiCard
-                title="Valor do estoque"
-                value={toNumberAmount(kpis.stock_value)}
-                hint="Custo × saldo dos itens com controle"
-                icon={Package}
-              />
-              <KpiCard
-                title="Abaixo do mínimo"
-                value={toNumberAmount(kpis.low_stock_count)}
-                hint="Produtos ativos com controle de estoque"
-                icon={AlertTriangle}
-                format="integer"
-                tone={
-                  toNumberAmount(kpis.low_stock_count) > 0
-                    ? "warning"
-                    : "default"
-                }
-              />
-            </>
           ) : null}
         </div>
       )}

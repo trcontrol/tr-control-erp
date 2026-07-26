@@ -323,6 +323,7 @@ export type ExecutiveDashboard = {
     average_ticket: number | string;
     stock_value: number | string;
     low_stock_count: number | string;
+    tracked_products_count: number | string;
   };
   cash_flow_series: Array<{
     bucket: string;
@@ -371,6 +372,15 @@ export type ExecutiveDashboard = {
     unit: string | null;
     current_stock: number | string;
     min_stock: number | string;
+  }>;
+  recent_financial_activities: Array<{
+    id: string;
+    type: "entrada" | "saida" | string;
+    description: string;
+    amount: number | string;
+    status: string;
+    date: string;
+    origin: string;
   }>;
 };
 

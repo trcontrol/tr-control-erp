@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { Header } from "@/components/layout/header";
-import { Sidebar } from "@/components/layout/sidebar";
+import { AppShell } from "@/components/layout/app-shell";
 import { getSession, getUserCompanies } from "@/lib/auth/session";
 import { TenantProvider } from "@/providers/tenant-provider";
 import { ROUTES } from "@/lib/constants";
@@ -20,11 +19,10 @@ export default async function DashboardLayout({
 
   return (
     <TenantProvider companies={companies} loadError={error}>
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <div className="flex flex-1 flex-col">
-          <Header userEmail={user.email} />
-          {error ? (
+      <AppShell
+        userEmail={user.email}
+        banner={
+          error ? (
             <div className="border-b border-destructive/30 bg-destructive/10 px-6 py-3 text-sm text-destructive">
               <p className="font-medium">Erro ao carregar empresas</p>
               <p className="mt-1">{error}</p>
@@ -35,10 +33,11 @@ export default async function DashboardLayout({
                 {debug.memberCompanyIds.join(", ") || "—"}
               </p>
             </div>
-          ) : null}
-          <main className="flex-1 overflow-auto p-6">{children}</main>
-        </div>
-      </div>
+          ) : null
+        }
+      >
+        {children}
+      </AppShell>
     </TenantProvider>
   );
 }

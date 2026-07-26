@@ -10,10 +10,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ExecutiveCashFlowChart } from "@/components/dashboard/executive-cash-flow-chart";
+import { ExecutiveFinancialDonut } from "@/components/dashboard/executive-financial-donut";
 import { ExecutiveKpiGrid } from "@/components/dashboard/executive-kpi-grid";
 import { ExecutiveLists } from "@/components/dashboard/executive-lists";
 import { ExecutiveQuickActions } from "@/components/dashboard/executive-quick-actions";
+import { ExecutiveRecentActivities } from "@/components/dashboard/executive-recent-activities";
 import { ExecutiveSalesChart } from "@/components/dashboard/executive-sales-chart";
+import { ExecutiveStockSummary } from "@/components/dashboard/executive-stock-summary";
 import { getExecutiveDashboard } from "@/lib/dashboard/actions";
 import {
   canViewDashboardSection,
@@ -116,13 +119,26 @@ export function ExecutiveDashboardBoard() {
         showFinance={capabilities.finance}
         showSales={capabilities.sales}
         showPurchases={capabilities.purchases}
-        showStock={capabilities.stock}
       />
 
       {(capabilities.finance || capabilities.sales) && (
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div className="grid gap-6 xl:grid-cols-3">
           {capabilities.finance ? (
-            <Card>
+            <Card className="border-[var(--brand-navy)]/10 shadow-sm">
+              <CardHeader>
+                <CardTitle>Composição financeira</CardTitle>
+                <CardDescription>
+                  Entradas versus saídas realizadas no mês
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ExecutiveFinancialDonut kpis={dashboard.kpis} />
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {capabilities.finance ? (
+            <Card className="border-[var(--brand-navy)]/10 shadow-sm xl:col-span-1">
               <CardHeader>
                 <CardTitle>Entradas e saídas do mês</CardTitle>
                 <CardDescription>
@@ -136,7 +152,7 @@ export function ExecutiveDashboardBoard() {
           ) : null}
 
           {capabilities.sales ? (
-            <Card>
+            <Card className="border-[var(--brand-navy)]/10 shadow-sm">
               <CardHeader>
                 <CardTitle>Evolução das vendas</CardTitle>
                 <CardDescription>
@@ -147,6 +163,19 @@ export function ExecutiveDashboardBoard() {
                 <ExecutiveSalesChart series={dashboard.sales_series} />
               </CardContent>
             </Card>
+          ) : null}
+        </div>
+      )}
+
+      {(capabilities.finance || capabilities.stock) && (
+        <div className="grid gap-6 xl:grid-cols-2">
+          {capabilities.finance ? (
+            <ExecutiveRecentActivities
+              activities={dashboard.recent_financial_activities}
+            />
+          ) : null}
+          {capabilities.stock ? (
+            <ExecutiveStockSummary kpis={dashboard.kpis} />
           ) : null}
         </div>
       )}

@@ -20,27 +20,28 @@ function toCount(value: number | string | null | undefined) {
 export function normalizeExecutiveDashboard(
   raw: ExecutiveDashboard
 ): ExecutiveDashboard {
+  const kpis = raw.kpis ?? ({} as ExecutiveDashboard["kpis"]);
+
   return {
     ...raw,
     kpis: {
-      current_balance: toNumberAmount(raw.kpis.current_balance),
-      month_inflows: toNumberAmount(raw.kpis.month_inflows),
-      month_outflows: toNumberAmount(raw.kpis.month_outflows),
-      month_result: toNumberAmount(raw.kpis.month_result),
-      open_receivables: toNumberAmount(raw.kpis.open_receivables),
-      open_payables: toNumberAmount(raw.kpis.open_payables),
-      overdue_total: toNumberAmount(raw.kpis.overdue_total),
-      overdue_receivables: toNumberAmount(raw.kpis.overdue_receivables),
-      overdue_payables: toNumberAmount(raw.kpis.overdue_payables),
-      confirmed_sales_total: toNumberAmount(raw.kpis.confirmed_sales_total),
-      confirmed_sales_count: toCount(raw.kpis.confirmed_sales_count),
-      confirmed_purchases_total: toNumberAmount(
-        raw.kpis.confirmed_purchases_total
-      ),
-      confirmed_purchases_count: toCount(raw.kpis.confirmed_purchases_count),
-      average_ticket: toNumberAmount(raw.kpis.average_ticket),
-      stock_value: toNumberAmount(raw.kpis.stock_value),
-      low_stock_count: toCount(raw.kpis.low_stock_count),
+      current_balance: toNumberAmount(kpis.current_balance),
+      month_inflows: toNumberAmount(kpis.month_inflows),
+      month_outflows: toNumberAmount(kpis.month_outflows),
+      month_result: toNumberAmount(kpis.month_result),
+      open_receivables: toNumberAmount(kpis.open_receivables),
+      open_payables: toNumberAmount(kpis.open_payables),
+      overdue_total: toNumberAmount(kpis.overdue_total),
+      overdue_receivables: toNumberAmount(kpis.overdue_receivables),
+      overdue_payables: toNumberAmount(kpis.overdue_payables),
+      confirmed_sales_total: toNumberAmount(kpis.confirmed_sales_total),
+      confirmed_sales_count: toCount(kpis.confirmed_sales_count),
+      confirmed_purchases_total: toNumberAmount(kpis.confirmed_purchases_total),
+      confirmed_purchases_count: toCount(kpis.confirmed_purchases_count),
+      average_ticket: toNumberAmount(kpis.average_ticket),
+      stock_value: toNumberAmount(kpis.stock_value),
+      low_stock_count: toCount(kpis.low_stock_count),
+      tracked_products_count: toCount(kpis.tracked_products_count),
     },
     cash_flow_series: (raw.cash_flow_series ?? []).map((point) => ({
       ...point,
@@ -73,6 +74,17 @@ export function normalizeExecutiveDashboard(
       current_stock: toNumberAmount(row.current_stock),
       min_stock: toNumberAmount(row.min_stock),
     })),
+    recent_financial_activities: (raw.recent_financial_activities ?? []).map(
+      (row) => ({
+        ...row,
+        type: row.type === "entrada" ? "entrada" : "saida",
+        description: row.description ?? "",
+        amount: toNumberAmount(row.amount),
+        status: row.status ?? "",
+        date: row.date ?? "",
+        origin: row.origin ?? "manual",
+      })
+    ),
   };
 }
 

@@ -45,9 +45,14 @@ export function ExecutiveQuickActions() {
       {actions.map((action) => {
         const Icon = action.icon;
         return (
-          <Button key={action.href} asChild variant="outline">
+          <Button
+            key={action.href}
+            asChild
+            variant="outline"
+            className="border-[var(--brand-navy)]/15 bg-white text-[var(--brand-navy)] hover:border-[var(--brand-gold)] hover:bg-[var(--brand-gold)]/10"
+          >
             <Link href={action.href}>
-              <Icon className="h-4 w-4" />
+              <Icon className="h-4 w-4 text-[var(--brand-coral)]" />
               {action.label}
             </Link>
           </Button>

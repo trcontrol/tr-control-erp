@@ -1,6 +1,16 @@
 "use client";
 
 import { useMemo } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import type { ExecutiveDashboard } from "@/types/database";
 import {
   formatCurrency,
@@ -10,134 +20,132 @@ import {
 
 type ExecutiveSalesChartProps = {
   series: ExecutiveDashboard["sales_series"];
+  averageTicket?: number | string;
 };
 
-export function ExecutiveSalesChart({ series }: ExecutiveSalesChartProps) {
-  const chart = useMemo(() => {
-    const width = 720;
-    const height = 240;
-    const padding = { top: 16, right: 16, bottom: 36, left: 56 };
-    const innerWidth = width - padding.left - padding.right;
-    const innerHeight = height - padding.top - padding.bottom;
+type SalesPoint = {
+  bucket: string;
+  label: string;
+  total: number;
+  count: number;
+  isCurrent: boolean;
+};
 
-    if (series.length === 0) return null;
+function formatCompactCurrency(value: number) {
+  if (Math.abs(value) >= 1_000_000) {
+    return `R$ ${(value / 1_000_000).toLocaleString("pt-BR", {
+      maximumFractionDigits: 1,
+    })}M`;
+  }
+  if (Math.abs(value) >= 1_000) {
+    return `R$ ${(value / 1_000).toLocaleString("pt-BR", {
+      maximumFractionDigits: 0,
+    })}k`;
+  }
+  return formatCurrency(value);
+}
 
-    const totals = series.map((point) => toNumberAmount(point.total));
-    const maxValue = Math.max(...totals, 0);
-    const span = maxValue || 1;
-    const barGroupWidth = innerWidth / series.length;
-    const barWidth = Math.max(12, Math.min(36, barGroupWidth * 0.55));
+function isCurrentMonthBucket(bucket: string) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return bucket.startsWith(`${year}-${month}`);
+}
 
-    const yFor = (value: number) =>
-      padding.top + ((maxValue - value) / span) * innerHeight;
-
-    return {
-      width,
-      height,
-      bars: series.map((point, index) => {
-        const total = totals[index];
-        const x =
-          padding.left + index * barGroupWidth + (barGroupWidth - barWidth) / 2;
-        const y = yFor(total);
-        return {
-          key: point.bucket,
-          x,
-          y,
-          height: Math.max(0, yFor(0) - y),
-          width: barWidth,
-          label: monthBucketLabel(point.bucket),
-          labelX: padding.left + index * barGroupWidth + barGroupWidth / 2,
-          total,
-          count: toNumberAmount(point.count),
-        };
-      }),
-      yTicks: [maxValue, maxValue / 2, 0].map((value) => ({
-        value,
-        y: yFor(value),
+export function ExecutiveSalesChart({
+  series,
+  averageTicket,
+}: ExecutiveSalesChartProps) {
+  const data = useMemo<SalesPoint[]>(
+    () =>
+      series.map((point) => ({
+        bucket: point.bucket,
+        label: monthBucketLabel(point.bucket),
+        total: toNumberAmount(point.total),
+        count: toNumberAmount(point.count),
+        isCurrent: isCurrentMonthBucket(point.bucket),
       })),
-      zeroY: yFor(0),
-      periodTotal: totals.reduce((sum, value) => sum + value, 0),
-    };
-  }, [series]);
+    [series]
+  );
 
-  if (!chart) {
+  const periodTotal = useMemo(
+    () => data.reduce((sum, point) => sum + point.total, 0),
+    [data]
+  );
+
+  if (!data.length) {
     return (
-      <div className="flex h-60 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+      <div className="flex h-[260px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
         Sem vendas confirmadas nos últimos 6 meses.
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <div className="text-xs text-muted-foreground">
-        Total no período: {formatCurrency(chart.periodTotal)}
+    <div className="w-full min-w-0 space-y-3 overflow-hidden">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span>Total no período: {formatCurrency(periodTotal)}</span>
+        {averageTicket !== undefined ? (
+          <span>
+            Ticket médio do mês:{" "}
+            {formatCurrency(toNumberAmount(averageTicket))}
+          </span>
+        ) : null}
       </div>
 
-      <div className="w-full overflow-x-auto">
-        <svg
-          viewBox={`0 0 ${chart.width} ${chart.height}`}
-          className="h-60 w-full min-w-[420px]"
-          role="img"
-          aria-label="Evolução mensal das vendas nos últimos 6 meses"
-        >
-          <line
-            x1={56}
-            y1={chart.zeroY}
-            x2={704}
-            y2={chart.zeroY}
-            className="stroke-border"
-            strokeWidth={1}
-          />
-
-          {chart.yTicks.map((tick) => (
-            <g key={`y-${tick.value}`}>
-              <line
-                x1={56}
-                y1={tick.y}
-                x2={704}
-                y2={tick.y}
-                className="stroke-muted"
-                strokeDasharray="4 4"
-                strokeWidth={1}
-              />
-              <text
-                x={50}
-                y={tick.y + 4}
-                textAnchor="end"
-                className="fill-muted-foreground text-[10px]"
-              >
-                {formatCurrency(tick.value)}
-              </text>
-            </g>
-          ))}
-
-          {chart.bars.map((bar) => (
-            <g key={bar.key}>
-              <rect
-                x={bar.x}
-                y={bar.y}
-                width={bar.width}
-                height={bar.height}
-                className="fill-sky-700"
-                rx={2}
-              >
-                <title>
-                  {bar.label}: {formatCurrency(bar.total)} ({bar.count} venda
-                  {bar.count === 1 ? "" : "s"})
-                </title>
-              </rect>
-              <text
-                x={bar.labelX}
-                y={chart.height - 10}
-                textAnchor="middle"
-                className="fill-muted-foreground text-[10px]"
-              >
-                {bar.label}
-              </text>
-            </g>
-          ))}
-        </svg>
+      <div className="h-[260px] w-full min-w-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={data}
+            margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+            barCategoryGap="22%"
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              vertical={false}
+              stroke="var(--border)"
+            />
+            <XAxis
+              dataKey="label"
+              tickLine={false}
+              axisLine={false}
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+            />
+            <YAxis
+              width={56}
+              tickLine={false}
+              axisLine={false}
+              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+              tickFormatter={(value: number) => formatCompactCurrency(value)}
+            />
+            <Tooltip
+              cursor={{ fill: "rgb(11 31 58 / 4%)" }}
+              contentStyle={{
+                borderRadius: 8,
+                border: "1px solid rgb(11 31 58 / 12%)",
+                fontSize: 12,
+              }}
+              formatter={(value, _name, item) => {
+                const count = Number(
+                  (item?.payload as SalesPoint | undefined)?.count ?? 0
+                );
+                return [
+                  `${formatCurrency(Number(value ?? 0))} (${count} venda${count === 1 ? "" : "s"})`,
+                  "Total",
+                ];
+              }}
+              labelFormatter={(label) => String(label)}
+            />
+            <Bar dataKey="total" radius={[3, 3, 0, 0]} maxBarSize={42}>
+              {data.map((point) => (
+                <Cell
+                  key={point.bucket}
+                  fill={point.isCurrent ? "var(--brand-coral)" : "#0f4c81"}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );

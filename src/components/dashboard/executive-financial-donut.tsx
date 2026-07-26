@@ -8,43 +8,99 @@ type ExecutiveFinancialDonutProps = {
   kpis: ExecutiveDashboard["kpis"];
 };
 
+type Segment = {
+  key: string;
+  label: string;
+  value: number;
+  color: string;
+};
+
+function participationPercent(value: number, total: number) {
+  if (total <= 0) return "0%";
+  return `${((value / total) * 100).toLocaleString("pt-BR", {
+    maximumFractionDigits: 1,
+    minimumFractionDigits: 0,
+  })}%`;
+}
+
 export function ExecutiveFinancialDonut({
   kpis,
 }: ExecutiveFinancialDonutProps) {
   const chart = useMemo(() => {
-    const inflows = toNumberAmount(kpis.month_inflows);
-    const outflows = toNumberAmount(kpis.month_outflows);
-    const total = inflows + outflows;
+    const segments: Segment[] = [
+      {
+        key: "received",
+        label: "Recebido",
+        value: toNumberAmount(kpis.month_inflows),
+        color: "#0f766e",
+      },
+      {
+        key: "receivable",
+        label: "A receber",
+        value: toNumberAmount(kpis.open_receivables),
+        color: "#38bdf8",
+      },
+      {
+        key: "paid",
+        label: "Pago",
+        value: toNumberAmount(kpis.month_outflows),
+        color: "var(--brand-coral)",
+      },
+      {
+        key: "payable",
+        label: "A pagar",
+        value: toNumberAmount(kpis.open_payables),
+        color: "#c9a227",
+      },
+      {
+        key: "overdue",
+        label: "Em atraso",
+        value: toNumberAmount(kpis.overdue_total),
+        color: "#b91c1c",
+      },
+    ];
 
-    if (total <= 0) {
-      return null;
-    }
+    const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+    if (total <= 0) return null;
 
-    const size = 180;
-    const stroke = 22;
+    const size = 168;
+    const stroke = 24;
     const radius = (size - stroke) / 2;
     const circumference = 2 * Math.PI * radius;
-    const inflowLength = (inflows / total) * circumference;
-    const outflowLength = (outflows / total) * circumference;
+
+    let offset = circumference * 0.25;
+    const arcs = segments
+      .filter((segment) => segment.value > 0)
+      .map((segment) => {
+        const length = (segment.value / total) * circumference;
+        const arc = {
+          ...segment,
+          dasharray: `${length} ${circumference - length}`,
+          dashoffset: offset,
+        };
+        offset -= length;
+        return arc;
+      });
 
     return {
       size,
       stroke,
       radius,
       circumference,
-      inflows,
-      outflows,
+      segments,
+      arcs,
       total,
-      inflowLength,
-      outflowLength,
       result: toNumberAmount(kpis.month_result),
+      received: toNumberAmount(kpis.month_inflows),
+      openReceivables: toNumberAmount(kpis.open_receivables),
+      overdue: toNumberAmount(kpis.overdue_total),
     };
-  }, [kpis.month_inflows, kpis.month_outflows, kpis.month_result]);
+  }, [kpis]);
 
   if (!chart) {
     return (
-      <div className="flex h-60 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
-        Sem entradas ou saídas realizadas no mês para o gráfico.
+      <div className="flex h-[280px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+        Sem composição financeira para exibir no mês.
       </div>
     );
   }
@@ -52,80 +108,104 @@ export function ExecutiveFinancialDonut({
   const center = chart.size / 2;
 
   return (
-    <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="relative">
-        <svg
-          width={chart.size}
-          height={chart.size}
-          viewBox={`0 0 ${chart.size} ${chart.size}`}
-          role="img"
-          aria-label="Distribuição de entradas e saídas do mês"
-        >
-          <circle
-            cx={center}
-            cy={center}
-            r={chart.radius}
-            fill="none"
-            stroke="currentColor"
-            className="text-muted/40"
-            strokeWidth={chart.stroke}
-          />
-          <circle
-            cx={center}
-            cy={center}
-            r={chart.radius}
-            fill="none"
-            stroke="#0f766e"
-            strokeWidth={chart.stroke}
-            strokeDasharray={`${chart.inflowLength} ${chart.circumference - chart.inflowLength}`}
-            strokeDashoffset={chart.circumference * 0.25}
-            strokeLinecap="butt"
-          />
-          <circle
-            cx={center}
-            cy={center}
-            r={chart.radius}
-            fill="none"
-            stroke="var(--brand-coral)"
-            strokeWidth={chart.stroke}
-            strokeDasharray={`${chart.outflowLength} ${chart.circumference - chart.outflowLength}`}
-            strokeDashoffset={
-              chart.circumference * 0.25 - chart.inflowLength
-            }
-            strokeLinecap="butt"
-          />
-        </svg>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-[11px] text-muted-foreground">Resultado</span>
-          <span
-            className={
-              chart.result >= 0
-                ? "text-sm font-semibold text-emerald-700"
-                : "text-sm font-semibold text-[var(--brand-coral)]"
-            }
+    <div className="flex h-full min-h-[280px] flex-col gap-4">
+      <div className="flex flex-1 flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative shrink-0">
+          <svg
+            width={chart.size}
+            height={chart.size}
+            viewBox={`0 0 ${chart.size} ${chart.size}`}
+            role="img"
+            aria-label="Composição financeira do mês"
           >
-            {formatCurrency(chart.result)}
-          </span>
+            <circle
+              cx={center}
+              cy={center}
+              r={chart.radius}
+              fill="none"
+              stroke="currentColor"
+              className="text-muted/30"
+              strokeWidth={chart.stroke}
+            />
+            {chart.arcs.map((arc) => (
+              <circle
+                key={arc.key}
+                cx={center}
+                cy={center}
+                r={chart.radius}
+                fill="none"
+                stroke={arc.color}
+                strokeWidth={chart.stroke}
+                strokeDasharray={arc.dasharray}
+                strokeDashoffset={arc.dashoffset}
+                strokeLinecap="butt"
+              />
+            ))}
+          </svg>
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
+            <span className="text-[11px] text-muted-foreground">Resultado</span>
+            <span
+              className={
+                chart.result >= 0
+                  ? "text-sm font-semibold text-emerald-700"
+                  : "text-sm font-semibold text-[var(--brand-coral)]"
+              }
+            >
+              {formatCurrency(chart.result)}
+            </span>
+          </div>
+        </div>
+
+        <div className="w-full space-y-2 text-sm sm:max-w-[220px]">
+          {chart.segments.map((segment) => (
+            <div
+              key={segment.key}
+              className="flex items-center justify-between gap-3"
+            >
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                  style={{ backgroundColor: segment.color }}
+                />
+                <span className="truncate">{segment.label}</span>
+              </span>
+              <span className="shrink-0 text-right text-xs">
+                <span className="block font-medium text-[var(--brand-navy)]">
+                  {formatCurrency(segment.value)}
+                </span>
+                <span className="text-muted-foreground">
+                  {participationPercent(segment.value, chart.total)}
+                </span>
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="w-full space-y-3 text-sm sm:max-w-[220px]">
-        <div className="flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-sm bg-emerald-700" />
-            Entradas
-          </span>
-          <span className="font-medium">{formatCurrency(chart.inflows)}</span>
+      <div className="grid grid-cols-3 gap-2 rounded-lg bg-[var(--brand-navy)] px-3 py-2.5 text-white">
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-white/65">
+            Recebido
+          </p>
+          <p className="mt-0.5 text-xs font-semibold sm:text-sm">
+            {formatCurrency(chart.received)}
+          </p>
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-sm bg-[var(--brand-coral)]" />
-            Saídas
-          </span>
-          <span className="font-medium">{formatCurrency(chart.outflows)}</span>
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-white/65">
+            A receber
+          </p>
+          <p className="mt-0.5 text-xs font-semibold sm:text-sm">
+            {formatCurrency(chart.openReceivables)}
+          </p>
         </div>
-        <div className="border-t pt-2 text-xs text-muted-foreground">
-          Total movimentado: {formatCurrency(chart.total)}
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-white/65">
+            Em atraso
+          </p>
+          <p className="mt-0.5 text-xs font-semibold text-[var(--brand-gold-soft)] sm:text-sm">
+            {formatCurrency(chart.overdue)}
+          </p>
         </div>
       </div>
     </div>

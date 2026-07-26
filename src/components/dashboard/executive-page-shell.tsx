@@ -25,12 +25,12 @@ export function ExecutivePageShell({
   const { company } = useTenant();
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-4">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--brand-navy)]">
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--brand-navy)] md:text-3xl">
           {title}
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground md:text-base">
           {description}
           {company ? ` — ${company.name}` : ""}
         </p>

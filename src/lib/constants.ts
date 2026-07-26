@@ -25,6 +25,8 @@ export const ROUTES = {
   stockInventory: "/stock/inventory",
   purchases: "/purchases",
   purchasesNew: "/purchases/new",
+  sales: "/sales",
+  salesNew: "/sales/new",
   finance: "/finance",
   financeNew: "/finance/new",
   authCallback: "/api/auth/callback",
@@ -76,6 +78,14 @@ export function purchaseDetailPath(id: string) {
 
 export function purchaseEditPath(id: string) {
   return `/purchases/${id}/edit`;
+}
+
+export function saleDetailPath(id: string) {
+  return `/sales/${id}`;
+}
+
+export function saleEditPath(id: string) {
+  return `/sales/${id}/edit`;
 }
 
 export const PRODUCT_IMAGES_BUCKET = "product-images";
@@ -151,6 +161,20 @@ export const PURCHASE_STATUS_OPTIONS = [
   { value: PURCHASE_STATUS.draft, label: "Rascunho" },
   { value: PURCHASE_STATUS.confirmed, label: "Confirmada" },
   { value: PURCHASE_STATUS.cancelled, label: "Cancelada" },
+] as const;
+
+export const SALE_STATUS = {
+  draft: "draft",
+  confirmed: "confirmed",
+  cancelled: "cancelled",
+} as const;
+
+export type SaleStatus = (typeof SALE_STATUS)[keyof typeof SALE_STATUS];
+
+export const SALE_STATUS_OPTIONS = [
+  { value: SALE_STATUS.draft, label: "Rascunho" },
+  { value: SALE_STATUS.confirmed, label: "Confirmada" },
+  { value: SALE_STATUS.cancelled, label: "Cancelada" },
 ] as const;
 
 export const PRODUCT_UNITS = [

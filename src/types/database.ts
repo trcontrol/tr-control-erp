@@ -454,6 +454,107 @@ export type PurchaseItemUpdate = Partial<
   purchase_id?: string;
 };
 
+export type SaleRow = {
+  id: string;
+  company_id: string;
+  customer_id: string | null;
+  status: "draft" | "confirmed" | "cancelled" | string;
+  sale_date: string;
+  due_date: string | null;
+  payment_method: string | null;
+  document_number: string | null;
+  notes: string | null;
+  freight_amount: number | string;
+  discount_amount: number | string;
+  items_subtotal: number | string;
+  total_amount: number | string;
+  payment_terms: string | null;
+  quote_id: string | null;
+  stock_posted: boolean;
+  finance_posted: boolean;
+  financial_entry_id: string | null;
+  confirmed_at: string | null;
+  confirmed_by: string | null;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
+  cancelled_reason: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SaleInsert = {
+  id?: string;
+  company_id: string;
+  customer_id?: string | null;
+  status?: string;
+  sale_date?: string;
+  due_date?: string | null;
+  payment_method?: string | null;
+  document_number?: string | null;
+  notes?: string | null;
+  freight_amount?: number;
+  discount_amount?: number;
+  items_subtotal?: number;
+  total_amount?: number;
+  payment_terms?: string | null;
+  quote_id?: string | null;
+  stock_posted?: boolean;
+  finance_posted?: boolean;
+  financial_entry_id?: string | null;
+  confirmed_at?: string | null;
+  confirmed_by?: string | null;
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
+  cancelled_reason?: string | null;
+  created_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type SaleUpdate = Partial<Omit<SaleInsert, "company_id">> & {
+  company_id?: string;
+};
+
+export type SaleItemRow = {
+  id: string;
+  company_id: string;
+  sale_id: string;
+  product_id: string;
+  quantity: number | string;
+  unit_price: number | string;
+  discount_amount: number | string;
+  line_total: number | string;
+  tracks_stock_snapshot: boolean | null;
+  stock_movement_id: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SaleItemInsert = {
+  id?: string;
+  company_id: string;
+  sale_id: string;
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+  discount_amount?: number;
+  line_total?: number;
+  tracks_stock_snapshot?: boolean | null;
+  stock_movement_id?: string | null;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type SaleItemUpdate = Partial<
+  Omit<SaleItemInsert, "company_id" | "sale_id">
+> & {
+  company_id?: string;
+  sale_id?: string;
+};
+
 export type StockMovementUpdate = Partial<
   Omit<StockMovementInsert, "company_id">
 > & {
@@ -627,6 +728,62 @@ export type Database = {
           },
         ];
       };
+      sales: {
+        Row: SaleRow;
+        Insert: SaleInsert;
+        Update: SaleUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "sales_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sales_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sales_financial_entry_id_fkey";
+            columns: ["financial_entry_id"];
+            isOneToOne: false;
+            referencedRelation: "financial_entries";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sale_items: {
+        Row: SaleItemRow;
+        Insert: SaleItemInsert;
+        Update: SaleItemUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "sale_items_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sale_items_sale_id_fkey";
+            columns: ["sale_id"];
+            isOneToOne: false;
+            referencedRelation: "sales";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sale_items_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           id: string;
@@ -707,6 +864,18 @@ export type Database = {
         Args: { p_purchase_id: string };
         Returns: null;
       };
+      confirm_sale: {
+        Args: { p_sale_id: string };
+        Returns: SaleRow;
+      };
+      cancel_sale: {
+        Args: { p_sale_id: string; p_reason: string | null };
+        Returns: SaleRow;
+      };
+      recalculate_sale_totals: {
+        Args: { p_sale_id: string };
+        Returns: null;
+      };
     };
     Enums: {
       [_ in never]: never;
@@ -728,5 +897,7 @@ export type Product = Tables<"products">;
 export type StockMovement = Tables<"stock_movements">;
 export type Purchase = Tables<"purchases">;
 export type PurchaseItem = Tables<"purchase_items">;
+export type Sale = Tables<"sales">;
+export type SaleItem = Tables<"sale_items">;
 export type Profile = Tables<"profiles">;
 export type CompanyMember = Tables<"company_members">;

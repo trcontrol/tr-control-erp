@@ -302,6 +302,78 @@ export type CashFlowDashboard = {
   }>;
 };
 
+export type ExecutiveDashboard = {
+  as_of: string;
+  period_from: string;
+  period_to: string;
+  kpis: {
+    current_balance: number | string;
+    month_inflows: number | string;
+    month_outflows: number | string;
+    month_result: number | string;
+    open_receivables: number | string;
+    open_payables: number | string;
+    overdue_total: number | string;
+    overdue_receivables: number | string;
+    overdue_payables: number | string;
+    confirmed_sales_total: number | string;
+    confirmed_sales_count: number | string;
+    confirmed_purchases_total: number | string;
+    confirmed_purchases_count: number | string;
+    average_ticket: number | string;
+    stock_value: number | string;
+    low_stock_count: number | string;
+  };
+  cash_flow_series: Array<{
+    bucket: string;
+    inflows: number | string;
+    outflows: number | string;
+  }>;
+  sales_series: Array<{
+    bucket: string;
+    total: number | string;
+    count: number | string;
+  }>;
+  recent_sales: Array<{
+    id: string;
+    sale_date: string;
+    total_amount: number | string;
+    document_number: string | null;
+    party_name: string;
+  }>;
+  recent_purchases: Array<{
+    id: string;
+    purchase_date: string;
+    total_amount: number | string;
+    document_number: string | null;
+    party_name: string;
+  }>;
+  upcoming_payables: Array<{
+    id: string;
+    due_date: string;
+    amount: number | string;
+    description: string;
+    party_name: string | null;
+    status: string;
+  }>;
+  upcoming_receivables: Array<{
+    id: string;
+    due_date: string;
+    amount: number | string;
+    description: string;
+    party_name: string | null;
+    status: string;
+  }>;
+  low_stock_products: Array<{
+    id: string;
+    name: string;
+    sku: string | null;
+    unit: string | null;
+    current_stock: number | string;
+    min_stock: number | string;
+  }>;
+};
+
 export type FinancialEntryUpdate = Partial<
   Omit<FinancialEntryInsert, "company_id">
 > & {
@@ -975,6 +1047,14 @@ export type Database = {
           p_grain?: string;
         };
         Returns: CashFlowDashboard;
+      };
+      get_executive_dashboard: {
+        Args: {
+          p_company_id: string;
+          p_period_from: string;
+          p_period_to: string;
+        };
+        Returns: ExecutiveDashboard;
       };
       cash_flow_origin_key: {
         Args: { p_source_type: string | null };

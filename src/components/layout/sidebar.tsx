@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/constants";
 
 const navigation = [
-  { name: "Dashboard", href: ROUTES.dashboard, icon: LayoutDashboard },
+  { name: "Dashboard Executivo", href: ROUTES.dashboard, icon: LayoutDashboard },
   { name: "Empresas", href: ROUTES.companies, icon: Building2 },
   { name: "Clientes", href: ROUTES.customers, icon: UsersRound },
   { name: "Fornecedores", href: ROUTES.suppliers, icon: Truck },

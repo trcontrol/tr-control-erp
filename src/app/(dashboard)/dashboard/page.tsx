@@ -9,7 +9,7 @@ export default function DashboardPage() {
   return (
     <ExecutivePageShell
       title="Dashboard Executivo"
-      description="Visão rápida da saúde financeira e operacional da empresa ativa"
+      description="Indicadores estratégicos para acompanhar o desempenho da sua empresa."
     >
       <ExecutiveDashboardBoard />
     </ExecutivePageShell>

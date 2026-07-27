@@ -25,12 +25,15 @@ export function ExecutivePageShell({
   const { company } = useTenant();
 
   return (
-    <div className="min-w-0">
-      <h1 className="sr-only">{title}</h1>
-      <p className="sr-only">
-        {description}
-        {company ? ` — ${company.name}` : ""}
-      </p>
+    <div className="min-w-0 space-y-7 md:space-y-8">
+      <header className="min-w-0">
+        <h1 className="font-display text-[1.75rem] font-semibold leading-tight tracking-tight text-[var(--brand-navy)] sm:text-[2rem]">
+          {title}
+        </h1>
+        <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+          {description}
+        </p>
+      </header>
 
       {!company ? (
         <Card className="rounded-2xl border-0 shadow-card">

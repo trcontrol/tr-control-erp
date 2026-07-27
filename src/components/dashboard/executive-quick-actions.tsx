@@ -46,11 +46,11 @@ const actions = [
 
 export function ExecutiveQuickActions() {
   return (
-    <section className="flex flex-col gap-3 rounded-[14px] bg-card px-4 py-3.5 shadow-card sm:flex-row sm:items-center sm:gap-4 sm:px-5">
-      <p className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--brand-gold)]">
+    <section className="flex flex-col gap-3.5 rounded-[16px] bg-card px-5 py-4 shadow-card sm:flex-row sm:items-center sm:gap-5 sm:px-6 sm:py-[18px]">
+      <p className="shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--brand-gold)]">
         Acesso rápido
       </p>
-      <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
         {actions.map((action) => {
           const Icon = action.icon;
           return (
@@ -58,15 +58,17 @@ export function ExecutiveQuickActions() {
               key={action.href}
               href={action.href}
               className={cn(
-                "inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-[var(--brand-navy)]/10 bg-transparent px-3.5 text-[12.5px] font-semibold text-[var(--brand-navy)]",
-                "transition-colors duration-200 hover:border-[var(--brand-navy)]/20 hover:bg-[var(--brand-navy)]/[0.03]"
+                "inline-flex h-10 shrink-0 items-center gap-2.5 rounded-full border border-[var(--brand-navy)]/10 bg-[var(--brand-surface)] px-4 text-[13px] font-semibold text-[var(--brand-navy)]",
+                "transition-all duration-200 ease-out",
+                "hover:border-[var(--brand-coral)]/35 hover:bg-white hover:shadow-sm hover:text-[var(--brand-navy)]",
+                "active:scale-[0.98]"
               )}
             >
               <Icon
-                className={cn("h-3.5 w-3.5", action.iconClass)}
+                className={cn("h-4 w-4", action.iconClass)}
                 strokeWidth={1.7}
               />
-              {action.label}
+              <span className="whitespace-nowrap">{action.label}</span>
             </Link>
           );
         })}

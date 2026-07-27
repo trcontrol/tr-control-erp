@@ -30,39 +30,39 @@ export function DashboardTimelineItem({
   return (
     <Link
       href={href}
-      className="group relative flex gap-3 rounded-xl py-1.5 pl-0.5 pr-1 transition-colors duration-200 last:pb-0 hover:bg-[var(--brand-navy)]/[0.02]"
+      className="group relative flex gap-3.5 rounded-xl px-1.5 py-2.5 transition-colors duration-200 hover:bg-[var(--brand-navy)]/[0.025]"
     >
       <div
         className={cn(
-          "relative flex w-8 shrink-0 flex-col items-center",
-          !isLast && "pb-3.5"
+          "relative flex w-9 shrink-0 flex-col items-center",
+          !isLast && "pb-2"
         )}
       >
         <span
           className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-full shadow-sm ring-[3px] ring-card transition-transform duration-200 group-hover:scale-105",
+            "flex h-9 w-9 items-center justify-center rounded-full shadow-sm ring-[3px] ring-card transition-transform duration-200 group-hover:scale-105",
             typeTone === "positive"
               ? "bg-emerald-600 text-white"
               : "bg-[var(--brand-coral)] text-white"
           )}
         >
-          <Icon className="h-3.5 w-3.5" strokeWidth={2.1} />
+          <Icon className="h-4 w-4" strokeWidth={2} />
         </span>
         {!isLast ? (
           <span
-            className="mt-1 w-px flex-1 bg-[var(--brand-navy)]/10"
+            className="mt-2 w-px flex-1 min-h-[18px] bg-[var(--brand-navy)]/10"
             aria-hidden
           />
         ) : null}
       </div>
 
-      <div className={cn("min-w-0 flex-1 py-0.5", !isLast && "pb-3.5")}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-[var(--brand-navy)]">
+      <div className={cn("min-w-0 flex-1 pt-1", !isLast && "pb-3")}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 space-y-1">
+            <p className="truncate text-[13.5px] font-semibold leading-snug text-[var(--brand-navy)]">
               {title}
             </p>
-            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+            <p className="truncate text-[11.5px] leading-relaxed text-muted-foreground">
               {typeLabel}
               {originLabel ? ` · ${originLabel}` : ""}
               {" · "}
@@ -71,7 +71,7 @@ export function DashboardTimelineItem({
           </div>
           <p
             className={cn(
-              "shrink-0 pt-0.5 text-sm font-bold tabular-nums",
+              "shrink-0 pt-0.5 text-[13.5px] font-bold tabular-nums leading-none",
               typeTone === "positive"
                 ? "text-emerald-700"
                 : "text-[var(--brand-coral)]"

@@ -70,7 +70,7 @@
   --ring: #c9a227;
   --chart-1: #0b1f3a;
   --chart-2: #0f766e;
-  --chart-3: #e08a84;
+  --chart-3: #c4939f;
   --chart-4: #c9a227;
   --chart-5: #0284c7;
 
@@ -80,7 +80,8 @@
   --brand-navy-mid: #143456;
   --brand-gold: #c9a227;
   --brand-gold-soft: #e0c56a;
-  --brand-coral: #e08a84;
+  /* Soft rose coral — discreet, premium, no salmon undertone */
+  --brand-coral: #c4939f;
   --brand-teal: #0f766e;
   --brand-sky: #0284c7;
   --brand-surface: #f5f6f9;

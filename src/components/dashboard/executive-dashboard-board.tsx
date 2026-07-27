@@ -136,7 +136,13 @@ export function ExecutiveDashboardBoard() {
   ].filter(Boolean).length;
 
   return (
-    <div className="min-w-0 space-y-6 md:space-y-7">
+    <div className="min-w-0 space-y-7 md:space-y-9">
+      {capabilities.shortcuts ? (
+        <div className="dash-reveal" style={{ animationDelay: "40ms" }}>
+          <ExecutiveQuickActions />
+        </div>
+      ) : null}
+
       <ExecutiveKpiGrid
         kpis={dashboard.kpis}
         cashFlowSeries={dashboard.cash_flow_series}
@@ -150,9 +156,9 @@ export function ExecutiveDashboardBoard() {
         <div
           className={
             middleCount === 3
-              ? "grid min-w-0 gap-5 xl:grid-cols-3"
+              ? "grid min-w-0 gap-5 xl:grid-cols-3 xl:gap-6"
               : middleCount === 2
-                ? "grid min-w-0 gap-5 xl:grid-cols-2"
+                ? "grid min-w-0 gap-5 xl:grid-cols-2 xl:gap-6"
                 : "grid min-w-0 gap-5"
           }
         >
@@ -189,7 +195,7 @@ export function ExecutiveDashboardBoard() {
       )}
 
       {(capabilities.finance || capabilities.sales) && (
-        <div className="grid min-w-0 gap-5 xl:grid-cols-12">
+        <div className="grid min-w-0 gap-5 xl:grid-cols-12 xl:gap-6">
           {capabilities.finance ? (
             <div
               className={
@@ -255,7 +261,7 @@ export function ExecutiveDashboardBoard() {
       )}
 
       {(capabilities.finance || capabilities.purchases) && (
-        <div className="grid min-w-0 gap-5 xl:grid-cols-12">
+        <div className="grid min-w-0 gap-5 xl:grid-cols-12 xl:gap-6">
           <div
             className={
               capabilities.finance
@@ -284,11 +290,6 @@ export function ExecutiveDashboardBoard() {
         </div>
       )}
 
-      {capabilities.shortcuts ? (
-        <div className="dash-reveal pt-1" style={{ animationDelay: "440ms" }}>
-          <ExecutiveQuickActions />
-        </div>
-      ) : null}
     </div>
   );
 }

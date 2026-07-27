@@ -197,31 +197,31 @@ export function ExecutiveFinancialDonut({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 border-t border-[var(--brand-navy)]/[0.05] pt-3">
-        <div className="px-1 py-0.5">
+      <div className="grid grid-cols-3 gap-2 border-t border-[var(--brand-navy)]/[0.05] pt-4">
+        <div className="rounded-xl bg-emerald-50/70 px-2 py-2">
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
             <CircleDollarSign className="h-3 w-3 text-emerald-600" />
             Recebido
           </div>
-          <p className="mt-1 truncate text-xs font-bold tabular-nums text-emerald-700">
+          <p className="mt-1.5 text-xs font-bold tabular-nums leading-snug text-emerald-700">
             {formatCurrency(chart.received)}
           </p>
         </div>
-        <div className="px-1 py-0.5">
+        <div className="rounded-xl bg-[var(--brand-navy)]/[0.03] px-2 py-2">
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
             <WalletCards className="h-3 w-3 text-[var(--brand-gold)]" />
             A receber
           </div>
-          <p className="mt-1 truncate text-xs font-bold tabular-nums text-[var(--brand-navy)]">
+          <p className="mt-1.5 text-xs font-bold tabular-nums leading-snug text-[var(--brand-navy)]">
             {formatCurrency(chart.openReceivables)}
           </p>
         </div>
-        <div className="px-1 py-0.5">
+        <div className="rounded-xl bg-[var(--brand-coral)]/[0.08] px-2 py-2">
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
             <AlertTriangle className="h-3 w-3 text-[var(--brand-coral)]" />
             Atraso
           </div>
-          <p className="mt-1 truncate text-xs font-bold tabular-nums text-[var(--brand-coral)]">
+          <p className="mt-1.5 text-xs font-bold tabular-nums leading-snug text-[var(--brand-coral)]">
             {formatCurrency(chart.overdue)}
           </p>
         </div>

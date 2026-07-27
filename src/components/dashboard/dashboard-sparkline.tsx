@@ -29,8 +29,8 @@ export function DashboardSparkline({
     );
   }
 
-  const width = 120;
-  const height = 32;
+  const width = 140;
+  const height = 40;
   const padding = 2;
   const min = Math.min(...usable);
   const max = Math.max(...usable);

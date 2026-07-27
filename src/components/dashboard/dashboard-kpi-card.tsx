@@ -81,38 +81,36 @@ export function DashboardKpiCard({
     <article
       style={style}
       className={cn(
-        "group relative flex min-h-[168px] flex-col overflow-hidden rounded-[14px] bg-card p-5 shadow-card",
+        "group relative flex min-h-[212px] flex-col overflow-hidden rounded-[18px] bg-card px-6 py-6 shadow-card sm:min-h-[228px] sm:px-7 sm:py-7",
         "transition-shadow duration-300 ease-out hover:shadow-card-hover",
         className
       )}
     >
       <span
         className={cn(
-          "relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+          "relative z-[1] flex h-12 w-12 shrink-0 items-center justify-center rounded-full",
           palette.iconWrap,
           palette.icon
         )}
       >
-        <Icon className="h-4 w-4" strokeWidth={1.7} />
+        <Icon className="h-5 w-5" strokeWidth={1.65} />
       </span>
 
-      <div className="relative z-[1] mt-4 min-w-0 flex-1">
-        <p className="truncate text-[1.85rem] font-bold leading-none tracking-tight text-[var(--brand-navy)] tabular-nums">
+      <div className="relative z-[1] mt-5 min-w-0 flex-1">
+        <p className="whitespace-nowrap text-[1.85rem] font-bold leading-none tracking-tight text-[var(--brand-navy)] tabular-nums sm:text-[2.1rem]">
           {value}
         </p>
-        <p className="mt-2.5 truncate text-[11px] font-bold uppercase tracking-[0.13em] text-[var(--brand-navy)]/50">
+        <p className="mt-3.5 text-[12px] font-bold uppercase tracking-[0.15em] text-[var(--brand-navy)]/55 sm:text-[13px]">
           {title}
         </p>
-        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-          {hint}
-        </p>
+        <p className="mt-1 text-[12px] text-muted-foreground">{hint}</p>
       </div>
 
-      <div className="relative z-[1] mt-3 flex items-end justify-between gap-2">
+      <div className="relative z-[1] mt-5 flex items-end justify-between gap-3">
         {hasTrend ? (
           <p
             className={cn(
-              "inline-flex items-center gap-0.5 text-[12px] font-bold",
+              "inline-flex items-center gap-0.5 text-[13px] font-bold",
               trendUp ? "text-emerald-600" : "text-[var(--brand-coral)]"
             )}
           >
@@ -130,11 +128,11 @@ export function DashboardKpiCard({
           <span />
         )}
 
-        <div className="h-8 w-[46%] opacity-70 transition-opacity duration-300 group-hover:opacity-95">
+        <div className="h-11 w-[52%] opacity-75 transition-opacity duration-300 group-hover:opacity-100 sm:h-12">
           <DashboardSparkline
             values={sparklineValues}
             stroke={palette.stroke}
-            fillOpacity={0.14}
+            fillOpacity={0.16}
             className="h-full w-full"
           />
         </div>

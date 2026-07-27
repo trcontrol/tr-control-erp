@@ -21,7 +21,7 @@ export function DashboardListRow({
   return (
     <Link
       href={href}
-      className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-0.5 py-2.5 transition-colors duration-200 hover:bg-[var(--brand-navy)]/[0.02]"
+      className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-0.5 py-3 transition-colors duration-200 hover:bg-[var(--brand-navy)]/[0.02]"
     >
       <p className="truncate text-sm font-semibold text-[var(--brand-navy)]">
         {title}

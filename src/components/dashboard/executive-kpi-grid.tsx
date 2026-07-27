@@ -165,13 +165,11 @@ export function ExecutiveKpiGrid({
     cards.length <= 3
       ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
       : cards.length === 4
-        ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
-        : cards.length === 5
-          ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
-          : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6";
+        ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4"
+        : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3";
 
   return (
-    <div className={`grid gap-5 ${columns}`}>
+    <div className={`grid gap-4 sm:gap-[18px] ${columns}`}>
       {cards.map((card, index) => (
         <DashboardKpiCard
           key={card.key}

@@ -9,7 +9,10 @@ import {
   ShoppingCart,
   Wallet,
 } from "lucide-react";
-import { DashboardKpiCard } from "@/components/dashboard/dashboard-kpi-card";
+import {
+  DashboardKpiCard,
+  type KpiAccent,
+} from "@/components/dashboard/dashboard-kpi-card";
 import { formatCurrency, toNumberAmount } from "@/lib/dashboard/format";
 import type { ExecutiveDashboard } from "@/types/database";
 
@@ -44,6 +47,22 @@ function buildCashSeries(
   });
 }
 
+function trendFromSeries(values: number[]): number | null {
+  if (values.length < 2) return null;
+  const midpoint = Math.floor(values.length / 2);
+  const earlier = values.slice(0, midpoint);
+  const later = values.slice(midpoint);
+  const avg = (items: number[]) =>
+    items.reduce((sum, value) => sum + value, 0) / (items.length || 1);
+  const base = avg(earlier);
+  const current = avg(later);
+  if (Math.abs(base) < 0.0001) {
+    if (Math.abs(current) < 0.0001) return 0;
+    return current > 0 ? 100 : -100;
+  }
+  return ((current - base) / Math.abs(base)) * 100;
+}
+
 export function ExecutiveKpiGrid({
   kpis,
   cashFlowSeries,
@@ -69,68 +88,65 @@ export function ExecutiveKpiGrid({
           key: "balance",
           title: "Saldo atual",
           value: formatCurrency(toNumberAmount(kpis.current_balance)),
-          hint: "Pagos e recebidos até hoje",
+          hint: "Até hoje",
           icon: Wallet,
           sparklineValues: sparklines.balance,
-          tone:
-            toNumberAmount(kpis.current_balance) >= 0
-              ? ("positive" as const)
-              : ("negative" as const),
+          accent: "navy" as KpiAccent,
         }
       : null,
     showFinance
       ? {
           key: "inflows",
-          title: "Entradas do mês",
+          title: "Entradas",
           value: formatCurrency(toNumberAmount(kpis.month_inflows)),
-          hint: "Realizadas no mês corrente",
+          hint: "Este mês",
           icon: ArrowUpRight,
           sparklineValues: sparklines.inflows,
-          tone: "positive" as const,
+          accent: "emerald" as KpiAccent,
         }
       : null,
     showFinance
       ? {
           key: "outflows",
-          title: "Saídas do mês",
+          title: "Saídas",
           value: formatCurrency(toNumberAmount(kpis.month_outflows)),
-          hint: "Realizadas no mês corrente",
+          hint: "Este mês",
           icon: ArrowDownRight,
           sparklineValues: sparklines.outflows,
-          tone: "negative" as const,
+          accent: "coral" as KpiAccent,
         }
       : null,
     showFinance
       ? {
           key: "result",
-          title: "Resultado do mês",
+          title: "Resultado",
           value: formatCurrency(monthResult),
-          hint: "Entradas − saídas realizadas",
+          hint: "Este mês",
           icon: Scale,
           sparklineValues: sparklines.result,
-          tone: monthResult >= 0 ? ("positive" as const) : ("negative" as const),
+          accent: "gold" as KpiAccent,
         }
       : null,
     showSales
       ? {
           key: "sales",
-          title: "Vendas do mês",
+          title: "Vendas",
           value: formatCurrency(toNumberAmount(kpis.confirmed_sales_total)),
-          hint: `${toNumberAmount(kpis.confirmed_sales_count)} venda(s) confirmada(s)`,
+          hint: `${toNumberAmount(kpis.confirmed_sales_count)} confirmada(s)`,
           icon: ShoppingBag,
           sparklineValues: sparklines.sales,
-          tone: "default" as const,
+          accent: "teal" as KpiAccent,
         }
       : null,
     showPurchases
       ? {
           key: "purchases",
-          title: "Compras do mês",
+          title: "Compras",
           value: formatCurrency(toNumberAmount(kpis.confirmed_purchases_total)),
-          hint: `${toNumberAmount(kpis.confirmed_purchases_count)} compra(s) confirmada(s)`,
+          hint: `${toNumberAmount(kpis.confirmed_purchases_count)} confirmada(s)`,
           icon: ShoppingCart,
           sparklineValues: [],
-          tone: "default" as const,
+          accent: "sky" as KpiAccent,
         }
       : null,
   ].filter(Boolean) as Array<{
@@ -138,24 +154,36 @@ export function ExecutiveKpiGrid({
     title: string;
     value: string;
     hint: string;
-    icon: React.ComponentType<{ className?: string }>;
+    icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
     sparklineValues: number[];
-    tone: "default" | "positive" | "negative";
+    accent: KpiAccent;
   }>;
 
   if (!cards.length) return null;
 
+  const columns =
+    cards.length <= 3
+      ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
+      : cards.length === 4
+        ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
+        : cards.length === 5
+          ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+          : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6";
+
   return (
-    <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
-      {cards.map((card) => (
+    <div className={`grid gap-5 ${columns}`}>
+      {cards.map((card, index) => (
         <DashboardKpiCard
           key={card.key}
+          className="dash-reveal"
+          style={{ animationDelay: `${index * 55}ms` }}
           title={card.title}
           value={card.value}
           hint={card.hint}
           icon={card.icon}
           sparklineValues={card.sparklineValues}
-          tone={card.tone}
+          accent={card.accent}
+          trendPercent={trendFromSeries(card.sparklineValues)}
         />
       ))}
     </div>

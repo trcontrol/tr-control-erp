@@ -1,16 +1,64 @@
 "use client";
 
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { DashboardSparkline } from "@/components/dashboard/dashboard-sparkline";
 import { cn } from "@/lib/utils";
+
+export type KpiAccent =
+  | "navy"
+  | "coral"
+  | "gold"
+  | "teal"
+  | "sky"
+  | "emerald";
 
 type DashboardKpiCardProps = {
   title: string;
   value: string;
   hint: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   sparklineValues?: number[];
-  sparklineStroke?: string;
+  accent?: KpiAccent;
+  trendPercent?: number | null;
   tone?: "default" | "positive" | "negative";
+  style?: React.CSSProperties;
+  className?: string;
+};
+
+const accentStyles: Record<
+  KpiAccent,
+  { iconWrap: string; icon: string; stroke: string }
+> = {
+  navy: {
+    iconWrap: "bg-[var(--brand-navy)]",
+    icon: "text-white",
+    stroke: "var(--brand-navy)",
+  },
+  coral: {
+    iconWrap: "bg-[var(--brand-coral)]",
+    icon: "text-white",
+    stroke: "var(--brand-coral)",
+  },
+  gold: {
+    iconWrap: "bg-[var(--brand-gold)]",
+    icon: "text-[var(--brand-navy-deep)]",
+    stroke: "var(--brand-gold)",
+  },
+  teal: {
+    iconWrap: "bg-[var(--brand-teal)]",
+    icon: "text-white",
+    stroke: "var(--brand-teal)",
+  },
+  sky: {
+    iconWrap: "bg-[var(--brand-sky)]",
+    icon: "text-white",
+    stroke: "var(--brand-sky)",
+  },
+  emerald: {
+    iconWrap: "bg-emerald-600",
+    icon: "text-white",
+    stroke: "#059669",
+  },
 };
 
 export function DashboardKpiCard({
@@ -19,58 +67,78 @@ export function DashboardKpiCard({
   hint,
   icon: Icon,
   sparklineValues = [],
-  sparklineStroke,
-  tone = "default",
+  accent = "navy",
+  trendPercent = null,
+  style,
+  className,
 }: DashboardKpiCardProps) {
+  const palette = accentStyles[accent];
+  const hasTrend =
+    typeof trendPercent === "number" && Number.isFinite(trendPercent);
+  const trendUp = hasTrend && trendPercent >= 0;
+
   return (
-    <div
+    <article
+      style={style}
       className={cn(
-        "rounded-xl border border-[var(--brand-navy)]/10 bg-card p-3 shadow-sm",
-        "flex min-h-[104px] flex-col justify-between gap-2"
+        "group relative flex min-h-[168px] flex-col overflow-hidden rounded-[14px] bg-card p-5 shadow-card",
+        "transition-shadow duration-300 ease-out hover:shadow-card-hover",
+        className
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-xs font-medium text-muted-foreground">
-            {title}
-          </p>
-          <p
-            className={cn(
-              "mt-1 truncate text-lg font-semibold tracking-tight text-[var(--brand-navy)]",
-              tone === "positive" && "text-emerald-700",
-              tone === "negative" && "text-[var(--brand-coral)]"
-            )}
-          >
-            {value}
-          </p>
-        </div>
-        <span
-          className={cn(
-            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-            "bg-[var(--brand-navy)]/5 text-[var(--brand-navy)]",
-            tone === "positive" && "bg-emerald-50 text-emerald-700",
-            tone === "negative" &&
-              "bg-[var(--brand-coral)]/10 text-[var(--brand-coral)]"
-          )}
-        >
-          <Icon className="h-3.5 w-3.5" />
-        </span>
+      <span
+        className={cn(
+          "relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+          palette.iconWrap,
+          palette.icon
+        )}
+      >
+        <Icon className="h-4 w-4" strokeWidth={1.7} />
+      </span>
+
+      <div className="relative z-[1] mt-4 min-w-0 flex-1">
+        <p className="truncate text-[1.85rem] font-bold leading-none tracking-tight text-[var(--brand-navy)] tabular-nums">
+          {value}
+        </p>
+        <p className="mt-2.5 truncate text-[11px] font-bold uppercase tracking-[0.13em] text-[var(--brand-navy)]/50">
+          {title}
+        </p>
+        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+          {hint}
+        </p>
       </div>
 
-      <div className="space-y-1">
-        <DashboardSparkline
-          values={sparklineValues}
-          stroke={
-            sparklineStroke ??
-            (tone === "positive"
-              ? "#047857"
-              : tone === "negative"
-                ? "var(--brand-coral)"
-                : "var(--brand-navy)")
-          }
-        />
-        <p className="truncate text-[11px] text-muted-foreground">{hint}</p>
+      <div className="relative z-[1] mt-3 flex items-end justify-between gap-2">
+        {hasTrend ? (
+          <p
+            className={cn(
+              "inline-flex items-center gap-0.5 text-[12px] font-bold",
+              trendUp ? "text-emerald-600" : "text-[var(--brand-coral)]"
+            )}
+          >
+            {trendUp ? (
+              <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2.4} />
+            ) : (
+              <ArrowDownRight className="h-3.5 w-3.5" strokeWidth={2.4} />
+            )}
+            {Math.abs(trendPercent).toLocaleString("pt-BR", {
+              maximumFractionDigits: 0,
+            })}
+            %
+          </p>
+        ) : (
+          <span />
+        )}
+
+        <div className="h-8 w-[46%] opacity-70 transition-opacity duration-300 group-hover:opacity-95">
+          <DashboardSparkline
+            values={sparklineValues}
+            stroke={palette.stroke}
+            fillOpacity={0.14}
+            className="h-full w-full"
+          />
+        </div>
       </div>
-    </div>
+    </article>
   );
 }

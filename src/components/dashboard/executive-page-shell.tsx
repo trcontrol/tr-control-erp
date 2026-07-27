@@ -25,19 +25,15 @@ export function ExecutivePageShell({
   const { company } = useTenant();
 
   return (
-    <div className="min-w-0 space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--brand-navy)] md:text-3xl">
-          {title}
-        </h1>
-        <p className="text-sm text-muted-foreground md:text-base">
-          {description}
-          {company ? ` — ${company.name}` : ""}
-        </p>
-      </div>
+    <div className="min-w-0">
+      <h1 className="sr-only">{title}</h1>
+      <p className="sr-only">
+        {description}
+        {company ? ` — ${company.name}` : ""}
+      </p>
 
       {!company ? (
-        <Card>
+        <Card className="rounded-2xl border-0 shadow-card">
           <CardHeader>
             <CardTitle>Nenhuma empresa ativa</CardTitle>
             <CardDescription>
@@ -45,7 +41,10 @@ export function ExecutivePageShell({
             </CardDescription>
           </CardHeader>
           <div className="px-6 pb-6">
-            <Button asChild>
+            <Button
+              asChild
+              className="rounded-xl bg-[var(--brand-coral)] hover:bg-[var(--brand-coral)]/90"
+            >
               <Link href={ROUTES.companies}>Ir para Empresas</Link>
             </Button>
           </div>

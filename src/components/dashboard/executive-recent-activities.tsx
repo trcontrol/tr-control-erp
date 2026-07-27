@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
+import { DashboardSectionLink } from "@/components/dashboard/dashboard-section-link";
 import { DashboardTimelineItem } from "@/components/dashboard/dashboard-timeline-item";
 import { financeDetailPath, ROUTES } from "@/lib/constants";
 import { originLabel, statusLabel } from "@/lib/cash-flow/format";
@@ -26,20 +25,19 @@ export function ExecutiveRecentActivities({
 
   return (
     <DashboardSectionCard
-      title="Atividades financeiras recentes"
-      description="Últimas movimentações da empresa ativa"
+      title="Atividades recentes"
       action={
-        <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-          <Link href={ROUTES.cashFlow}>Ver todas</Link>
-        </Button>
+        <DashboardSectionLink href={ROUTES.cashFlow}>
+          Ver todas
+        </DashboardSectionLink>
       }
     >
       {!items.length ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="py-6 text-sm text-muted-foreground">
           Nenhuma movimentação financeira recente.
         </p>
       ) : (
-        <div className="pt-1">
+        <div className="pt-0.5">
           {items.map((activity, index) => {
             const isInflow = activity.type === "entrada";
             return (

@@ -9,53 +9,68 @@ import {
   Wallet,
 } from "lucide-react";
 import { ROUTES } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 const actions = [
   {
     href: ROUTES.salesNew,
-    label: "Venda",
+    label: "Nova venda",
     icon: ShoppingBag,
+    iconClass: "text-[var(--brand-coral)]",
   },
   {
     href: ROUTES.purchasesNew,
-    label: "Compra",
+    label: "Nova compra",
     icon: ShoppingCart,
+    iconClass: "text-[var(--brand-navy)]",
   },
   {
     href: ROUTES.financeNew,
     label: "Lançamento",
     icon: Wallet,
+    iconClass: "text-[var(--brand-gold)]",
   },
   {
     href: ROUTES.customersNew,
-    label: "Cliente",
+    label: "Novo cliente",
     icon: UserPlus,
+    iconClass: "text-[var(--brand-teal)]",
   },
   {
     href: ROUTES.productsNew,
-    label: "Produto",
+    label: "Novo produto",
     icon: PackagePlus,
+    iconClass: "text-[var(--brand-sky)]",
   },
 ] as const;
 
 export function ExecutiveQuickActions() {
   return (
-    <div className="rounded-xl border border-[var(--brand-navy)]/10 bg-[var(--brand-navy)]/[0.02] p-2">
-      <div className="flex gap-2 overflow-x-auto pb-0.5 sm:flex-wrap sm:overflow-visible">
+    <section className="flex flex-col gap-3 rounded-[14px] bg-card px-4 py-3.5 shadow-card sm:flex-row sm:items-center sm:gap-4 sm:px-5">
+      <p className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--brand-gold)]">
+        Acesso rápido
+      </p>
+      <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
         {actions.map((action) => {
           const Icon = action.icon;
           return (
             <Link
               key={action.href}
               href={action.href}
-              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-[var(--brand-navy)]/10 bg-white px-3 text-sm font-medium text-[var(--brand-navy)] transition-colors hover:border-[var(--brand-gold)] hover:bg-[var(--brand-gold)]/10"
+              className={cn(
+                "inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-[var(--brand-navy)]/10 bg-transparent px-3.5 text-[12.5px] font-semibold text-[var(--brand-navy)]",
+                "transition-colors duration-200 hover:border-[var(--brand-navy)]/20 hover:bg-[var(--brand-navy)]/[0.03]"
+              )}
             >
-              <Icon className="h-3.5 w-3.5 text-[var(--brand-coral)]" />
+              <Icon
+                className={cn("h-3.5 w-3.5", action.iconClass)}
+                strokeWidth={1.7}
+              />
               {action.label}
             </Link>
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }

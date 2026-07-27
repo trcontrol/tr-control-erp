@@ -21,6 +21,7 @@ import {
 type ExecutiveSalesChartProps = {
   series: ExecutiveDashboard["sales_series"];
   averageTicket?: number | string;
+  compact?: boolean;
 };
 
 type SalesPoint = {
@@ -55,6 +56,7 @@ function isCurrentMonthBucket(bucket: string) {
 export function ExecutiveSalesChart({
   series,
   averageTicket,
+  compact = false,
 }: ExecutiveSalesChartProps) {
   const data = useMemo<SalesPoint[]>(
     () =>
@@ -73,9 +75,14 @@ export function ExecutiveSalesChart({
     [data]
   );
 
+  const chartHeight = compact ? 210 : 260;
+
   if (!data.length) {
     return (
-      <div className="flex h-[260px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+      <div
+        className="flex items-center justify-center text-sm text-muted-foreground"
+        style={{ height: chartHeight }}
+      >
         Sem vendas confirmadas nos últimos 6 meses.
       </div>
     );
@@ -83,46 +90,46 @@ export function ExecutiveSalesChart({
 
   return (
     <div className="w-full min-w-0 space-y-3 overflow-hidden">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span>Total no período: {formatCurrency(periodTotal)}</span>
+      <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+        <span className="font-medium text-[var(--brand-navy)]">
+          {formatCurrency(periodTotal)}
+        </span>
         {averageTicket !== undefined ? (
-          <span>
-            Ticket médio do mês:{" "}
-            {formatCurrency(toNumberAmount(averageTicket))}
-          </span>
+          <span>· Ticket {formatCurrency(toNumberAmount(averageTicket))}</span>
         ) : null}
       </div>
 
-      <div className="h-[260px] w-full min-w-0">
+      <div className="w-full min-w-0" style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
-            margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-            barCategoryGap="22%"
+            margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+            barCategoryGap="28%"
           >
             <CartesianGrid
-              strokeDasharray="3 3"
+              strokeDasharray="3 6"
               vertical={false}
-              stroke="var(--border)"
+              stroke="rgb(11 31 58 / 5%)"
             />
             <XAxis
               dataKey="label"
               tickLine={false}
               axisLine={false}
-              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
             />
             <YAxis
-              width={56}
+              width={compact ? 42 : 50}
               tickLine={false}
               axisLine={false}
               tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
               tickFormatter={(value: number) => formatCompactCurrency(value)}
             />
             <Tooltip
-              cursor={{ fill: "rgb(11 31 58 / 4%)" }}
+              cursor={{ fill: "rgb(11 31 58 / 2.5%)" }}
               contentStyle={{
-                borderRadius: 8,
-                border: "1px solid rgb(11 31 58 / 12%)",
+                borderRadius: 10,
+                border: "1px solid rgb(11 31 58 / 8%)",
+                boxShadow: "var(--shadow-card)",
                 fontSize: 12,
               }}
               formatter={(value, _name, item) => {
@@ -136,11 +143,22 @@ export function ExecutiveSalesChart({
               }}
               labelFormatter={(label) => String(label)}
             />
-            <Bar dataKey="total" radius={[3, 3, 0, 0]} maxBarSize={42}>
+            <Bar
+              dataKey="total"
+              radius={[5, 5, 0, 0]}
+              maxBarSize={compact ? 26 : 36}
+              isAnimationActive
+              animationDuration={800}
+              animationEasing="ease-out"
+            >
               {data.map((point) => (
                 <Cell
                   key={point.bucket}
-                  fill={point.isCurrent ? "var(--brand-coral)" : "#0f4c81"}
+                  fill={
+                    point.isCurrent
+                      ? "var(--brand-coral)"
+                      : "var(--brand-navy)"
+                  }
                 />
               ))}
             </Bar>

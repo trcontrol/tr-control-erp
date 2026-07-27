@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { DashboardListRow } from "@/components/dashboard/dashboard-list-row";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
+import { DashboardSectionLink } from "@/components/dashboard/dashboard-section-link";
 import { ExecutiveCashFlowChart } from "@/components/dashboard/executive-cash-flow-chart";
 import { ExecutiveFinancialDonut } from "@/components/dashboard/executive-financial-donut";
 import { ExecutiveKpiGrid } from "@/components/dashboard/executive-kpi-grid";
@@ -98,10 +98,10 @@ export function ExecutiveDashboardBoard() {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Carregando dashboard executivo...
+      <Card className="rounded-[16px] border-0 shadow-card">
+        <CardContent className="flex flex-col items-center justify-center gap-3 py-20 text-sm text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin text-[var(--brand-coral)]" />
+          <span>Preparando sua visão executiva...</span>
         </CardContent>
       </Card>
     );
@@ -109,21 +109,34 @@ export function ExecutiveDashboardBoard() {
 
   if (error || !dashboard) {
     return (
-      <Card>
+      <Card className="rounded-[16px] border-0 shadow-card">
         <CardHeader>
           <CardTitle>Não foi possível carregar o dashboard</CardTitle>
           <CardDescription>
             {error ?? "Tente novamente em instantes."}
           </CardDescription>
         </CardHeader>
+        <div className="px-6 pb-6">
+          <Button
+            type="button"
+            onClick={() => void loadDashboard()}
+            className="rounded-full bg-[var(--brand-coral)] px-5 hover:bg-[var(--brand-coral)]/90"
+          >
+            Tentar novamente
+          </Button>
+        </div>
       </Card>
     );
   }
 
-  return (
-    <div className="min-w-0 space-y-4">
-      {capabilities.shortcuts ? <ExecutiveQuickActions /> : null}
+  const middleCount = [
+    capabilities.sales,
+    capabilities.finance,
+    capabilities.stock,
+  ].filter(Boolean).length;
 
+  return (
+    <div className="min-w-0 space-y-6 md:space-y-7">
       <ExecutiveKpiGrid
         kpis={dashboard.kpis}
         cashFlowSeries={dashboard.cash_flow_series}
@@ -133,62 +146,42 @@ export function ExecutiveDashboardBoard() {
         showPurchases={capabilities.purchases}
       />
 
-      {capabilities.finance ? (
-        <div className="grid min-w-0 gap-4 xl:grid-cols-12">
-          <div className="min-w-0 xl:col-span-5">
-            <DashboardSectionCard
-              title="Resumo financeiro"
-              description="Composição do mês e saldos em aberto"
-            >
-              <ExecutiveFinancialDonut kpis={dashboard.kpis} />
-            </DashboardSectionCard>
-          </div>
-          <div className="min-w-0 xl:col-span-7">
-            <DashboardSectionCard
-              title="Entradas e saídas do mês"
-              description="Movimentos realizados no mês corrente"
-              contentClassName="min-w-0"
-            >
-              <ExecutiveCashFlowChart series={dashboard.cash_flow_series} />
-            </DashboardSectionCard>
-          </div>
-        </div>
-      ) : null}
-
-      {(capabilities.sales || capabilities.stock) && (
-        <div className="grid min-w-0 gap-4 xl:grid-cols-12">
+      {(capabilities.sales || capabilities.finance || capabilities.stock) && (
+        <div
+          className={
+            middleCount === 3
+              ? "grid min-w-0 gap-5 xl:grid-cols-3"
+              : middleCount === 2
+                ? "grid min-w-0 gap-5 xl:grid-cols-2"
+                : "grid min-w-0 gap-5"
+          }
+        >
           {capabilities.sales ? (
-            <div
-              className={
-                capabilities.stock
-                  ? "min-w-0 xl:col-span-7"
-                  : "min-w-0 xl:col-span-12"
-              }
-            >
-              <DashboardSectionCard
-                title="Evolução das vendas"
-                description="Totais mensais dos últimos 6 meses"
-                contentClassName="min-w-0"
-              >
+            <div className="dash-reveal min-w-0" style={{ animationDelay: "120ms" }}>
+              <DashboardSectionCard title="Evolução das vendas">
                 <ExecutiveSalesChart
                   series={dashboard.sales_series}
                   averageTicket={dashboard.kpis.average_ticket}
+                  compact
                 />
               </DashboardSectionCard>
             </div>
           ) : null}
 
+          {capabilities.finance ? (
+            <div className="dash-reveal min-w-0" style={{ animationDelay: "180ms" }}>
+              <DashboardSectionCard title="Resumo financeiro">
+                <ExecutiveFinancialDonut kpis={dashboard.kpis} compact />
+              </DashboardSectionCard>
+            </div>
+          ) : null}
+
           {capabilities.stock ? (
-            <div
-              className={
-                capabilities.sales
-                  ? "min-w-0 xl:col-span-5"
-                  : "min-w-0 xl:col-span-12"
-              }
-            >
+            <div className="dash-reveal min-w-0" style={{ animationDelay: "240ms" }}>
               <ExecutiveStockSummary
                 kpis={dashboard.kpis}
                 lowStockProducts={dashboard.low_stock_products}
+                compact
               />
             </div>
           ) : null}
@@ -196,58 +189,106 @@ export function ExecutiveDashboardBoard() {
       )}
 
       {(capabilities.finance || capabilities.sales) && (
-        <div
-          className={
-            capabilities.finance && capabilities.sales
-              ? "grid min-w-0 gap-4 xl:grid-cols-2"
-              : "grid min-w-0 gap-4"
-          }
-        >
+        <div className="grid min-w-0 gap-5 xl:grid-cols-12">
           {capabilities.finance ? (
-            <ExecutiveRecentActivities
-              activities={dashboard.recent_financial_activities}
-            />
+            <div
+              className={
+                capabilities.sales
+                  ? "dash-reveal min-w-0 xl:col-span-7"
+                  : "dash-reveal min-w-0 xl:col-span-12"
+              }
+              style={{ animationDelay: "280ms" }}
+            >
+              <DashboardSectionCard
+                title="Entradas e saídas"
+                contentClassName="min-w-0"
+              >
+                <ExecutiveCashFlowChart series={dashboard.cash_flow_series} />
+              </DashboardSectionCard>
+            </div>
           ) : null}
 
           {capabilities.sales ? (
-            <DashboardSectionCard
-              title="Últimas vendas"
-              description="Confirmadas da empresa ativa"
-              action={
-                <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-                  <Link href={ROUTES.sales}>Ver todas</Link>
-                </Button>
+            <div
+              className={
+                capabilities.finance
+                  ? "dash-reveal min-w-0 xl:col-span-5"
+                  : "dash-reveal min-w-0 xl:col-span-12"
               }
+              style={{ animationDelay: "320ms" }}
             >
-              {!dashboard.recent_sales.length ? (
-                <p className="text-sm text-muted-foreground">
-                  Nenhuma venda confirmada ainda.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {dashboard.recent_sales.map((sale) => (
-                    <DashboardListRow
-                      key={sale.id}
-                      href={saleDetailPath(sale.id)}
-                      title={sale.party_name}
-                      meta={`${formatDateBR(sale.sale_date)}${
-                        sale.document_number ? ` · ${sale.document_number}` : ""
-                      }`}
-                      amount={formatCurrency(toNumberAmount(sale.total_amount))}
-                    />
-                  ))}
-                </div>
-              )}
-            </DashboardSectionCard>
+              <DashboardSectionCard
+                title="Últimas vendas"
+                action={
+                  <DashboardSectionLink href={ROUTES.sales}>
+                    Ver todas
+                  </DashboardSectionLink>
+                }
+              >
+                {!dashboard.recent_sales.length ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Nenhuma venda confirmada ainda.
+                  </p>
+                ) : (
+                  <div className="divide-y divide-[var(--brand-navy)]/[0.05]">
+                    {dashboard.recent_sales.map((sale) => (
+                      <DashboardListRow
+                        key={sale.id}
+                        href={saleDetailPath(sale.id)}
+                        title={sale.party_name}
+                        meta={`${formatDateBR(sale.sale_date)}${
+                          sale.document_number
+                            ? ` · ${sale.document_number}`
+                            : ""
+                        }`}
+                        amount={formatCurrency(
+                          toNumberAmount(sale.total_amount)
+                        )}
+                      />
+                    ))}
+                  </div>
+                )}
+              </DashboardSectionCard>
+            </div>
           ) : null}
         </div>
       )}
 
-      <ExecutiveLists
-        data={dashboard}
-        showFinance={capabilities.finance}
-        showPurchases={capabilities.purchases}
-      />
+      {(capabilities.finance || capabilities.purchases) && (
+        <div className="grid min-w-0 gap-5 xl:grid-cols-12">
+          <div
+            className={
+              capabilities.finance
+                ? "dash-reveal min-w-0 xl:col-span-7"
+                : "dash-reveal min-w-0 xl:col-span-12"
+            }
+            style={{ animationDelay: "360ms" }}
+          >
+            <ExecutiveLists
+              data={dashboard}
+              showFinance={capabilities.finance}
+              showPurchases={capabilities.purchases}
+            />
+          </div>
+
+          {capabilities.finance ? (
+            <div
+              className="dash-reveal min-w-0 xl:col-span-5"
+              style={{ animationDelay: "400ms" }}
+            >
+              <ExecutiveRecentActivities
+                activities={dashboard.recent_financial_activities}
+              />
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {capabilities.shortcuts ? (
+        <div className="dash-reveal pt-1" style={{ animationDelay: "440ms" }}>
+          <ExecutiveQuickActions />
+        </div>
+      ) : null}
     </div>
   );
 }

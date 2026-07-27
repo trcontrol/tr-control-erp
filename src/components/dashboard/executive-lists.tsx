@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { DashboardListRow } from "@/components/dashboard/dashboard-list-row";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
+import { DashboardSectionLink } from "@/components/dashboard/dashboard-section-link";
 import {
   ROUTES,
   financeDetailPath,
@@ -22,6 +21,30 @@ type ExecutiveListsProps = {
   showPurchases?: boolean;
 };
 
+function ListBlock({
+  title,
+  href,
+  empty,
+  items,
+}: {
+  title: string;
+  href: string;
+  empty: string;
+  items: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--brand-navy)]/65">
+          {title}
+        </h3>
+        <DashboardSectionLink href={href}>Ver</DashboardSectionLink>
+      </div>
+      {items ?? <p className="py-4 text-xs text-muted-foreground">{empty}</p>}
+    </div>
+  );
+}
+
 export function ExecutiveLists({
   data,
   showFinance = true,
@@ -31,109 +54,99 @@ export function ExecutiveLists({
     return null;
   }
 
+  const columnCount = (showPurchases ? 1 : 0) + (showFinance ? 2 : 0);
+
   return (
-    <div
-      className={
-        showFinance && showPurchases
-          ? "grid min-w-0 gap-4 xl:grid-cols-3"
-          : "grid min-w-0 gap-4 lg:grid-cols-2"
+    <DashboardSectionCard
+      title="Pendências e operações"
+      action={
+        <DashboardSectionLink href={ROUTES.finance}>
+          Ver todas
+        </DashboardSectionLink>
       }
     >
-      {showPurchases ? (
-        <DashboardSectionCard
-          title="Últimas compras"
-          description="Confirmadas da empresa ativa"
-          action={
-            <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-              <Link href={ROUTES.purchases}>Ver todas</Link>
-            </Button>
-          }
-        >
-          {!data.recent_purchases.length ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma compra confirmada ainda.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {data.recent_purchases.map((purchase) => (
-                <DashboardListRow
-                  key={purchase.id}
-                  href={purchaseDetailPath(purchase.id)}
-                  title={purchase.party_name}
-                  meta={`${formatDateBR(purchase.purchase_date)}${
-                    purchase.document_number
-                      ? ` · ${purchase.document_number}`
-                      : ""
-                  }`}
-                  amount={formatCurrency(toNumberAmount(purchase.total_amount))}
-                />
-              ))}
-            </div>
-          )}
-        </DashboardSectionCard>
-      ) : null}
-
-      {showFinance ? (
-        <>
-          <DashboardSectionCard
-            title="Próximas contas a receber"
-            description="Somente vencimentos futuros"
-            action={
-              <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-                <Link href={ROUTES.finance}>Financeiro</Link>
-              </Button>
+      <div
+        className={
+          columnCount >= 3
+            ? "grid gap-5 lg:grid-cols-3 lg:gap-6"
+            : columnCount === 2
+              ? "grid gap-5 sm:grid-cols-2"
+              : "grid gap-5"
+        }
+      >
+        {showPurchases ? (
+          <ListBlock
+            title="Compras"
+            href={ROUTES.purchases}
+            empty="Nenhuma compra confirmada."
+            items={
+              data.recent_purchases.length ? (
+                <div className="divide-y divide-[var(--brand-navy)]/[0.06]">
+                  {data.recent_purchases.slice(0, 4).map((purchase) => (
+                    <DashboardListRow
+                      key={purchase.id}
+                      href={purchaseDetailPath(purchase.id)}
+                      title={purchase.party_name}
+                      meta={formatDateBR(purchase.purchase_date)}
+                      amount={formatCurrency(
+                        toNumberAmount(purchase.total_amount)
+                      )}
+                    />
+                  ))}
+                </div>
+              ) : null
             }
-          >
-            {!data.upcoming_receivables.length ? (
-              <p className="text-sm text-muted-foreground">
-                Nenhuma conta a receber com vencimento futuro.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {data.upcoming_receivables.map((entry) => (
-                  <DashboardListRow
-                    key={entry.id}
-                    href={financeDetailPath(entry.id)}
-                    title={entry.party_name || entry.description}
-                    meta={`Vence em ${formatDateBR(entry.due_date)}`}
-                    amount={formatCurrency(toNumberAmount(entry.amount))}
-                    amountClassName="text-emerald-700"
-                  />
-                ))}
-              </div>
-            )}
-          </DashboardSectionCard>
+          />
+        ) : null}
 
-          <DashboardSectionCard
-            title="Próximas contas a pagar"
-            description="Somente vencimentos futuros"
-            action={
-              <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-                <Link href={ROUTES.finance}>Financeiro</Link>
-              </Button>
+        {showFinance ? (
+          <ListBlock
+            title="A receber"
+            href={ROUTES.finance}
+            empty="Sem vencimentos futuros."
+            items={
+              data.upcoming_receivables.length ? (
+                <div className="divide-y divide-[var(--brand-navy)]/[0.06]">
+                  {data.upcoming_receivables.slice(0, 4).map((entry) => (
+                    <DashboardListRow
+                      key={entry.id}
+                      href={financeDetailPath(entry.id)}
+                      title={entry.party_name || entry.description}
+                      meta={formatDateBR(entry.due_date)}
+                      amount={formatCurrency(toNumberAmount(entry.amount))}
+                      amountClassName="text-emerald-700"
+                    />
+                  ))}
+                </div>
+              ) : null
             }
-          >
-            {!data.upcoming_payables.length ? (
-              <p className="text-sm text-muted-foreground">
-                Nenhuma conta a pagar com vencimento futuro.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {data.upcoming_payables.map((entry) => (
-                  <DashboardListRow
-                    key={entry.id}
-                    href={financeDetailPath(entry.id)}
-                    title={entry.party_name || entry.description}
-                    meta={`Vence em ${formatDateBR(entry.due_date)}`}
-                    amount={formatCurrency(toNumberAmount(entry.amount))}
-                    amountClassName="text-[var(--brand-coral)]"
-                  />
-                ))}
-              </div>
-            )}
-          </DashboardSectionCard>
-        </>
-      ) : null}
-    </div>
+          />
+        ) : null}
+
+        {showFinance ? (
+          <ListBlock
+            title="A pagar"
+            href={ROUTES.finance}
+            empty="Sem vencimentos futuros."
+            items={
+              data.upcoming_payables.length ? (
+                <div className="divide-y divide-[var(--brand-navy)]/[0.06]">
+                  {data.upcoming_payables.slice(0, 4).map((entry) => (
+                    <DashboardListRow
+                      key={entry.id}
+                      href={financeDetailPath(entry.id)}
+                      title={entry.party_name || entry.description}
+                      meta={formatDateBR(entry.due_date)}
+                      amount={formatCurrency(toNumberAmount(entry.amount))}
+                      amountClassName="text-[var(--brand-coral)]"
+                    />
+                  ))}
+                </div>
+              ) : null
+            }
+          />
+        ) : null}
+      </div>
+    </DashboardSectionCard>
   );
 }

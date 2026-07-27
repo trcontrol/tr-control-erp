@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { AlertTriangle, Boxes, Package } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
+import { DashboardSectionLink } from "@/components/dashboard/dashboard-section-link";
 import {
   productDetailPath,
   ROUTES,
-  stockProductHistoryPath,
 } from "@/lib/constants";
 import {
   formatCurrency,
@@ -20,55 +19,54 @@ import type { ExecutiveDashboard } from "@/types/database";
 type ExecutiveStockSummaryProps = {
   kpis: ExecutiveDashboard["kpis"];
   lowStockProducts?: ExecutiveDashboard["low_stock_products"];
+  compact?: boolean;
 };
 
 export function ExecutiveStockSummary({
   kpis,
   lowStockProducts = [],
+  compact = false,
 }: ExecutiveStockSummaryProps) {
   const tracked = toNumberAmount(kpis.tracked_products_count);
   const lowStock = toNumberAmount(kpis.low_stock_count);
   const stockValue = toNumberAmount(kpis.stock_value);
-  const preview = lowStockProducts.slice(0, 3);
+  const preview = lowStockProducts.slice(0, compact ? 2 : 3);
 
   return (
     <DashboardSectionCard
-      title="Resumo de estoque"
-      description="Produtos ativos com controle de estoque"
+      title="Estoque"
       action={
-        <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-          <Link href={ROUTES.stock}>Estoque</Link>
-        </Button>
+        <DashboardSectionLink href={ROUTES.stock}>Ver</DashboardSectionLink>
       }
     >
-      <div className="space-y-3">
-        <div className="grid gap-2 sm:grid-cols-3">
-          <div className="rounded-lg border border-[var(--brand-navy)]/8 bg-[var(--brand-navy)]/[0.03] p-2.5">
+      <div className={cn("space-y-3", compact && "min-h-[280px]")}>
+        <div className={cn("grid gap-2", compact ? "grid-cols-1" : "sm:grid-cols-3")}>
+          <div className="rounded-xl bg-[var(--brand-navy)]/[0.03] px-3 py-2.5">
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <Package className="h-3.5 w-3.5 text-[var(--brand-gold)]" />
-              Valor em estoque
+              Valor
             </div>
-            <p className="mt-1.5 text-base font-semibold text-[var(--brand-navy)]">
+            <p className="mt-1.5 text-base font-bold tabular-nums text-[var(--brand-navy)]">
               {formatCurrency(stockValue)}
             </p>
           </div>
 
-          <div className="rounded-lg border border-[var(--brand-navy)]/8 bg-[var(--brand-navy)]/[0.03] p-2.5">
+          <div className="rounded-xl bg-[var(--brand-navy)]/[0.03] px-3 py-2.5">
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <Boxes className="h-3.5 w-3.5 text-[var(--brand-navy)]" />
-              Itens controlados
+              Itens
             </div>
-            <p className="mt-1.5 text-base font-semibold text-[var(--brand-navy)]">
+            <p className="mt-1.5 text-base font-bold tabular-nums text-[var(--brand-navy)]">
               {tracked.toLocaleString("pt-BR")}
             </p>
           </div>
 
           <div
             className={cn(
-              "rounded-lg border p-2.5",
+              "rounded-xl px-3 py-2.5",
               lowStock > 0
-                ? "border-[var(--brand-coral)]/30 bg-[var(--brand-coral)]/10"
-                : "border-[var(--brand-navy)]/8 bg-[var(--brand-navy)]/[0.03]"
+                ? "bg-[var(--brand-coral)]/[0.08]"
+                : "bg-[var(--brand-navy)]/[0.03]"
             )}
           >
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -80,11 +78,11 @@ export function ExecutiveStockSummary({
                     : "text-muted-foreground"
                 )}
               />
-              Abaixo do mínimo
+              Abaixo do mín.
             </div>
             <p
               className={cn(
-                "mt-1.5 text-base font-semibold",
+                "mt-1.5 text-base font-bold tabular-nums",
                 lowStock > 0
                   ? "text-[var(--brand-coral)]"
                   : "text-[var(--brand-navy)]"
@@ -96,38 +94,30 @@ export function ExecutiveStockSummary({
         </div>
 
         {tracked === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nenhum produto ativo com controle de estoque cadastrado.
+          <p className="text-xs text-muted-foreground">
+            Nenhum produto com estoque controlado.
           </p>
         ) : null}
 
         {preview.length > 0 ? (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-[var(--brand-navy)]">
-              Produtos abaixo do mínimo
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--brand-navy)]/60">
+              Atenção
             </p>
             {preview.map((product) => (
-              <div
+              <Link
                 key={product.id}
-                className="flex items-start justify-between gap-2 rounded-lg border border-[var(--brand-navy)]/8 px-2.5 py-2"
+                href={productDetailPath(product.id)}
+                className="block rounded-lg px-2 py-2 transition-colors hover:bg-[var(--brand-navy)]/[0.03]"
               >
-                <div className="min-w-0">
-                  <Link
-                    href={productDetailPath(product.id)}
-                    className="truncate text-sm font-medium text-[var(--brand-navy)] hover:underline"
-                  >
-                    {product.name}
-                  </Link>
-                  <p className="mt-0.5 text-[11px] text-[var(--brand-coral)]">
-                    Atual:{" "}
-                    {formatStockQuantity(product.current_stock, product.unit)} ·
-                    Mín: {formatStockQuantity(product.min_stock, product.unit)}
-                  </p>
-                </div>
-                <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                  <Link href={stockProductHistoryPath(product.id)}>Histórico</Link>
-                </Button>
-              </div>
+                <p className="truncate text-sm font-semibold text-[var(--brand-navy)]">
+                  {product.name}
+                </p>
+                <p className="mt-0.5 text-[11px] text-[var(--brand-coral)]">
+                  {formatStockQuantity(product.current_stock, product.unit)} / mín{" "}
+                  {formatStockQuantity(product.min_stock, product.unit)}
+                </p>
+              </Link>
             ))}
           </div>
         ) : null}

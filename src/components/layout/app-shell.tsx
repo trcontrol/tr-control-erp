@@ -14,7 +14,7 @@ export function AppShell({ userEmail, banner, children }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-[#f5f7fb]">
+    <div className="bg-app-shell flex min-h-screen">
       <Sidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header
@@ -22,7 +22,9 @@ export function AppShell({ userEmail, banner, children }: AppShellProps) {
           onMenuClick={() => setMobileOpen(true)}
         />
         {banner}
-        <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
+        <main className="flex-1 overflow-auto px-4 py-6 sm:px-6 md:px-8 md:py-8 lg:px-10">
+          <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+        </main>
       </div>
     </div>
   );

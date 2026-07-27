@@ -21,22 +21,20 @@ export function DashboardListRow({
   return (
     <Link
       href={href}
-      className="flex items-start justify-between gap-3 rounded-lg border border-[var(--brand-navy)]/8 px-3 py-2.5 transition-colors hover:bg-[var(--brand-navy)]/[0.03]"
+      className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-0.5 py-2.5 transition-colors duration-200 hover:bg-[var(--brand-navy)]/[0.02]"
     >
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-[var(--brand-navy)]">
-          {title}
-        </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{meta}</p>
-      </div>
+      <p className="truncate text-sm font-semibold text-[var(--brand-navy)]">
+        {title}
+      </p>
       <p
         className={cn(
-          "shrink-0 text-sm font-semibold text-[var(--brand-navy)]",
+          "row-span-2 self-center text-right text-sm font-bold tabular-nums text-[var(--brand-navy)]",
           amountClassName
         )}
       >
         {amount}
       </p>
+      <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
     </Link>
   );
 }

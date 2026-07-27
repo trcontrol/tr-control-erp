@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
+import { AlertTriangle, CircleDollarSign, WalletCards } from "lucide-react";
 import type { ExecutiveDashboard } from "@/types/database";
 import { formatCurrency, toNumberAmount } from "@/lib/dashboard/format";
+import { cn } from "@/lib/utils";
 
 type ExecutiveFinancialDonutProps = {
   kpis: ExecutiveDashboard["kpis"];
+  compact?: boolean;
 };
 
 type Segment = {
@@ -25,6 +28,7 @@ function participationPercent(value: number, total: number) {
 
 export function ExecutiveFinancialDonut({
   kpis,
+  compact = false,
 }: ExecutiveFinancialDonutProps) {
   const chart = useMemo(() => {
     const segments: Segment[] = [
@@ -32,13 +36,13 @@ export function ExecutiveFinancialDonut({
         key: "received",
         label: "Recebido",
         value: toNumberAmount(kpis.month_inflows),
-        color: "#0f766e",
+        color: "var(--brand-teal)",
       },
       {
         key: "receivable",
         label: "A receber",
         value: toNumberAmount(kpis.open_receivables),
-        color: "#38bdf8",
+        color: "var(--brand-sky)",
       },
       {
         key: "paid",
@@ -50,7 +54,7 @@ export function ExecutiveFinancialDonut({
         key: "payable",
         label: "A pagar",
         value: toNumberAmount(kpis.open_payables),
-        color: "#c9a227",
+        color: "var(--brand-gold)",
       },
       {
         key: "overdue",
@@ -63,8 +67,8 @@ export function ExecutiveFinancialDonut({
     const total = segments.reduce((sum, segment) => sum + segment.value, 0);
     if (total <= 0) return null;
 
-    const size = 168;
-    const stroke = 24;
+    const size = compact ? 152 : 172;
+    const stroke = compact ? 14 : 16;
     const radius = (size - stroke) / 2;
     const circumference = 2 * Math.PI * radius;
 
@@ -86,20 +90,18 @@ export function ExecutiveFinancialDonut({
       size,
       stroke,
       radius,
-      circumference,
       segments,
       arcs,
       total,
-      result: toNumberAmount(kpis.month_result),
       received: toNumberAmount(kpis.month_inflows),
       openReceivables: toNumberAmount(kpis.open_receivables),
       overdue: toNumberAmount(kpis.overdue_total),
     };
-  }, [kpis]);
+  }, [compact, kpis]);
 
   if (!chart) {
     return (
-      <div className="flex h-[280px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+      <div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">
         Sem composição financeira para exibir no mês.
       </div>
     );
@@ -108,7 +110,12 @@ export function ExecutiveFinancialDonut({
   const center = chart.size / 2;
 
   return (
-    <div className="flex h-full min-h-[280px] flex-col gap-4">
+    <div
+      className={cn(
+        "flex h-full flex-col",
+        compact ? "min-h-[280px] gap-4" : "min-h-[300px] gap-5"
+      )}
+    >
       <div className="flex flex-1 flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative shrink-0">
           <svg
@@ -124,7 +131,7 @@ export function ExecutiveFinancialDonut({
               r={chart.radius}
               fill="none"
               stroke="currentColor"
-              className="text-muted/30"
+              className="text-[var(--brand-navy)]/8"
               strokeWidth={chart.stroke}
             />
             {chart.arcs.map((arc) => (
@@ -142,35 +149,43 @@ export function ExecutiveFinancialDonut({
               />
             ))}
           </svg>
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
-            <span className="text-[11px] text-muted-foreground">Resultado</span>
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Total
+            </span>
             <span
-              className={
-                chart.result >= 0
-                  ? "text-sm font-semibold text-emerald-700"
-                  : "text-sm font-semibold text-[var(--brand-coral)]"
-              }
+              className={cn(
+                "mt-1 font-bold tabular-nums text-[var(--brand-navy)]",
+                compact ? "text-sm" : "text-base"
+              )}
             >
-              {formatCurrency(chart.result)}
+              {formatCurrency(chart.total)}
             </span>
           </div>
         </div>
 
-        <div className="w-full space-y-2 text-sm sm:max-w-[220px]">
+        <div
+          className={cn(
+            "w-full space-y-2.5 text-sm",
+            compact ? "sm:max-w-[200px]" : "sm:max-w-[230px]"
+          )}
+        >
           {chart.segments.map((segment) => (
             <div
               key={segment.key}
-              className="flex items-center justify-between gap-3"
+              className="flex items-center justify-between gap-2"
             >
               <span className="inline-flex min-w-0 items-center gap-2">
                 <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                  className="h-1.5 w-1.5 shrink-0 rounded-full"
                   style={{ backgroundColor: segment.color }}
                 />
-                <span className="truncate">{segment.label}</span>
+                <span className="truncate text-[12px] text-[var(--brand-navy)]/80">
+                  {segment.label}
+                </span>
               </span>
-              <span className="shrink-0 text-right text-xs">
-                <span className="block font-medium text-[var(--brand-navy)]">
+              <span className="shrink-0 text-right text-[11px]">
+                <span className="block font-semibold tabular-nums text-[var(--brand-navy)]">
                   {formatCurrency(segment.value)}
                 </span>
                 <span className="text-muted-foreground">
@@ -182,28 +197,31 @@ export function ExecutiveFinancialDonut({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 rounded-lg bg-[var(--brand-navy)] px-3 py-2.5 text-white">
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-white/65">
+      <div className="grid grid-cols-3 gap-2 border-t border-[var(--brand-navy)]/[0.05] pt-3">
+        <div className="px-1 py-0.5">
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <CircleDollarSign className="h-3 w-3 text-emerald-600" />
             Recebido
-          </p>
-          <p className="mt-0.5 text-xs font-semibold sm:text-sm">
+          </div>
+          <p className="mt-1 truncate text-xs font-bold tabular-nums text-emerald-700">
             {formatCurrency(chart.received)}
           </p>
         </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-white/65">
+        <div className="px-1 py-0.5">
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <WalletCards className="h-3 w-3 text-[var(--brand-gold)]" />
             A receber
-          </p>
-          <p className="mt-0.5 text-xs font-semibold sm:text-sm">
+          </div>
+          <p className="mt-1 truncate text-xs font-bold tabular-nums text-[var(--brand-navy)]">
             {formatCurrency(chart.openReceivables)}
           </p>
         </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-white/65">
-            Em atraso
-          </p>
-          <p className="mt-0.5 text-xs font-semibold text-[var(--brand-gold-soft)] sm:text-sm">
+        <div className="px-1 py-0.5">
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <AlertTriangle className="h-3 w-3 text-[var(--brand-coral)]" />
+            Atraso
+          </div>
+          <p className="mt-1 truncate text-xs font-bold tabular-nums text-[var(--brand-coral)]">
             {formatCurrency(chart.overdue)}
           </p>
         </div>

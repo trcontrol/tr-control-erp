@@ -66,7 +66,7 @@ export function ExecutiveCashFlowChart({ series }: ExecutiveCashFlowChartProps) 
 
   if (!data.length) {
     return (
-      <div className="flex h-[280px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+      <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">
         Sem movimentos realizados no mês para o gráfico.
       </div>
     );
@@ -77,50 +77,51 @@ export function ExecutiveCashFlowChart({ series }: ExecutiveCashFlowChartProps) 
 
   return (
     <div className="w-full min-w-0 space-y-3 overflow-hidden">
-      <div className="flex flex-wrap items-center gap-4 text-xs">
-        <span className="inline-flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-sm bg-emerald-600" />
-          Entradas ({formatCurrency(totals.inflows)})
+      <div className="flex flex-wrap items-center gap-3 text-[11px]">
+        <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700">
+          <span className="h-2 w-2 rounded-full bg-emerald-600" />
+          Entradas {formatCurrency(totals.inflows)}
         </span>
-        <span className="inline-flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-sm bg-[var(--brand-coral)]" />
-          Saídas ({formatCurrency(totals.outflows)})
+        <span className="inline-flex items-center gap-1.5 font-medium text-[var(--brand-coral)]">
+          <span className="h-2 w-2 rounded-full bg-[var(--brand-coral)]" />
+          Saídas {formatCurrency(totals.outflows)}
         </span>
       </div>
 
-      <div className="h-[280px] w-full min-w-0">
+      <div className="h-[260px] w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
             margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-            barCategoryGap="18%"
-            barGap={2}
+            barCategoryGap="22%"
+            barGap={3}
           >
             <CartesianGrid
-              strokeDasharray="3 3"
+              strokeDasharray="3 6"
               vertical={false}
-              stroke="var(--border)"
+              stroke="rgb(11 31 58 / 5%)"
             />
             <XAxis
               dataKey="label"
               tickLine={false}
               axisLine={false}
               interval={tickInterval}
-              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
               minTickGap={16}
             />
             <YAxis
-              width={56}
+              width={52}
               tickLine={false}
               axisLine={false}
               tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
               tickFormatter={(value: number) => formatCompactCurrency(value)}
             />
             <Tooltip
-              cursor={{ fill: "rgb(11 31 58 / 4%)" }}
+              cursor={{ fill: "rgb(11 31 58 / 2.5%)" }}
               contentStyle={{
-                borderRadius: 8,
-                border: "1px solid rgb(11 31 58 / 12%)",
+                borderRadius: 10,
+                border: "1px solid rgb(11 31 58 / 8%)",
+                boxShadow: "var(--shadow-card)",
                 fontSize: 12,
               }}
               formatter={(value, name) => [
@@ -133,15 +134,21 @@ export function ExecutiveCashFlowChart({ series }: ExecutiveCashFlowChartProps) 
               dataKey="inflows"
               name="inflows"
               fill="#059669"
-              radius={[2, 2, 0, 0]}
-              maxBarSize={18}
+              radius={[3, 3, 0, 0]}
+              maxBarSize={14}
+              isAnimationActive
+              animationDuration={800}
+              animationEasing="ease-out"
             />
             <Bar
               dataKey="outflows"
               name="outflows"
               fill="var(--brand-coral)"
-              radius={[2, 2, 0, 0]}
-              maxBarSize={18}
+              radius={[3, 3, 0, 0]}
+              maxBarSize={14}
+              isAnimationActive
+              animationDuration={800}
+              animationEasing="ease-out"
             />
           </BarChart>
         </ResponsiveContainer>

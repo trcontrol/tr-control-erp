@@ -66,7 +66,7 @@ export function ExecutiveCashFlowChart({ series }: ExecutiveCashFlowChartProps) 
 
   if (!data.length) {
     return (
-      <div className="flex h-[268px] items-center justify-center text-sm text-muted-foreground">
+      <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
         Sem movimentos realizados no mês para o gráfico.
       </div>
     );
@@ -77,48 +77,48 @@ export function ExecutiveCashFlowChart({ series }: ExecutiveCashFlowChartProps) 
 
   return (
     <div className="w-full min-w-0 space-y-4 overflow-hidden">
-      <div className="flex flex-wrap items-center gap-4 text-[11px]">
-        <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px]">
+        <span className="inline-flex items-center gap-2 font-medium text-emerald-700">
           <span className="h-2 w-2 rounded-full bg-emerald-600" />
           Entradas {formatCurrency(totals.inflows)}
         </span>
-        <span className="inline-flex items-center gap-1.5 font-medium text-[var(--brand-coral)]">
+        <span className="inline-flex items-center gap-2 font-medium text-[var(--brand-coral)]">
           <span className="h-2 w-2 rounded-full bg-[var(--brand-coral)]" />
           Saídas {formatCurrency(totals.outflows)}
         </span>
       </div>
 
-      <div className="h-[268px] w-full min-w-0">
+      <div className="h-[300px] w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
-            margin={{ top: 10, right: 8, left: 0, bottom: 2 }}
-            barCategoryGap="26%"
-            barGap={4}
+            margin={{ top: 12, right: 10, left: 2, bottom: 4 }}
+            barCategoryGap="22%"
+            barGap={3}
           >
             <CartesianGrid
-              strokeDasharray="2 8"
+              strokeDasharray="3 10"
               vertical={false}
-              stroke="rgb(11 31 58 / 4%)"
+              stroke="rgb(11 31 58 / 5%)"
             />
             <XAxis
               dataKey="label"
               tickLine={false}
               axisLine={false}
               interval={tickInterval}
-              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-              minTickGap={16}
-              tickMargin={8}
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+              minTickGap={14}
+              tickMargin={10}
             />
             <YAxis
-              width={54}
+              width={58}
               tickLine={false}
               axisLine={false}
-              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
               tickFormatter={(value: number) => formatCompactCurrency(value)}
             />
             <Tooltip
-              cursor={{ fill: "rgb(11 31 58 / 2%)" }}
+              cursor={{ fill: "rgb(11 31 58 / 2.5%)" }}
               contentStyle={{
                 borderRadius: 12,
                 border: "1px solid rgb(11 31 58 / 7%)",
@@ -135,20 +135,20 @@ export function ExecutiveCashFlowChart({ series }: ExecutiveCashFlowChartProps) 
               dataKey="inflows"
               name="inflows"
               fill="#059669"
-              radius={[5, 5, 1, 1]}
-              maxBarSize={15}
+              radius={[6, 6, 2, 2]}
+              maxBarSize={18}
               isAnimationActive
-              animationDuration={800}
+              animationDuration={850}
               animationEasing="ease-out"
             />
             <Bar
               dataKey="outflows"
               name="outflows"
               fill="var(--brand-coral)"
-              radius={[5, 5, 1, 1]}
-              maxBarSize={15}
+              radius={[6, 6, 2, 2]}
+              maxBarSize={18}
               isAnimationActive
-              animationDuration={800}
+              animationDuration={850}
               animationEasing="ease-out"
             />
           </BarChart>

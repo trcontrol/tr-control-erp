@@ -30,7 +30,7 @@ export function DashboardTimelineItem({
   return (
     <Link
       href={href}
-      className="group relative flex gap-3.5 rounded-xl px-1.5 py-2.5 transition-colors duration-200 hover:bg-[var(--brand-navy)]/[0.025]"
+      className="group relative flex gap-4 rounded-xl px-1.5 py-3 transition-colors duration-200 hover:bg-[var(--brand-navy)]/[0.025]"
     >
       <div
         className={cn(
@@ -40,29 +40,29 @@ export function DashboardTimelineItem({
       >
         <span
           className={cn(
-            "flex h-9 w-9 items-center justify-center rounded-full shadow-sm ring-[3px] ring-card transition-transform duration-200 group-hover:scale-105",
+            "flex h-9 w-9 items-center justify-center rounded-full ring-[3px] ring-card transition-transform duration-200 group-hover:scale-105",
             typeTone === "positive"
-              ? "bg-emerald-600 text-white"
-              : "bg-[var(--brand-coral)] text-white"
+              ? "bg-emerald-600/12 text-emerald-700"
+              : "bg-[var(--brand-coral)]/15 text-[var(--brand-coral)]"
           )}
         >
-          <Icon className="h-4 w-4" strokeWidth={2} />
+          <Icon className="h-4 w-4" strokeWidth={1.9} />
         </span>
         {!isLast ? (
           <span
-            className="mt-2 w-px flex-1 min-h-[18px] bg-[var(--brand-navy)]/10"
+            className="mt-2.5 w-px flex-1 min-h-[22px] bg-[var(--brand-navy)]/[0.08]"
             aria-hidden
           />
         ) : null}
       </div>
 
-      <div className={cn("min-w-0 flex-1 pt-1", !isLast && "pb-3")}>
+      <div className={cn("min-w-0 flex-1 pt-1", !isLast && "pb-3.5")}>
         <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 space-y-1">
+          <div className="min-w-0 space-y-1.5">
             <p className="truncate text-[13.5px] font-semibold leading-snug text-[var(--brand-navy)]">
               {title}
             </p>
-            <p className="truncate text-[11.5px] leading-relaxed text-muted-foreground">
+            <p className="truncate text-[12px] leading-relaxed text-muted-foreground">
               {typeLabel}
               {originLabel ? ` · ${originLabel}` : ""}
               {" · "}

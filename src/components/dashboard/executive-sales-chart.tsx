@@ -75,7 +75,7 @@ export function ExecutiveSalesChart({
     [data]
   );
 
-  const chartHeight = compact ? 210 : 260;
+  const chartHeight = compact ? 248 : 280;
 
   if (!data.length) {
     return (
@@ -90,8 +90,8 @@ export function ExecutiveSalesChart({
 
   return (
     <div className="w-full min-w-0 space-y-4 overflow-hidden">
-      <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-        <span className="font-medium text-[var(--brand-navy)]">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-muted-foreground">
+        <span className="font-semibold text-[var(--brand-navy)]">
           {formatCurrency(periodTotal)}
         </span>
         {averageTicket !== undefined ? (
@@ -103,30 +103,30 @@ export function ExecutiveSalesChart({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
-            margin={{ top: 8, right: 6, left: 0, bottom: 2 }}
-            barCategoryGap="32%"
+            margin={{ top: 10, right: 8, left: 2, bottom: 4 }}
+            barCategoryGap="28%"
           >
             <CartesianGrid
-              strokeDasharray="2 8"
+              strokeDasharray="3 10"
               vertical={false}
-              stroke="rgb(11 31 58 / 4%)"
+              stroke="rgb(11 31 58 / 5%)"
             />
             <XAxis
               dataKey="label"
               tickLine={false}
               axisLine={false}
-              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-              tickMargin={8}
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+              tickMargin={10}
             />
             <YAxis
-              width={compact ? 44 : 52}
+              width={compact ? 48 : 56}
               tickLine={false}
               axisLine={false}
-              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
               tickFormatter={(value: number) => formatCompactCurrency(value)}
             />
             <Tooltip
-              cursor={{ fill: "rgb(11 31 58 / 2%)" }}
+              cursor={{ fill: "rgb(11 31 58 / 2.5%)" }}
               contentStyle={{
                 borderRadius: 12,
                 border: "1px solid rgb(11 31 58 / 7%)",
@@ -146,10 +146,10 @@ export function ExecutiveSalesChart({
             />
             <Bar
               dataKey="total"
-              radius={[7, 7, 2, 2]}
-              maxBarSize={compact ? 28 : 38}
+              radius={[8, 8, 2, 2]}
+              maxBarSize={compact ? 34 : 42}
               isAnimationActive
-              animationDuration={800}
+              animationDuration={850}
               animationEasing="ease-out"
             >
               {data.map((point) => (

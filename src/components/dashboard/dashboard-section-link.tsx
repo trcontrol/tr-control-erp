@@ -18,7 +18,7 @@ export function DashboardSectionLink({
     <Link
       href={href}
       className={cn(
-        "text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--brand-coral)]",
+        "text-[12px] font-semibold text-[var(--brand-coral)]",
         "transition-colors duration-200 hover:text-[var(--brand-navy)]",
         className
       )}

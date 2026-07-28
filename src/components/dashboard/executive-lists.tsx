@@ -34,13 +34,15 @@ function ListBlock({
 }) {
   return (
     <div className="min-w-0">
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--brand-navy)]/65">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="text-[13px] font-semibold text-[var(--brand-navy)]/75">
           {title}
         </h3>
         <DashboardSectionLink href={href}>Ver</DashboardSectionLink>
       </div>
-      {items ?? <p className="py-4 text-xs text-muted-foreground">{empty}</p>}
+      {items ?? (
+        <p className="py-5 text-sm text-muted-foreground">{empty}</p>
+      )}
     </div>
   );
 }
@@ -59,6 +61,7 @@ export function ExecutiveLists({
   return (
     <DashboardSectionCard
       title="Pendências e operações"
+      elevation="secondary"
       action={
         <DashboardSectionLink href={ROUTES.finance}>
           Ver todas
@@ -68,10 +71,10 @@ export function ExecutiveLists({
       <div
         className={
           columnCount >= 3
-            ? "grid gap-5 lg:grid-cols-3 lg:gap-6"
+            ? "grid gap-6 lg:grid-cols-3 lg:gap-7"
             : columnCount === 2
-              ? "grid gap-5 sm:grid-cols-2"
-              : "grid gap-5"
+              ? "grid gap-6 sm:grid-cols-2"
+              : "grid gap-6"
         }
       >
         {showPurchases ? (
@@ -81,7 +84,7 @@ export function ExecutiveLists({
             empty="Nenhuma compra confirmada."
             items={
               data.recent_purchases.length ? (
-                <div className="divide-y divide-[var(--brand-navy)]/[0.06]">
+                <div className="divide-y divide-[var(--brand-navy)]/[0.045]">
                   {data.recent_purchases.slice(0, 4).map((purchase) => (
                     <DashboardListRow
                       key={purchase.id}
@@ -106,7 +109,7 @@ export function ExecutiveLists({
             empty="Sem vencimentos futuros."
             items={
               data.upcoming_receivables.length ? (
-                <div className="divide-y divide-[var(--brand-navy)]/[0.06]">
+                <div className="divide-y divide-[var(--brand-navy)]/[0.045]">
                   {data.upcoming_receivables.slice(0, 4).map((entry) => (
                     <DashboardListRow
                       key={entry.id}
@@ -130,7 +133,7 @@ export function ExecutiveLists({
             empty="Sem vencimentos futuros."
             items={
               data.upcoming_payables.length ? (
-                <div className="divide-y divide-[var(--brand-navy)]/[0.06]">
+                <div className="divide-y divide-[var(--brand-navy)]/[0.045]">
                   {data.upcoming_payables.slice(0, 4).map((entry) => (
                     <DashboardListRow
                       key={entry.id}

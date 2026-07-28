@@ -136,160 +136,188 @@ export function ExecutiveDashboardBoard() {
   ].filter(Boolean).length;
 
   return (
-    <div className="min-w-0 space-y-7 md:space-y-9">
+    <div className="min-w-0 space-y-8 md:space-y-10">
       {capabilities.shortcuts ? (
         <div className="dash-reveal" style={{ animationDelay: "40ms" }}>
           <ExecutiveQuickActions />
         </div>
       ) : null}
 
-      <ExecutiveKpiGrid
-        kpis={dashboard.kpis}
-        cashFlowSeries={dashboard.cash_flow_series}
-        salesSeries={dashboard.sales_series}
-        showFinance={capabilities.finance}
-        showSales={capabilities.sales}
-        showPurchases={capabilities.purchases}
-      />
+      <section className="min-w-0 space-y-3">
+        <div className="dash-reveal px-0.5" style={{ animationDelay: "60ms" }}>
+          <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
+            Indicadores principais
+          </p>
+        </div>
+        <ExecutiveKpiGrid
+          kpis={dashboard.kpis}
+          cashFlowSeries={dashboard.cash_flow_series}
+          salesSeries={dashboard.sales_series}
+          showFinance={capabilities.finance}
+          showSales={capabilities.sales}
+          showPurchases={capabilities.purchases}
+        />
+      </section>
 
       {(capabilities.sales || capabilities.finance || capabilities.stock) && (
-        <div
-          className={
-            middleCount === 3
-              ? "grid min-w-0 gap-5 xl:grid-cols-3 xl:gap-6"
-              : middleCount === 2
-                ? "grid min-w-0 gap-5 xl:grid-cols-2 xl:gap-6"
-                : "grid min-w-0 gap-5"
-          }
-        >
-          {capabilities.sales ? (
-            <div className="dash-reveal min-w-0" style={{ animationDelay: "120ms" }}>
-              <DashboardSectionCard title="Evolução das vendas">
-                <ExecutiveSalesChart
-                  series={dashboard.sales_series}
-                  averageTicket={dashboard.kpis.average_ticket}
+        <section className="min-w-0 space-y-3">
+          <div className="dash-reveal px-0.5" style={{ animationDelay: "100ms" }}>
+            <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
+              Resumo financeiro e operacional
+            </p>
+          </div>
+          <div
+            className={
+              middleCount === 3
+                ? "grid min-w-0 gap-5 xl:grid-cols-3 xl:gap-6"
+                : middleCount === 2
+                  ? "grid min-w-0 gap-5 xl:grid-cols-2 xl:gap-6"
+                  : "grid min-w-0 gap-5"
+            }
+          >
+            {capabilities.sales ? (
+              <div className="dash-reveal min-w-0" style={{ animationDelay: "120ms" }}>
+                <DashboardSectionCard title="Evolução das vendas">
+                  <ExecutiveSalesChart
+                    series={dashboard.sales_series}
+                    averageTicket={dashboard.kpis.average_ticket}
+                    compact
+                  />
+                </DashboardSectionCard>
+              </div>
+            ) : null}
+
+            {capabilities.finance ? (
+              <div className="dash-reveal min-w-0" style={{ animationDelay: "180ms" }}>
+                <DashboardSectionCard title="Resumo financeiro">
+                  <ExecutiveFinancialDonut kpis={dashboard.kpis} compact />
+                </DashboardSectionCard>
+              </div>
+            ) : null}
+
+            {capabilities.stock ? (
+              <div className="dash-reveal min-w-0" style={{ animationDelay: "240ms" }}>
+                <ExecutiveStockSummary
+                  kpis={dashboard.kpis}
+                  lowStockProducts={dashboard.low_stock_products}
                   compact
                 />
-              </DashboardSectionCard>
-            </div>
-          ) : null}
-
-          {capabilities.finance ? (
-            <div className="dash-reveal min-w-0" style={{ animationDelay: "180ms" }}>
-              <DashboardSectionCard title="Resumo financeiro">
-                <ExecutiveFinancialDonut kpis={dashboard.kpis} compact />
-              </DashboardSectionCard>
-            </div>
-          ) : null}
-
-          {capabilities.stock ? (
-            <div className="dash-reveal min-w-0" style={{ animationDelay: "240ms" }}>
-              <ExecutiveStockSummary
-                kpis={dashboard.kpis}
-                lowStockProducts={dashboard.low_stock_products}
-                compact
-              />
-            </div>
-          ) : null}
-        </div>
+              </div>
+            ) : null}
+          </div>
+        </section>
       )}
 
       {(capabilities.finance || capabilities.sales) && (
-        <div className="grid min-w-0 gap-5 xl:grid-cols-12 xl:gap-6">
-          {capabilities.finance ? (
-            <div
-              className={
-                capabilities.sales
-                  ? "dash-reveal min-w-0 xl:col-span-7"
-                  : "dash-reveal min-w-0 xl:col-span-12"
-              }
-              style={{ animationDelay: "280ms" }}
-            >
-              <DashboardSectionCard
-                title="Entradas e saídas"
-                contentClassName="min-w-0"
-              >
-                <ExecutiveCashFlowChart series={dashboard.cash_flow_series} />
-              </DashboardSectionCard>
-            </div>
-          ) : null}
-
-          {capabilities.sales ? (
-            <div
-              className={
-                capabilities.finance
-                  ? "dash-reveal min-w-0 xl:col-span-5"
-                  : "dash-reveal min-w-0 xl:col-span-12"
-              }
-              style={{ animationDelay: "320ms" }}
-            >
-              <DashboardSectionCard
-                title="Últimas vendas"
-                action={
-                  <DashboardSectionLink href={ROUTES.sales}>
-                    Ver todas
-                  </DashboardSectionLink>
+        <section className="min-w-0 space-y-3">
+          <div className="dash-reveal px-0.5" style={{ animationDelay: "260ms" }}>
+            <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
+              Fluxo e vendas recentes
+            </p>
+          </div>
+          <div className="grid min-w-0 gap-5 xl:grid-cols-12 xl:gap-6">
+            {capabilities.finance ? (
+              <div
+                className={
+                  capabilities.sales
+                    ? "dash-reveal min-w-0 xl:col-span-7"
+                    : "dash-reveal min-w-0 xl:col-span-12"
                 }
+                style={{ animationDelay: "280ms" }}
               >
-                {!dashboard.recent_sales.length ? (
-                  <p className="py-8 text-center text-sm text-muted-foreground">
-                    Nenhuma venda confirmada ainda.
-                  </p>
-                ) : (
-                  <div className="divide-y divide-[var(--brand-navy)]/[0.05]">
-                    {dashboard.recent_sales.map((sale) => (
-                      <DashboardListRow
-                        key={sale.id}
-                        href={saleDetailPath(sale.id)}
-                        title={sale.party_name}
-                        meta={`${formatDateBR(sale.sale_date)}${
-                          sale.document_number
-                            ? ` · ${sale.document_number}`
-                            : ""
-                        }`}
-                        amount={formatCurrency(
-                          toNumberAmount(sale.total_amount)
-                        )}
-                      />
-                    ))}
-                  </div>
-                )}
-              </DashboardSectionCard>
-            </div>
-          ) : null}
-        </div>
+                <DashboardSectionCard
+                  title="Entradas e saídas"
+                  contentClassName="min-w-0"
+                >
+                  <ExecutiveCashFlowChart series={dashboard.cash_flow_series} />
+                </DashboardSectionCard>
+              </div>
+            ) : null}
+
+            {capabilities.sales ? (
+              <div
+                className={
+                  capabilities.finance
+                    ? "dash-reveal min-w-0 xl:col-span-5"
+                    : "dash-reveal min-w-0 xl:col-span-12"
+                }
+                style={{ animationDelay: "320ms" }}
+              >
+                <DashboardSectionCard
+                  title="Últimas vendas"
+                  elevation="secondary"
+                  action={
+                    <DashboardSectionLink href={ROUTES.sales}>
+                      Ver todas
+                    </DashboardSectionLink>
+                  }
+                >
+                  {!dashboard.recent_sales.length ? (
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                      Nenhuma venda confirmada ainda.
+                    </p>
+                  ) : (
+                    <div className="divide-y divide-[var(--brand-navy)]/[0.045]">
+                      {dashboard.recent_sales.map((sale) => (
+                        <DashboardListRow
+                          key={sale.id}
+                          href={saleDetailPath(sale.id)}
+                          title={sale.party_name}
+                          meta={`${formatDateBR(sale.sale_date)}${
+                            sale.document_number
+                              ? ` · ${sale.document_number}`
+                              : ""
+                          }`}
+                          amount={formatCurrency(
+                            toNumberAmount(sale.total_amount)
+                          )}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </DashboardSectionCard>
+              </div>
+            ) : null}
+          </div>
+        </section>
       )}
 
       {(capabilities.finance || capabilities.purchases) && (
-        <div className="grid min-w-0 gap-5 xl:grid-cols-12 xl:gap-6">
-          <div
-            className={
-              capabilities.finance
-                ? "dash-reveal min-w-0 xl:col-span-7"
-                : "dash-reveal min-w-0 xl:col-span-12"
-            }
-            style={{ animationDelay: "360ms" }}
-          >
-            <ExecutiveLists
-              data={dashboard}
-              showFinance={capabilities.finance}
-              showPurchases={capabilities.purchases}
-            />
+        <section className="min-w-0 space-y-3">
+          <div className="dash-reveal px-0.5" style={{ animationDelay: "340ms" }}>
+            <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
+              Pendências e atividades
+            </p>
           </div>
-
-          {capabilities.finance ? (
+          <div className="grid min-w-0 gap-5 xl:grid-cols-12 xl:gap-6">
             <div
-              className="dash-reveal min-w-0 xl:col-span-5"
-              style={{ animationDelay: "400ms" }}
+              className={
+                capabilities.finance
+                  ? "dash-reveal min-w-0 xl:col-span-7"
+                  : "dash-reveal min-w-0 xl:col-span-12"
+              }
+              style={{ animationDelay: "360ms" }}
             >
-              <ExecutiveRecentActivities
-                activities={dashboard.recent_financial_activities}
+              <ExecutiveLists
+                data={dashboard}
+                showFinance={capabilities.finance}
+                showPurchases={capabilities.purchases}
               />
             </div>
-          ) : null}
-        </div>
-      )}
 
+            {capabilities.finance ? (
+              <div
+                className="dash-reveal min-w-0 xl:col-span-5"
+                style={{ animationDelay: "400ms" }}
+              >
+                <ExecutiveRecentActivities
+                  activities={dashboard.recent_financial_activities}
+                />
+              </div>
+            ) : null}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -26,11 +26,11 @@ export function ExecutivePageShell({
 
   return (
     <div className="min-w-0 space-y-7 md:space-y-8">
-      <header className="min-w-0">
-        <h1 className="font-display text-[1.75rem] font-semibold leading-tight tracking-tight text-[var(--brand-navy)] sm:text-[2rem]">
+      <header className="min-w-0 border-b border-[var(--brand-navy)]/[0.05] pb-6 md:pb-7">
+        <h1 className="font-display text-[1.85rem] font-semibold leading-[1.15] tracking-tight text-[var(--brand-navy)] sm:text-[2.15rem]">
           {title}
         </h1>
-        <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+        <p className="mt-2.5 max-w-2xl text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
           {description}
         </p>
       </header>

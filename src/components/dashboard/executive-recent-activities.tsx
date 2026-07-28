@@ -26,6 +26,7 @@ export function ExecutiveRecentActivities({
   return (
     <DashboardSectionCard
       title="Atividades recentes"
+      elevation="secondary"
       action={
         <DashboardSectionLink href={ROUTES.cashFlow}>
           Ver todas
@@ -33,11 +34,11 @@ export function ExecutiveRecentActivities({
       }
     >
       {!items.length ? (
-        <p className="py-6 text-sm text-muted-foreground">
+        <p className="py-8 text-sm text-muted-foreground">
           Nenhuma movimentação financeira recente.
         </p>
       ) : (
-        <div className="pt-0.5">
+        <div className="pt-1">
           {items.map((activity, index) => {
             const isInflow = activity.type === "entrada";
             return (

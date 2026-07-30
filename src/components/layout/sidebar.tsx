@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/layout/brand-logo";
 
 const navigation = [
   { name: "Dashboard", href: ROUTES.dashboard, icon: LayoutDashboard },
@@ -49,7 +50,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
     <>
       <div
         className={cn(
-          "fixed inset-0 z-40 bg-[var(--brand-navy-deep)]/55 backdrop-blur-[3px] transition-opacity duration-300 md:hidden",
+          "fixed inset-0 z-40 bg-[var(--brand-navy-deep)]/55 backdrop-blur-[3px] transition-opacity duration-300 lg:hidden",
           open ? "opacity-100" : "pointer-events-none opacity-0"
         )}
         onClick={onClose}
@@ -58,34 +59,33 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[276px] flex-col bg-sidebar text-sidebar-foreground shadow-elevated transition-transform duration-300 ease-out md:static md:z-0 md:w-[240px] md:translate-x-0 md:shadow-none",
-          open ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-y-0 left-0 z-50 flex w-[min(288px,88vw)] flex-col",
+          "bg-sidebar text-sidebar-foreground",
+          "rounded-none shadow-elevated",
+          "transition-transform duration-300 ease-out",
+          "sm:w-[272px]",
+          "md:w-[248px] md:rounded-r-2xl",
+          "lg:static lg:z-0 lg:w-[240px] lg:translate-x-0 lg:rounded-none lg:shadow-none",
+          "xl:w-[256px]",
+          open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="relative px-5 pb-2 pt-8">
-          <div
-            className="absolute left-5 top-0 h-1 w-10 rounded-b-full bg-[var(--brand-gold)]"
-            aria-hidden
-          />
+        {/* Logo */}
+        <div className="shrink-0 px-4 pb-4 pt-5 sm:px-5 sm:pt-6">
           <div className="flex items-start justify-between gap-2">
             <Link
               href={ROUTES.dashboard}
               onClick={onClose}
-              className="group min-w-0"
+              className="group min-w-0 rounded-xl outline-none transition-opacity hover:opacity-95 focus-visible:ring-2 focus-visible:ring-[var(--brand-gold)]/50"
             >
-              <span className="font-display block text-[1.65rem] font-semibold leading-none tracking-tight text-white transition-opacity group-hover:opacity-95">
-                TR Control
-              </span>
-              <span className="mt-2 block text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--brand-gold-soft)]">
-                ERP Premium
-              </span>
+              <BrandLogo />
             </Link>
 
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="text-sidebar-foreground hover:bg-white/10 hover:text-white md:hidden"
+              className="mt-0.5 h-9 w-9 shrink-0 rounded-xl text-sidebar-foreground hover:bg-white/10 hover:text-white lg:hidden"
               onClick={onClose}
               aria-label="Fechar menu"
             >
@@ -94,7 +94,13 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
           </div>
         </div>
 
-        <nav className="mt-8 flex flex-1 flex-col gap-1.5 overflow-y-auto px-3.5 pb-4">
+        {/* Divisor */}
+        <div className="shrink-0 px-4 sm:px-5" aria-hidden>
+          <div className="h-px bg-gradient-to-r from-transparent via-white/18 to-transparent" />
+        </div>
+
+        {/* Menu */}
+        <nav className="mt-4 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-3 sm:mt-5 sm:px-3.5">
           {navigation.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -108,10 +114,10 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                 href={item.href}
                 onClick={onClose}
                 className={cn(
-                  "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-colors duration-200",
+                  "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-all duration-200",
                   isActive
-                    ? "bg-[var(--brand-coral)] text-white"
-                    : "text-sidebar-foreground/65 hover:bg-white/[0.05] hover:text-white"
+                    ? "bg-[var(--brand-coral)] text-white shadow-[0_4px_14px_rgb(196_147_159_/35%)]"
+                    : "text-sidebar-foreground/70 hover:bg-white/[0.06] hover:text-white"
                 )}
               >
                 <Icon
@@ -119,7 +125,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                     "h-4 w-4 shrink-0 transition-colors",
                     isActive
                       ? "text-white"
-                      : "text-sidebar-foreground/40 group-hover:text-[var(--brand-gold-soft)]"
+                      : "text-sidebar-foreground/45 group-hover:text-[var(--brand-gold-soft)]"
                   )}
                   strokeWidth={1.5}
                 />
@@ -129,8 +135,9 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
           })}
         </nav>
 
-        <div className="px-4 pb-6 pt-2">
-          <div className="rounded-2xl border border-[var(--brand-gold)]/35 bg-gradient-to-br from-white/[0.07] to-transparent px-4 py-4">
+        {/* Espaço flexível implícito via flex-1 no nav; bloco inferior ancorado */}
+        <div className="mt-auto shrink-0 px-3.5 pb-5 pt-2 sm:px-4 sm:pb-6">
+          <div className="rounded-2xl border border-[var(--brand-gold)]/30 bg-gradient-to-br from-white/[0.08] to-transparent px-4 py-4 shadow-[inset_0_1px_0_rgb(255_255_255_/6%)]">
             <div className="mb-2.5 flex items-center gap-2 text-[var(--brand-gold-soft)]">
               <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />
               <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">

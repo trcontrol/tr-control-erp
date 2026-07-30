@@ -66,7 +66,7 @@ export function Header({ userEmail, onMenuClick }: HeaderProps) {
             type="button"
             variant="ghost"
             size="icon"
-            className="h-10 w-10 shrink-0 rounded-full bg-[var(--brand-coral)]/12 text-[var(--brand-coral)] hover:bg-[var(--brand-coral)]/18 md:hidden"
+            className="h-10 w-10 shrink-0 rounded-full bg-[var(--brand-coral)]/12 text-[var(--brand-coral)] hover:bg-[var(--brand-coral)]/18 lg:hidden"
             onClick={onMenuClick}
             aria-label="Abrir menu"
           >

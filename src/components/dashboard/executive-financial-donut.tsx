@@ -72,8 +72,8 @@ export function ExecutiveFinancialDonut({
     const total = segments.reduce((sum, segment) => sum + segment.value, 0);
     if (total <= 0) return null;
 
-    const size = compact ? 168 : 188;
-    const stroke = compact ? 16 : 18;
+    const size = compact ? 156 : 188;
+    const stroke = compact ? 15 : 18;
     const radius = (size - stroke) / 2;
     const circumference = 2 * Math.PI * radius;
 
@@ -119,11 +119,11 @@ export function ExecutiveFinancialDonut({
   return (
     <div
       className={cn(
-        "flex h-full flex-col",
-        compact ? "min-h-[320px] gap-5" : "min-h-[340px] gap-5"
+        "@container/finance flex h-full min-w-0 flex-col",
+        compact ? "gap-5" : "min-h-[340px] gap-5"
       )}
     >
-      <div className="flex flex-1 flex-col items-center gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+      <div className="flex min-w-0 flex-1 flex-col items-center gap-5 @[26rem]/flex-row @[26rem]:items-center @[26rem]:gap-5">
         <div className="relative shrink-0">
           <svg
             width={chart.size}
@@ -157,80 +157,80 @@ export function ExecutiveFinancialDonut({
               />
             ))}
           </svg>
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-5 text-center">
             <span className="text-[11px] font-medium text-muted-foreground">
               Total
             </span>
-            <span className="mt-1 max-w-[7.5rem] break-words text-[13px] font-bold leading-snug tabular-nums text-[var(--brand-navy)] sm:text-sm">
+            <span className="mt-1 whitespace-nowrap text-[13px] font-bold leading-snug tabular-nums text-[var(--brand-navy)] sm:text-sm">
               {formatCurrency(chart.total)}
             </span>
           </div>
         </div>
 
-        <div className="w-full min-w-0 flex-1 space-y-2.5">
+        <ul className="w-full min-w-0 flex-1 space-y-2.5 @[26rem]:min-w-[11.5rem]">
           {chart.segments.map((segment) => (
-            <div
+            <li
               key={segment.key}
-              className="flex items-start justify-between gap-3 rounded-lg px-1 py-0.5"
+              className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 px-0.5"
             >
-              <span className="inline-flex min-w-0 items-center gap-2.5">
+              <span className="inline-flex min-w-0 items-center gap-2.5 pr-1">
                 <span
-                  className="mt-0.5 h-2 w-2 shrink-0 rounded-full"
+                  className="h-2 w-2 shrink-0 rounded-full"
                   style={{ backgroundColor: segment.color }}
                 />
-                <span className="text-[12.5px] font-medium text-[var(--brand-navy)]/80">
+                <span className="truncate text-[12.5px] font-medium text-[var(--brand-navy)]/80">
                   {segment.label}
                 </span>
               </span>
-              <span className="shrink-0 text-right">
-                <span className="block text-[12.5px] font-semibold tabular-nums text-[var(--brand-navy)]">
+              <span className="min-w-0 text-right">
+                <span className="block whitespace-nowrap text-[12.5px] font-semibold tabular-nums text-[var(--brand-navy)]">
                   {formatCurrency(segment.value)}
                 </span>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="block whitespace-nowrap text-[11px] text-muted-foreground">
                   {participationPercent(segment.value, chart.total)}
                 </span>
               </span>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 border-t border-[var(--brand-navy)]/[0.05] pt-4 sm:grid-cols-4">
-        <div className="rounded-xl bg-emerald-50/80 px-3 py-3">
+      <div className="grid grid-cols-2 gap-2.5 border-t border-[var(--brand-navy)]/[0.05] pt-4 @[28rem]:grid-cols-4">
+        <div className="flex min-w-0 flex-col rounded-xl bg-emerald-50/80 px-3 py-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-            <CircleDollarSign className="h-3.5 w-3.5 text-emerald-600" />
-            Recebido
+            <CircleDollarSign className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+            <span className="truncate">Recebido</span>
           </div>
-          <p className="mt-2 break-words text-[12.5px] font-bold leading-snug tabular-nums text-emerald-700">
+          <p className="mt-2 whitespace-nowrap text-[12.5px] font-bold leading-snug tabular-nums text-emerald-700">
             {formatCurrency(chart.received)}
           </p>
         </div>
-        <div className="rounded-xl bg-[var(--brand-navy)]/[0.03] px-3 py-3">
+        <div className="flex min-w-0 flex-col rounded-xl bg-[var(--brand-navy)]/[0.03] px-3 py-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-            <WalletCards className="h-3.5 w-3.5 text-[var(--brand-gold)]" />
-            A receber
+            <WalletCards className="h-3.5 w-3.5 shrink-0 text-[var(--brand-gold)]" />
+            <span className="truncate">A receber</span>
           </div>
-          <p className="mt-2 break-words text-[12.5px] font-bold leading-snug tabular-nums text-[var(--brand-navy)]">
+          <p className="mt-2 whitespace-nowrap text-[12.5px] font-bold leading-snug tabular-nums text-[var(--brand-navy)]">
             {formatCurrency(chart.openReceivables)}
           </p>
         </div>
-        <div className="rounded-xl bg-[var(--brand-coral)]/[0.08] px-3 py-3">
+        <div className="flex min-w-0 flex-col rounded-xl bg-[var(--brand-coral)]/[0.08] px-3 py-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-            <AlertTriangle className="h-3.5 w-3.5 text-[var(--brand-coral)]" />
-            Em atraso
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-[var(--brand-coral)]" />
+            <span className="truncate">Em atraso</span>
           </div>
-          <p className="mt-2 break-words text-[12.5px] font-bold leading-snug tabular-nums text-[var(--brand-coral)]">
+          <p className="mt-2 whitespace-nowrap text-[12.5px] font-bold leading-snug tabular-nums text-[var(--brand-coral)]">
             {formatCurrency(chart.overdue)}
           </p>
         </div>
-        <div className="rounded-xl bg-[var(--brand-gold)]/[0.1] px-3 py-3">
+        <div className="flex min-w-0 flex-col rounded-xl bg-[var(--brand-gold)]/[0.1] px-3 py-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-            <Scale className="h-3.5 w-3.5 text-[var(--brand-gold)]" />
-            Resultado
+            <Scale className="h-3.5 w-3.5 shrink-0 text-[var(--brand-gold)]" />
+            <span className="truncate">Resultado</span>
           </div>
           <p
             className={cn(
-              "mt-2 break-words text-[12.5px] font-bold leading-snug tabular-nums",
+              "mt-2 whitespace-nowrap text-[12.5px] font-bold leading-snug tabular-nums",
               resultPositive ? "text-emerald-700" : "text-[var(--brand-coral)]"
             )}
           >

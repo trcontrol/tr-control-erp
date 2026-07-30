@@ -169,7 +169,7 @@ export function ExecutiveDashboardBoard() {
           <div
             className={
               middleCount === 3
-                ? "grid min-w-0 gap-5 xl:grid-cols-3 xl:gap-6"
+                ? "grid min-w-0 gap-5 xl:grid-cols-2 xl:gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,0.9fr)]"
                 : middleCount === 2
                   ? "grid min-w-0 gap-5 xl:grid-cols-2 xl:gap-6"
                   : "grid min-w-0 gap-5"
@@ -196,7 +196,14 @@ export function ExecutiveDashboardBoard() {
             ) : null}
 
             {capabilities.stock ? (
-              <div className="dash-reveal min-w-0" style={{ animationDelay: "240ms" }}>
+              <div
+                className={
+                  middleCount === 3
+                    ? "dash-reveal min-w-0 xl:col-span-2 2xl:col-span-1"
+                    : "dash-reveal min-w-0"
+                }
+                style={{ animationDelay: "240ms" }}
+              >
                 <ExecutiveStockSummary
                   kpis={dashboard.kpis}
                   lowStockProducts={dashboard.low_stock_products}

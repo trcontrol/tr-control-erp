@@ -41,44 +41,45 @@ export function ExecutiveStockSummary({
         </DashboardSectionLink>
       }
     >
-      <div className={cn("space-y-5", compact && "min-h-[320px]")}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-[var(--brand-navy)]/[0.04] bg-[var(--brand-surface)]/80 px-4 py-4">
-            <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--brand-gold)]/15">
+      <div className="@container/stock space-y-5">
+        <div className="grid auto-rows-fr grid-cols-1 gap-3 @[20rem]:grid-cols-2 @[32rem]:grid-cols-3">
+          <div className="flex h-full min-w-0 flex-col rounded-2xl border border-[var(--brand-navy)]/[0.04] bg-[var(--brand-surface)]/80 px-4 py-4">
+            <div className="flex items-start gap-2.5 text-[12px] font-medium leading-snug text-muted-foreground">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--brand-gold)]/15">
                 <Package className="h-3.5 w-3.5 text-[var(--brand-gold)]" />
               </span>
-              Valor em estoque
+              <span>Valor em estoque</span>
             </div>
-            <p className="mt-3 break-words text-[16px] font-bold leading-none tabular-nums text-[var(--brand-navy)]">
+            <p className="mt-3 whitespace-nowrap text-[16px] font-bold leading-none tabular-nums text-[var(--brand-navy)]">
               {formatCurrency(stockValue)}
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[var(--brand-navy)]/[0.04] bg-[var(--brand-surface)]/80 px-4 py-4">
-            <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--brand-navy)]/8">
+          <div className="flex h-full min-w-0 flex-col rounded-2xl border border-[var(--brand-navy)]/[0.04] bg-[var(--brand-surface)]/80 px-4 py-4">
+            <div className="flex items-start gap-2.5 text-[12px] font-medium leading-snug text-muted-foreground">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--brand-navy)]/8">
                 <Boxes className="h-3.5 w-3.5 text-[var(--brand-navy)]" />
               </span>
-              Itens controlados
+              <span>Itens controlados</span>
             </div>
-            <p className="mt-3 text-[16px] font-bold leading-none tabular-nums text-[var(--brand-navy)]">
+            <p className="mt-3 whitespace-nowrap text-[16px] font-bold leading-none tabular-nums text-[var(--brand-navy)]">
               {tracked.toLocaleString("pt-BR")}
             </p>
           </div>
 
           <div
             className={cn(
-              "rounded-2xl border px-4 py-4",
+              "flex h-full min-w-0 flex-col rounded-2xl border px-4 py-4",
               lowStock > 0
                 ? "border-[var(--brand-coral)]/20 bg-[var(--brand-coral)]/[0.07]"
-                : "border-[var(--brand-navy)]/[0.04] bg-[var(--brand-surface)]/80"
+                : "border-[var(--brand-navy)]/[0.04] bg-[var(--brand-surface)]/80",
+              "@[20rem]:col-span-2 @[32rem]:col-span-1"
             )}
           >
-            <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground">
+            <div className="flex items-start gap-2.5 text-[12px] font-medium leading-snug text-muted-foreground">
               <span
                 className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-full",
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
                   lowStock > 0
                     ? "bg-[var(--brand-coral)]/15"
                     : "bg-[var(--brand-navy)]/8"
@@ -93,11 +94,11 @@ export function ExecutiveStockSummary({
                   )}
                 />
               </span>
-              Abaixo do mínimo
+              <span>Abaixo do mínimo</span>
             </div>
             <p
               className={cn(
-                "mt-3 text-[16px] font-bold leading-none tabular-nums",
+                "mt-3 whitespace-nowrap text-[16px] font-bold leading-none tabular-nums",
                 lowStock > 0
                   ? "text-[var(--brand-coral)]"
                   : "text-[var(--brand-navy)]"

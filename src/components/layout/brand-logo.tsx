@@ -29,12 +29,16 @@ export function BrandMark({ className }: { className?: string }) {
 export function BrandLogo({ className, compact = false }: BrandLogoProps) {
   return (
     <div className={cn("flex min-w-0 items-center gap-3", className)}>
-      <BrandMark className={cn(compact && "h-10 w-10 rounded-[14px]")} />
+      <BrandMark
+        className={cn(
+          compact ? "h-10 w-10 rounded-[14px]" : "h-10 w-10 rounded-[15px]"
+        )}
+      />
       <div className="min-w-0">
         <p
           className={cn(
             "font-display font-semibold leading-none tracking-tight text-white",
-            compact ? "text-[1.05rem]" : "text-[1.15rem] lg:text-[1.22rem]"
+            compact ? "text-[1.05rem]" : "text-[1.12rem] lg:text-[1.18rem]"
           )}
         >
           TR Control{" "}
@@ -44,7 +48,7 @@ export function BrandLogo({ className, compact = false }: BrandLogoProps) {
         </p>
         <p
           className={cn(
-            "mt-1.5 truncate font-medium text-[var(--brand-gold-soft)]/90",
+            "mt-1.5 truncate font-medium leading-none text-[var(--brand-gold-soft)]/90",
             compact ? "text-[10px]" : "text-[11px]"
           )}
         >

@@ -59,19 +59,19 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[min(288px,88vw)] flex-col",
+          "fixed inset-y-0 left-0 z-50 flex w-[min(296px,88vw)] flex-col",
           "bg-sidebar text-sidebar-foreground",
           "rounded-none shadow-elevated",
           "transition-transform duration-300 ease-out",
-          "sm:w-[272px]",
-          "md:w-[248px] md:rounded-r-2xl",
-          "lg:static lg:z-0 lg:w-[240px] lg:translate-x-0 lg:rounded-none lg:shadow-none",
-          "xl:w-[256px]",
+          "sm:w-[280px]",
+          "md:w-[256px] md:rounded-r-2xl",
+          "lg:static lg:z-0 lg:w-[252px] lg:translate-x-0 lg:rounded-none lg:shadow-none",
+          "xl:w-[268px]",
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
         {/* Logo */}
-        <div className="shrink-0 px-4 pb-4 pt-5 sm:px-5 sm:pt-6">
+        <div className="shrink-0 px-4 pb-5 pt-5 sm:px-5 sm:pb-6 sm:pt-6">
           <div className="flex items-start justify-between gap-2">
             <Link
               href={ROUTES.dashboard}
@@ -100,7 +100,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         </div>
 
         {/* Menu */}
-        <nav className="mt-4 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-3 sm:mt-5 sm:px-3.5">
+        <nav className="mt-6 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-3 sm:mt-7 sm:px-3.5">
           {navigation.map((item) => {
             const isActive =
               pathname === item.href ||

@@ -136,15 +136,15 @@ export function ExecutiveDashboardBoard() {
   ].filter(Boolean).length;
 
   return (
-    <div className="min-w-0 space-y-8 md:space-y-10">
+    <div className="min-w-0 space-y-5 md:space-y-7">
       {capabilities.shortcuts ? (
-        <div className="dash-reveal" style={{ animationDelay: "40ms" }}>
+        <div className="dash-reveal w-full min-w-0" style={{ animationDelay: "40ms" }}>
           <ExecutiveQuickActions />
         </div>
       ) : null}
 
-      <section className="min-w-0 space-y-3">
-        <div className="dash-reveal px-0.5" style={{ animationDelay: "60ms" }}>
+      <section className="min-w-0 space-y-2">
+        <div className="dash-reveal" style={{ animationDelay: "60ms" }}>
           <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
             Indicadores principais
           </p>
@@ -160,8 +160,8 @@ export function ExecutiveDashboardBoard() {
       </section>
 
       {(capabilities.sales || capabilities.finance || capabilities.stock) && (
-        <section className="min-w-0 space-y-3">
-          <div className="dash-reveal px-0.5" style={{ animationDelay: "100ms" }}>
+        <section className="min-w-0 space-y-2.5">
+          <div className="dash-reveal" style={{ animationDelay: "100ms" }}>
             <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
               Resumo financeiro e operacional
             </p>
@@ -216,8 +216,8 @@ export function ExecutiveDashboardBoard() {
       )}
 
       {(capabilities.finance || capabilities.sales) && (
-        <section className="min-w-0 space-y-3">
-          <div className="dash-reveal px-0.5" style={{ animationDelay: "260ms" }}>
+        <section className="min-w-0 space-y-2.5">
+          <div className="dash-reveal" style={{ animationDelay: "260ms" }}>
             <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
               Fluxo e vendas recentes
             </p>
@@ -290,8 +290,8 @@ export function ExecutiveDashboardBoard() {
       )}
 
       {(capabilities.finance || capabilities.purchases) && (
-        <section className="min-w-0 space-y-3">
-          <div className="dash-reveal px-0.5" style={{ animationDelay: "340ms" }}>
+        <section className="min-w-0 space-y-2.5">
+          <div className="dash-reveal" style={{ animationDelay: "340ms" }}>
             <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
               Pendências e atividades
             </p>

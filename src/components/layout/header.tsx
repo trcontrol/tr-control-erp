@@ -60,8 +60,8 @@ export function Header({ userEmail, onMenuClick }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-30 border-b border-[var(--brand-navy)]/[0.045] bg-white/95 backdrop-blur-xl">
-      <div className="mx-auto flex min-h-[96px] w-full max-w-[1400px] items-center gap-5 px-4 py-3.5 sm:gap-6 sm:px-6 md:px-8 lg:gap-8 lg:px-10">
-        <div className="flex min-w-0 flex-1 items-center gap-4 md:gap-6">
+      <div className="mx-auto flex h-[72px] w-full max-w-[1400px] items-center gap-4 px-4 sm:gap-5 sm:px-6 md:h-[76px] md:px-8 lg:gap-6 lg:px-10">
+        <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-5">
           <Button
             type="button"
             variant="ghost"
@@ -74,38 +74,38 @@ export function Header({ userEmail, onMenuClick }: HeaderProps) {
           </Button>
 
           <div className="hidden min-w-0 md:block">
-            <p className="font-display text-[1.55rem] font-semibold leading-none tracking-tight text-[var(--brand-navy)] lg:text-[1.65rem]">
+            <p className="font-display text-[1.35rem] font-semibold leading-none tracking-tight text-[var(--brand-navy)] lg:text-[1.45rem]">
               TR Control
-              <span className="ml-1.5 font-sans text-[0.82rem] font-semibold tracking-[0.04em] text-[var(--brand-coral)] lg:text-[0.88rem]">
+              <span className="ml-1.5 font-sans text-[0.78rem] font-semibold tracking-[0.04em] text-[var(--brand-coral)] lg:text-[0.82rem]">
                 ERP
               </span>
             </p>
-            <p className="mt-2 text-[11px] font-medium text-muted-foreground">
+            <p className="mt-1 text-[11px] font-medium leading-none text-muted-foreground">
               Gestão empresarial
             </p>
           </div>
 
-          <div className="hidden h-12 w-px bg-[var(--brand-navy)]/[0.07] lg:block" />
+          <div className="hidden h-9 w-px shrink-0 bg-[var(--brand-navy)]/[0.07] lg:block" />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="h-[3.6rem] max-w-[280px] gap-3.5 rounded-2xl px-2.5 hover:bg-[var(--brand-navy)]/[0.035] sm:max-w-[340px]"
+                className="h-11 max-w-[260px] items-center gap-3 rounded-xl px-2 hover:bg-[var(--brand-navy)]/[0.035] sm:max-w-[320px]"
               >
-                <Avatar className="h-12 w-12 ring-2 ring-[var(--brand-coral)]/25 ring-offset-2 ring-offset-white">
+                <Avatar className="h-9 w-9 ring-2 ring-[var(--brand-coral)]/25 ring-offset-2 ring-offset-white">
                   {company?.logo_url ? (
                     <AvatarImage src={company.logo_url} alt={company.name} />
                   ) : null}
-                  <AvatarFallback className="bg-[var(--brand-navy)] text-[13px] font-semibold text-white">
+                  <AvatarFallback className="bg-[var(--brand-navy)] text-[12px] font-semibold text-white">
                     {companyInitials}
                   </AvatarFallback>
                 </Avatar>
                 <span className="min-w-0 text-left">
-                  <span className="block truncate text-[15px] font-semibold leading-tight text-[var(--brand-navy)] sm:text-[16px]">
+                  <span className="block truncate text-[14px] font-semibold leading-tight text-[var(--brand-navy)] sm:text-[15px]">
                     {company?.name ?? "Selecionar empresa"}
                   </span>
-                  <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground">
+                  <span className="mt-0.5 block text-[11px] font-medium leading-none text-muted-foreground">
                     Empresa ativa
                   </span>
                 </span>
@@ -127,26 +127,26 @@ export function Header({ userEmail, onMenuClick }: HeaderProps) {
           </DropdownMenu>
         </div>
 
-        <div className="hidden items-center gap-2.5 rounded-full border border-[var(--brand-navy)]/[0.05] bg-[var(--brand-navy)]/[0.025] px-4 py-2.5 text-[13px] text-muted-foreground xl:flex">
+        <div className="hidden h-9 items-center gap-2 rounded-full border border-[var(--brand-navy)]/[0.05] bg-[var(--brand-navy)]/[0.025] px-3.5 text-[13px] text-muted-foreground xl:flex">
           <CalendarDays
-            className="h-4 w-4 text-[var(--brand-gold)]"
+            className="h-4 w-4 shrink-0 text-[var(--brand-gold)]"
             strokeWidth={1.7}
           />
           <span className="capitalize leading-none">{todayLabel}</span>
         </div>
 
-        <div className="flex shrink-0 items-center gap-3.5 md:gap-5">
-          <div className="hidden items-center gap-3 sm:flex">
-            <Avatar className="h-10 w-10 ring-2 ring-[var(--brand-navy)]/[0.06]">
+        <div className="flex h-11 shrink-0 items-center gap-3 md:gap-4">
+          <div className="hidden h-full items-center gap-2.5 sm:flex">
+            <Avatar className="h-9 w-9 ring-2 ring-[var(--brand-navy)]/[0.06]">
               <AvatarFallback className="bg-[var(--brand-coral)]/90 text-xs font-semibold text-white">
                 {userInitial}
               </AvatarFallback>
             </Avatar>
             <div className="hidden min-w-0 leading-tight md:block">
-              <p className="max-w-[150px] truncate text-[13.5px] font-semibold text-[var(--brand-navy)]">
+              <p className="max-w-[140px] truncate text-[13px] font-semibold leading-tight text-[var(--brand-navy)]">
                 {userName}
               </p>
-              <p className="max-w-[150px] truncate text-[11px] text-muted-foreground">
+              <p className="max-w-[140px] truncate text-[11px] leading-none text-muted-foreground">
                 Conta ativa
               </p>
             </div>
@@ -157,7 +157,7 @@ export function Header({ userEmail, onMenuClick }: HeaderProps) {
             variant="outline"
             size="sm"
             onClick={handleSignOut}
-            className="h-10 gap-2 rounded-full border-[var(--brand-gold)]/45 bg-transparent px-4 text-[var(--brand-navy)] transition-all hover:border-[var(--brand-gold)] hover:bg-[var(--brand-gold)]/[0.08]"
+            className="h-9 gap-2 rounded-full border-[var(--brand-gold)]/45 bg-transparent px-3.5 text-[var(--brand-navy)] transition-all hover:border-[var(--brand-gold)] hover:bg-[var(--brand-gold)]/[0.08]"
           >
             <LogOut
               className="h-3.5 w-3.5 text-[var(--brand-gold)]"

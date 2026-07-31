@@ -25,12 +25,12 @@ export function ExecutivePageShell({
   const { company } = useTenant();
 
   return (
-    <div className="min-w-0 space-y-7 md:space-y-8">
-      <header className="min-w-0 border-b border-[var(--brand-navy)]/[0.05] pb-6 md:pb-7">
+    <div className="min-w-0 space-y-4 md:space-y-5">
+      <header className="min-w-0 border-b border-[var(--brand-navy)]/[0.05] pb-3.5 md:pb-4">
         <h1 className="font-display text-[1.85rem] font-semibold leading-[1.15] tracking-tight text-[var(--brand-navy)] sm:text-[2.15rem]">
           {title}
         </h1>
-        <p className="mt-2.5 max-w-2xl text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+        <p className="mt-1.5 max-w-2xl text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
           {description}
         </p>
       </header>

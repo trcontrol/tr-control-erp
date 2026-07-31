@@ -9,6 +9,8 @@ type DashboardSectionCardProps = {
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
+  headerClassName?: string;
+  titleClassName?: string;
   style?: React.CSSProperties;
   elevation?: "primary" | "secondary";
 };
@@ -20,6 +22,8 @@ export function DashboardSectionCard({
   children,
   className,
   contentClassName,
+  headerClassName,
+  titleClassName,
   style,
   elevation = "primary",
 }: DashboardSectionCardProps) {
@@ -35,9 +39,19 @@ export function DashboardSectionCard({
         className
       )}
     >
-      <header className="flex items-center justify-between gap-3 px-5 pb-3 pt-5 sm:px-6 sm:pt-6">
+      <header
+        className={cn(
+          "flex items-center justify-between gap-3 px-5 pb-3 pt-5 sm:px-6 sm:pt-6",
+          headerClassName
+        )}
+      >
         <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold tracking-tight text-[var(--brand-navy)]">
+          <h2
+            className={cn(
+              "text-[15px] font-semibold tracking-tight text-[var(--brand-navy)]",
+              titleClassName
+            )}
+          >
             {title}
           </h2>
           {description ? (
@@ -46,7 +60,9 @@ export function DashboardSectionCard({
             </p>
           ) : null}
         </div>
-        {action ? <div className="shrink-0">{action}</div> : null}
+        {action ? (
+          <div className="flex shrink-0 items-center">{action}</div>
+        ) : null}
       </header>
       <div className={cn("flex-1 px-5 pb-5 sm:px-6 sm:pb-6", contentClassName)}>
         {children}

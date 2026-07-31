@@ -23,6 +23,15 @@ type Segment = {
   color: string;
 };
 
+/** Paleta exclusiva do Resumo financeiro — identidade TR Control. */
+const FINANCE_SEGMENT_COLORS = {
+  received: "var(--brand-navy)",
+  receivable: "#b8788a",
+  paid: "var(--brand-coral)",
+  payable: "var(--brand-gold)",
+  overdue: "#9aa3b2",
+} as const;
+
 function participationPercent(value: number, total: number) {
   if (total <= 0) return "0%";
   return `${((value / total) * 100).toLocaleString("pt-BR", {
@@ -41,39 +50,39 @@ export function ExecutiveFinancialDonut({
         key: "received",
         label: "Recebido",
         value: toNumberAmount(kpis.month_inflows),
-        color: "var(--brand-teal)",
+        color: FINANCE_SEGMENT_COLORS.received,
       },
       {
         key: "receivable",
         label: "A receber",
         value: toNumberAmount(kpis.open_receivables),
-        color: "var(--brand-sky)",
+        color: FINANCE_SEGMENT_COLORS.receivable,
       },
       {
         key: "paid",
         label: "Pago",
         value: toNumberAmount(kpis.month_outflows),
-        color: "var(--brand-coral)",
+        color: FINANCE_SEGMENT_COLORS.paid,
       },
       {
         key: "payable",
         label: "A pagar",
         value: toNumberAmount(kpis.open_payables),
-        color: "var(--brand-gold)",
+        color: FINANCE_SEGMENT_COLORS.payable,
       },
       {
         key: "overdue",
         label: "Em atraso",
         value: toNumberAmount(kpis.overdue_total),
-        color: "#b91c1c",
+        color: FINANCE_SEGMENT_COLORS.overdue,
       },
     ];
 
     const total = segments.reduce((sum, segment) => sum + segment.value, 0);
     if (total <= 0) return null;
 
-    const size = compact ? 156 : 188;
-    const stroke = compact ? 15 : 18;
+    const size = compact ? 168 : 196;
+    const stroke = compact ? 16 : 20;
     const radius = (size - stroke) / 2;
     const circumference = 2 * Math.PI * radius;
 
@@ -120,10 +129,10 @@ export function ExecutiveFinancialDonut({
     <div
       className={cn(
         "@container/finance flex h-full min-w-0 flex-col",
-        compact ? "gap-5" : "min-h-[340px] gap-5"
+        compact ? "gap-5" : "gap-5"
       )}
     >
-      <div className="flex min-w-0 flex-1 flex-col items-center gap-5 @[26rem]/flex-row @[26rem]:items-center @[26rem]:gap-5">
+      <div className="flex min-w-0 flex-1 flex-col items-center gap-5 @[26rem]:flex-row @[26rem]:items-center @[26rem]:gap-6">
         <div className="relative shrink-0">
           <svg
             width={chart.size}
@@ -196,30 +205,30 @@ export function ExecutiveFinancialDonut({
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 border-t border-[var(--brand-navy)]/[0.05] pt-4 @[28rem]:grid-cols-4">
-        <div className="flex min-w-0 flex-col rounded-xl bg-emerald-50/80 px-3 py-3">
+        <div className="flex min-w-0 flex-col rounded-xl bg-[var(--brand-navy)]/[0.05] px-3 py-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-            <CircleDollarSign className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+            <CircleDollarSign className="h-3.5 w-3.5 shrink-0 text-[var(--brand-navy)]" />
             <span className="truncate">Recebido</span>
           </div>
-          <p className="mt-2 whitespace-nowrap text-[12.5px] font-bold leading-snug tabular-nums text-emerald-700">
+          <p className="mt-2 whitespace-nowrap text-[12.5px] font-bold leading-snug tabular-nums text-[var(--brand-navy)]">
             {formatCurrency(chart.received)}
           </p>
         </div>
-        <div className="flex min-w-0 flex-col rounded-xl bg-[var(--brand-navy)]/[0.03] px-3 py-3">
+        <div className="flex min-w-0 flex-col rounded-xl bg-[#b8788a]/[0.1] px-3 py-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-            <WalletCards className="h-3.5 w-3.5 shrink-0 text-[var(--brand-gold)]" />
+            <WalletCards className="h-3.5 w-3.5 shrink-0 text-[#b8788a]" />
             <span className="truncate">A receber</span>
           </div>
           <p className="mt-2 whitespace-nowrap text-[12.5px] font-bold leading-snug tabular-nums text-[var(--brand-navy)]">
             {formatCurrency(chart.openReceivables)}
           </p>
         </div>
-        <div className="flex min-w-0 flex-col rounded-xl bg-[var(--brand-coral)]/[0.08] px-3 py-3">
+        <div className="flex min-w-0 flex-col rounded-xl bg-[#9aa3b2]/[0.12] px-3 py-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-[var(--brand-coral)]" />
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-[#8b93a3]" />
             <span className="truncate">Em atraso</span>
           </div>
-          <p className="mt-2 whitespace-nowrap text-[12.5px] font-bold leading-snug tabular-nums text-[var(--brand-coral)]">
+          <p className="mt-2 whitespace-nowrap text-[12.5px] font-bold leading-snug tabular-nums text-[var(--brand-navy)]/75">
             {formatCurrency(chart.overdue)}
           </p>
         </div>
@@ -231,7 +240,9 @@ export function ExecutiveFinancialDonut({
           <p
             className={cn(
               "mt-2 whitespace-nowrap text-[12.5px] font-bold leading-snug tabular-nums",
-              resultPositive ? "text-emerald-700" : "text-[var(--brand-coral)]"
+              resultPositive
+                ? "text-[var(--brand-navy)]"
+                : "text-[var(--brand-coral)]"
             )}
           >
             {formatCurrency(chart.result)}

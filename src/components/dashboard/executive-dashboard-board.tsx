@@ -131,11 +131,14 @@ export function ExecutiveDashboardBoard() {
     );
   }
 
-  const middleCount = [
-    capabilities.sales,
-    capabilities.finance,
-    capabilities.stock,
-  ].filter(Boolean).length;
+  const showTopTasks = Boolean(capabilities.tasks && company?.id);
+  const showTopFinance = capabilities.finance;
+  const showTopRow = showTopTasks || showTopFinance;
+  const topRowBoth = showTopTasks && showTopFinance;
+
+  const middleCount = [capabilities.sales, capabilities.stock].filter(
+    Boolean
+  ).length;
 
   return (
     <div className="min-w-0 space-y-5 md:space-y-7">
@@ -145,8 +148,50 @@ export function ExecutiveDashboardBoard() {
         </div>
       ) : null}
 
+      {showTopRow ? (
+        <section className="min-w-0">
+          {/*
+            Grade superior do Dashboard.
+            Etapa atual (2 colunas): Resumo financeiro | Próximas tarefas
+            Evolução futura (3 colunas): Funil comercial | Resumo financeiro | Próximas tarefas
+            Não renderizar Funil até o módulo existir — apenas inserir o card na primeira posição.
+          */}
+          <div
+            className={
+              topRowBoth
+                ? "grid min-w-0 auto-rows-fr grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6 xl:grid-cols-2"
+                : "grid min-w-0 grid-cols-1 gap-5"
+            }
+          >
+            {showTopFinance ? (
+              <div
+                className="dash-reveal flex min-h-0 min-w-0 lg:h-full"
+                style={{ animationDelay: "50ms" }}
+              >
+                <DashboardSectionCard
+                  title="Resumo financeiro"
+                  className="h-full w-full min-w-0"
+                  contentClassName="min-w-0"
+                >
+                  <ExecutiveFinancialDonut kpis={dashboard.kpis} />
+                </DashboardSectionCard>
+              </div>
+            ) : null}
+
+            {showTopTasks && company?.id ? (
+              <div
+                className="dash-reveal flex min-h-0 min-w-0 lg:h-full"
+                style={{ animationDelay: "70ms" }}
+              >
+                <ExecutiveUpcomingTasks companyId={company.id} />
+              </div>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
       <section className="min-w-0 space-y-2">
-        <div className="dash-reveal" style={{ animationDelay: "60ms" }}>
+        <div className="dash-reveal" style={{ animationDelay: "90ms" }}>
           <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
             Indicadores principais
           </p>
@@ -161,20 +206,18 @@ export function ExecutiveDashboardBoard() {
         />
       </section>
 
-      {(capabilities.sales || capabilities.finance || capabilities.stock) && (
+      {(capabilities.sales || capabilities.stock) && (
         <section className="min-w-0 space-y-2.5">
           <div className="dash-reveal" style={{ animationDelay: "100ms" }}>
             <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
-              Resumo financeiro e operacional
+              Resumo operacional
             </p>
           </div>
           <div
             className={
-              middleCount === 3
-                ? "grid min-w-0 gap-5 xl:grid-cols-2 xl:gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,0.9fr)]"
-                : middleCount === 2
-                  ? "grid min-w-0 gap-5 xl:grid-cols-2 xl:gap-6"
-                  : "grid min-w-0 gap-5"
+              middleCount === 2
+                ? "grid min-w-0 gap-5 xl:grid-cols-2 xl:gap-6"
+                : "grid min-w-0 gap-5"
             }
           >
             {capabilities.sales ? (
@@ -189,22 +232,10 @@ export function ExecutiveDashboardBoard() {
               </div>
             ) : null}
 
-            {capabilities.finance ? (
-              <div className="dash-reveal min-w-0" style={{ animationDelay: "180ms" }}>
-                <DashboardSectionCard title="Resumo financeiro">
-                  <ExecutiveFinancialDonut kpis={dashboard.kpis} compact />
-                </DashboardSectionCard>
-              </div>
-            ) : null}
-
             {capabilities.stock ? (
               <div
-                className={
-                  middleCount === 3
-                    ? "dash-reveal min-w-0 xl:col-span-2 2xl:col-span-1"
-                    : "dash-reveal min-w-0"
-                }
-                style={{ animationDelay: "240ms" }}
+                className="dash-reveal min-w-0"
+                style={{ animationDelay: "180ms" }}
               >
                 <ExecutiveStockSummary
                   kpis={dashboard.kpis}
@@ -327,24 +358,6 @@ export function ExecutiveDashboardBoard() {
           </div>
         </section>
       )}
-
-      {capabilities.tasks && company?.id ? (
-        <section className="min-w-0 space-y-2.5">
-          <div className="dash-reveal" style={{ animationDelay: "420ms" }}>
-            <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
-              Rotina
-            </p>
-          </div>
-          <div className="grid min-w-0 gap-5 xl:grid-cols-12 xl:gap-6">
-            <div
-              className="dash-reveal min-w-0 xl:col-span-5"
-              style={{ animationDelay: "440ms" }}
-            >
-              <ExecutiveUpcomingTasks companyId={company.id} />
-            </div>
-          </div>
-        </section>
-      ) : null}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  ListTodo,
   PackagePlus,
   ShoppingBag,
   ShoppingCart,
@@ -37,6 +38,11 @@ const actions = [
     label: "Novo produto",
     icon: PackagePlus,
   },
+  {
+    href: ROUTES.tasksNew,
+    label: "Nova tarefa",
+    icon: ListTodo,
+  },
 ] as const;
 
 export function ExecutiveQuickActions() {
@@ -45,7 +51,7 @@ export function ExecutiveQuickActions() {
       <p className="mb-3 text-[11px] font-semibold tracking-wide text-[var(--brand-gold)]">
         Acesso rápido
       </p>
-      <div className="flex min-w-0 gap-2.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0 lg:grid-cols-5 [&::-webkit-scrollbar]:hidden">
+      <div className="flex min-w-0 gap-2.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 md:grid-cols-3 xl:grid-cols-6 [&::-webkit-scrollbar]:hidden">
         {actions.map((action) => {
           const Icon = action.icon;
           return (

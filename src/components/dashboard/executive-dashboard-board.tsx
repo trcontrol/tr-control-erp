@@ -21,6 +21,7 @@ import { ExecutiveQuickActions } from "@/components/dashboard/executive-quick-ac
 import { ExecutiveRecentActivities } from "@/components/dashboard/executive-recent-activities";
 import { ExecutiveSalesChart } from "@/components/dashboard/executive-sales-chart";
 import { ExecutiveStockSummary } from "@/components/dashboard/executive-stock-summary";
+import { ExecutiveUpcomingTasks } from "@/components/dashboard/executive-upcoming-tasks";
 import { getExecutiveDashboard } from "@/lib/dashboard/actions";
 import {
   canViewDashboardSection,
@@ -55,6 +56,7 @@ export function ExecutiveDashboardBoard() {
       shortcuts: canViewDashboardSection(DASHBOARD_SECTIONS.shortcuts, {
         role,
       }),
+      tasks: canViewDashboardSection(DASHBOARD_SECTIONS.tasks, { role }),
     }),
     [role]
   );
@@ -325,6 +327,24 @@ export function ExecutiveDashboardBoard() {
           </div>
         </section>
       )}
+
+      {capabilities.tasks && company?.id ? (
+        <section className="min-w-0 space-y-2.5">
+          <div className="dash-reveal" style={{ animationDelay: "420ms" }}>
+            <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
+              Rotina
+            </p>
+          </div>
+          <div className="grid min-w-0 gap-5 xl:grid-cols-12 xl:gap-6">
+            <div
+              className="dash-reveal min-w-0 xl:col-span-5"
+              style={{ animationDelay: "440ms" }}
+            >
+              <ExecutiveUpcomingTasks companyId={company.id} />
+            </div>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

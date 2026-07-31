@@ -6,6 +6,7 @@ import {
   ArrowLeftRight,
   Building2,
   LayoutDashboard,
+  ListTodo,
   Package,
   Settings,
   ShoppingBag,
@@ -34,6 +35,7 @@ const navigation = [
   { name: "Vendas", href: ROUTES.sales, icon: ShoppingBag },
   { name: "Financeiro", href: ROUTES.finance, icon: Wallet },
   { name: "Fluxo de Caixa", href: ROUTES.cashFlow, icon: ArrowLeftRight },
+  { name: "Tarefas", href: ROUTES.tasks, icon: ListTodo },
   { name: "Usuários", href: "/users", icon: Users },
   { name: "Configurações", href: "/settings", icon: Settings },
 ];

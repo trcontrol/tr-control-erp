@@ -9,6 +9,7 @@ export const DASHBOARD_SECTIONS = {
   purchases: "purchases",
   stock: "stock",
   shortcuts: "shortcuts",
+  tasks: "tasks",
 } as const;
 
 export type DashboardSection =

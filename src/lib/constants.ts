@@ -30,6 +30,8 @@ export const ROUTES = {
   finance: "/finance",
   financeNew: "/finance/new",
   cashFlow: "/cash-flow",
+  tasks: "/tasks",
+  tasksNew: "/tasks/new",
   authCallback: "/api/auth/callback",
 } as const;
 
@@ -88,6 +90,48 @@ export function saleDetailPath(id: string) {
 export function saleEditPath(id: string) {
   return `/sales/${id}/edit`;
 }
+
+export function taskDetailPath(id: string) {
+  return `/tasks/${id}`;
+}
+
+export function taskEditPath(id: string) {
+  return `/tasks/${id}/edit`;
+}
+
+export const TASK_STATUS = {
+  pending: "pending",
+  in_progress: "in_progress",
+  completed: "completed",
+  cancelled: "cancelled",
+} as const;
+
+export type TaskStatusValue =
+  (typeof TASK_STATUS)[keyof typeof TASK_STATUS];
+
+export const TASK_STATUS_OPTIONS = [
+  { value: TASK_STATUS.pending, label: "Pendente" },
+  { value: TASK_STATUS.in_progress, label: "Em andamento" },
+  { value: TASK_STATUS.completed, label: "Concluída" },
+  { value: TASK_STATUS.cancelled, label: "Cancelada" },
+] as const;
+
+export const TASK_PRIORITY = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  urgent: "urgent",
+} as const;
+
+export type TaskPriorityValue =
+  (typeof TASK_PRIORITY)[keyof typeof TASK_PRIORITY];
+
+export const TASK_PRIORITY_OPTIONS = [
+  { value: TASK_PRIORITY.low, label: "Baixa" },
+  { value: TASK_PRIORITY.medium, label: "Média" },
+  { value: TASK_PRIORITY.high, label: "Alta" },
+  { value: TASK_PRIORITY.urgent, label: "Urgente" },
+] as const;
 
 export const PRODUCT_IMAGES_BUCKET = "product-images";
 

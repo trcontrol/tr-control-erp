@@ -698,6 +698,53 @@ export type ProductUpdate = Partial<Omit<ProductInsert, "company_id">> & {
   company_id?: string;
 };
 
+export type TaskStatus =
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+  | string;
+
+export type TaskPriority = "low" | "medium" | "high" | "urgent" | string;
+
+export type TaskRow = {
+  id: string;
+  company_id: string;
+  title: string;
+  description: string | null;
+  due_date: string;
+  due_time: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assigned_user_id: string | null;
+  related_customer_id: string | null;
+  created_by: string;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TaskInsert = {
+  id?: string;
+  company_id: string;
+  title: string;
+  description?: string | null;
+  due_date: string;
+  due_time?: string | null;
+  status?: string;
+  priority?: string;
+  assigned_user_id?: string | null;
+  related_customer_id?: string | null;
+  created_by: string;
+  completed_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type TaskUpdate = Partial<Omit<TaskInsert, "company_id">> & {
+  company_id?: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -917,6 +964,41 @@ export type Database = {
           },
         ];
       };
+      tasks: {
+        Row: TaskRow;
+        Insert: TaskInsert;
+        Update: TaskUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "tasks_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_assigned_user_id_fkey";
+            columns: ["assigned_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_related_customer_id_fkey";
+            columns: ["related_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           id: string;
@@ -1101,5 +1183,6 @@ export type Purchase = Tables<"purchases">;
 export type PurchaseItem = Tables<"purchase_items">;
 export type Sale = Tables<"sales">;
 export type SaleItem = Tables<"sale_items">;
+export type Task = Tables<"tasks">;
 export type Profile = Tables<"profiles">;
 export type CompanyMember = Tables<"company_members">;

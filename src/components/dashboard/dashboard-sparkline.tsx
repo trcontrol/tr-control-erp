@@ -15,8 +15,8 @@ type DashboardSparklineProps = {
 export function DashboardSparkline({
   values,
   className,
-  stroke = "var(--brand-navy)",
-  fillOpacity = 0.12,
+  stroke = "#11203b",
+  fillOpacity = 0.22,
 }: DashboardSparklineProps) {
   const gradientId = useId().replace(/:/g, "");
   const usable = values.filter((value) => Number.isFinite(value));
@@ -24,7 +24,7 @@ export function DashboardSparkline({
   if (usable.length < MIN_POINTS) {
     return (
       <div className={cn("flex h-9 w-full items-end", className)} aria-hidden>
-        <div className="h-px w-full bg-[var(--brand-navy)]/10" />
+        <div className="h-px w-full bg-[#11203b]/10" />
       </div>
     );
   }
@@ -62,6 +62,11 @@ export function DashboardSparkline({
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={stroke} stopOpacity={fillOpacity} />
+          <stop
+            offset="55%"
+            stopColor={stroke}
+            stopOpacity={fillOpacity * 0.38}
+          />
           <stop offset="100%" stopColor={stroke} stopOpacity={0} />
         </linearGradient>
       </defs>
@@ -69,7 +74,7 @@ export function DashboardSparkline({
       <polyline
         fill="none"
         stroke={stroke}
-        strokeWidth={1.6}
+        strokeWidth={2.35}
         strokeLinecap="round"
         strokeLinejoin="round"
         points={points}

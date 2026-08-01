@@ -26,10 +26,10 @@ type Segment = {
 /** Paleta exclusiva do Resumo financeiro — identidade TR Control. */
 const FINANCE_SEGMENT_COLORS = {
   received: "var(--brand-navy)",
-  receivable: "#b8788a",
-  paid: "var(--brand-coral)",
-  payable: "var(--brand-gold)",
-  overdue: "#9aa3b2",
+  receivable: "#c05c7d",
+  paid: "#e8c9d1",
+  payable: "#c89b3c",
+  overdue: "#b6b6b6",
 } as const;
 
 function participationPercent(value: number, total: number) {
@@ -82,7 +82,7 @@ export function ExecutiveFinancialDonut({
     if (total <= 0) return null;
 
     const size = compact ? 168 : 196;
-    const stroke = compact ? 16 : 20;
+    const stroke = compact ? 18 : 22;
     const radius = (size - stroke) / 2;
     const circumference = 2 * Math.PI * radius;
 

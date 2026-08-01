@@ -207,7 +207,7 @@ export function ExecutiveDashboardBoard() {
       </section>
 
       {(capabilities.sales || capabilities.stock) && (
-        <section className="min-w-0 space-y-2.5">
+        <section className="mb-3 min-w-0 space-y-2.5 md:mb-5">
           <div className="dash-reveal" style={{ animationDelay: "100ms" }}>
             <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
               Resumo operacional
@@ -222,7 +222,11 @@ export function ExecutiveDashboardBoard() {
           >
             {capabilities.sales ? (
               <div className="dash-reveal min-w-0" style={{ animationDelay: "120ms" }}>
-                <DashboardSectionCard title="Evolução das vendas">
+                <DashboardSectionCard
+                  title="Evolução das vendas"
+                  titleClassName="text-[16px] font-bold tracking-[-0.02em] text-[#11203b]"
+                  className="border border-[#11203b]/[0.075] bg-white shadow-[0_1px_2px_rgb(17_32_59/0.035),0_8px_22px_rgb(17_32_59/0.055)] hover:shadow-[0_2px_6px_rgb(17_32_59/0.045),0_12px_28px_rgb(17_32_59/0.075)]"
+                >
                   <ExecutiveSalesChart
                     series={dashboard.sales_series}
                     averageTicket={dashboard.kpis.average_ticket}

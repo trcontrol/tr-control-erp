@@ -6,12 +6,14 @@ import {
   financeEntryTypeLabel,
   financeStatusLabel,
   formatDateBR,
+  payablePartyLabel,
   purchaseStatusLabel,
   receivablePartyLabel,
   saleStatusLabel,
   supplierLabel,
   toNumberAmount,
   type FinanceReportKpis,
+  type PayablesReportKpis,
   type PurchasesReportKpis,
   type ReceivablesReportKpis,
   type SalesReportKpis,
@@ -57,6 +59,17 @@ export type ReceivablesExcelExportInput = {
   categoryFilterLabel: string;
   entries: FinancialEntryWithRelations[];
   kpis: ReceivablesReportKpis;
+};
+
+export type PayablesExcelExportInput = {
+  companyName: string;
+  periodFrom: string;
+  periodTo: string;
+  statusLabel: string;
+  supplierFilterLabel: string;
+  categoryFilterLabel: string;
+  entries: FinancialEntryWithRelations[];
+  kpis: PayablesReportKpis;
 };
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -367,4 +380,80 @@ export async function exportReceivablesReportExcel(
 
   const stamp = new Date().toISOString().slice(0, 10);
   downloadBlob(blob, `relatorio-contas-a-receber_${stamp}.xlsx`);
+}
+
+export async function exportPayablesReportExcel(
+  input: PayablesExcelExportInput
+) {
+  const ExcelJS = (await import("exceljs")).default;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "TR Control ERP";
+  workbook.created = new Date();
+
+  const summary = workbook.addWorksheet("Resumo");
+  summary.columns = [
+    { header: "Indicador", key: "label", width: 28 },
+    { header: "Valor", key: "value", width: 28 },
+  ];
+
+  summary.addRows([
+    { label: "Empresa", value: input.companyName },
+    {
+      label: "Período",
+      value: `${formatDateBR(input.periodFrom)} a ${formatDateBR(input.periodTo)}`,
+    },
+    { label: "Status", value: input.statusLabel },
+    { label: "Fornecedor", value: input.supplierFilterLabel },
+    { label: "Categoria", value: input.categoryFilterLabel },
+    {
+      label: "Total a pagar",
+      value: toNumberAmount(input.kpis.totalAPagar),
+    },
+    { label: "Pago", value: toNumberAmount(input.kpis.totalPago) },
+    { label: "Pendente", value: toNumberAmount(input.kpis.totalPendente) },
+    { label: "Em atraso", value: toNumberAmount(input.kpis.totalEmAtraso) },
+    { label: "Quantidade", value: input.kpis.entriesCount },
+    { label: "Ticket médio", value: toNumberAmount(input.kpis.averageTicket) },
+  ]);
+
+  for (const row of [6, 7, 8, 9, 11] as const) {
+    summary.getCell(`B${row}`).numFmt = '"R$"#,##0.00';
+  }
+
+  const details = workbook.addWorksheet("Contas a pagar");
+  details.columns = [
+    { header: "Vencimento", key: "dueDate", width: 14 },
+    { header: "Descrição", key: "description", width: 36 },
+    { header: "Fornecedor", key: "supplier", width: 32 },
+    { header: "Categoria", key: "category", width: 18 },
+    { header: "Status", key: "status", width: 14 },
+    { header: "Valor", key: "amount", width: 16 },
+    { header: "Data de pagamento", key: "paymentDate", width: 18 },
+  ];
+
+  for (const entry of input.entries) {
+    details.addRow({
+      dueDate: formatDateBR(entry.due_date),
+      description: entry.description || "—",
+      supplier: payablePartyLabel(entry),
+      category: entry.category || "—",
+      status: financeStatusLabel(entry.status),
+      amount: toNumberAmount(entry.amount),
+      paymentDate: entry.payment_date
+        ? formatDateBR(entry.payment_date)
+        : "—",
+    });
+  }
+
+  details.getColumn("amount").numFmt = '"R$"#,##0.00';
+  details.getRow(1).font = { bold: true };
+  summary.getRow(1).font = { bold: true };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadBlob(blob, `relatorio-contas-a-pagar_${stamp}.xlsx`);
 }

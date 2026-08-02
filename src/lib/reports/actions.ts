@@ -13,14 +13,19 @@ import {
   buildFinanceReportSeries,
   buildPurchasesReportKpis,
   buildPurchasesReportSeries,
+  buildPayablesReportKpis,
+  buildPayablesReportSeries,
   buildReceivablesReportKpis,
   buildReceivablesReportSeries,
   buildSalesReportKpis,
   buildSalesReportSeries,
   filterFinanceEntriesByCategory,
   filterFinanceEntriesByCustomer,
+  filterFinanceEntriesBySupplier,
   type FinanceReportKpis,
   type FinanceReportSeriesPoint,
+  type PayablesReportKpis,
+  type PayablesReportSeriesPoint,
   type PurchasesReportKpis,
   type PurchasesReportSeriesPoint,
   type ReceivablesReportKpis,
@@ -58,6 +63,13 @@ export type ReceivablesReportData = {
   customers: Customer[];
   kpis: ReceivablesReportKpis;
   series: ReceivablesReportSeriesPoint[];
+};
+
+export type PayablesReportData = {
+  entries: FinancialEntryWithRelations[];
+  suppliers: Supplier[];
+  kpis: PayablesReportKpis;
+  series: PayablesReportSeriesPoint[];
 };
 
 export async function getSalesReport(params: {
@@ -223,6 +235,56 @@ export async function getReceivablesReport(params: {
       customers: customersResult.data ?? [],
       kpis: buildReceivablesReportKpis(entries),
       series: buildReceivablesReportSeries(
+        entries,
+        params.periodFrom,
+        params.periodTo
+      ),
+    },
+    error: null,
+  };
+}
+
+export async function getPayablesReport(params: {
+  companyId: string;
+  status?: string;
+  supplierId?: string;
+  category?: string;
+  periodFrom: string;
+  periodTo: string;
+}): Promise<Result<PayablesReportData>> {
+  const [entriesResult, suppliersResult] = await Promise.all([
+    listFinancialEntries({
+      companyId: params.companyId,
+      entryType: FINANCIAL_ENTRY_TYPES.payable,
+      status: params.status,
+      periodFrom: params.periodFrom,
+      periodTo: params.periodTo,
+    }),
+    listSuppliers({ companyId: params.companyId, status: "active" }),
+  ]);
+
+  if (entriesResult.error || !entriesResult.data) {
+    return {
+      data: null,
+      error:
+        entriesResult.error ?? { message: "Erro ao carregar o relatório." },
+    };
+  }
+
+  const entries = filterFinanceEntriesBySupplier(
+    filterFinanceEntriesByCategory(
+      entriesResult.data,
+      params.category ?? "all"
+    ),
+    params.supplierId ?? "all"
+  );
+
+  return {
+    data: {
+      entries,
+      suppliers: suppliersResult.data ?? [],
+      kpis: buildPayablesReportKpis(entries),
+      series: buildPayablesReportSeries(
         entries,
         params.periodFrom,
         params.periodTo

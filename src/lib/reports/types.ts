@@ -47,7 +47,7 @@ export const REPORT_TYPE_OPTIONS: ReportTypeMeta[] = [
     id: REPORT_TYPES.payables,
     title: "Contas a pagar",
     description: "Obrigações por status e vencimento",
-    available: false,
+    available: true,
   },
   {
     id: REPORT_TYPES.stock,

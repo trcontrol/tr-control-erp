@@ -17,6 +17,7 @@ import {
   HandCoins,
 } from "lucide-react";
 import { FinanceReportPanel } from "@/components/reports/finance-report-panel";
+import { PayablesReportPanel } from "@/components/reports/payables-report-panel";
 import { PurchasesReportPanel } from "@/components/reports/purchases-report-panel";
 import { ReceivablesReportPanel } from "@/components/reports/receivables-report-panel";
 import { SalesReportPanel } from "@/components/reports/sales-report-panel";
@@ -38,12 +39,14 @@ import {
 import type { FinancialEntryWithRelations } from "@/lib/finance/actions";
 import {
   getFinanceReport,
+  getPayablesReport,
   getPurchasesReport,
   getReceivablesReport,
   getSalesReport,
 } from "@/lib/reports/actions";
 import {
   exportFinanceReportExcel,
+  exportPayablesReportExcel,
   exportPurchasesReportExcel,
   exportReceivablesReportExcel,
   exportSalesReportExcel,
@@ -56,6 +59,8 @@ import {
   supplierLabel,
   type FinanceReportKpis,
   type FinanceReportSeriesPoint,
+  type PayablesReportKpis,
+  type PayablesReportSeriesPoint,
   type PurchasesReportKpis,
   type PurchasesReportSeriesPoint,
   type ReceivablesReportKpis,
@@ -138,6 +143,17 @@ export function ReportsBoard() {
     ReceivablesReportSeriesPoint[]
   >([]);
 
+  const [payablesEntries, setPayablesEntries] = useState<
+    FinancialEntryWithRelations[]
+  >([]);
+  const [payablesSuppliers, setPayablesSuppliers] = useState<Supplier[]>([]);
+  const [payablesKpis, setPayablesKpis] = useState<PayablesReportKpis | null>(
+    null
+  );
+  const [payablesSeries, setPayablesSeries] = useState<
+    PayablesReportSeriesPoint[]
+  >([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -148,6 +164,7 @@ export function ReportsBoard() {
   const isPurchasesReport = selectedReportType === REPORT_TYPES.purchases;
   const isFinanceReport = selectedReportType === REPORT_TYPES.finance;
   const isReceivablesReport = selectedReportType === REPORT_TYPES.receivables;
+  const isPayablesReport = selectedReportType === REPORT_TYPES.payables;
 
   const validatePeriod = useCallback(() => {
     if (!company?.id) {
@@ -334,6 +351,52 @@ export function ReportsBoard() {
     validatePeriod,
   ]);
 
+  const loadPayablesReport = useCallback(async () => {
+    if (!validatePeriod() || !company?.id) {
+      setPayablesEntries([]);
+      setPayablesSuppliers([]);
+      setPayablesKpis(null);
+      setPayablesSeries([]);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const result = await getPayablesReport({
+      companyId: company.id,
+      status,
+      supplierId,
+      category,
+      periodFrom,
+      periodTo,
+    });
+
+    if (result.error || !result.data) {
+      setPayablesEntries([]);
+      setPayablesSuppliers([]);
+      setPayablesKpis(null);
+      setPayablesSeries([]);
+      setError(result.error?.message ?? "Erro ao carregar o relatório.");
+      setLoading(false);
+      return;
+    }
+
+    setPayablesEntries(result.data.entries);
+    setPayablesSuppliers(result.data.suppliers);
+    setPayablesKpis(result.data.kpis);
+    setPayablesSeries(result.data.series);
+    setLoading(false);
+  }, [
+    category,
+    company?.id,
+    periodFrom,
+    periodTo,
+    status,
+    supplierId,
+    validatePeriod,
+  ]);
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (isSalesReport) {
@@ -344,16 +407,20 @@ export function ReportsBoard() {
         void loadFinanceReport();
       } else if (isReceivablesReport) {
         void loadReceivablesReport();
+      } else if (isPayablesReport) {
+        void loadPayablesReport();
       }
     }, 200);
 
     return () => clearTimeout(timeout);
   }, [
     isFinanceReport,
+    isPayablesReport,
     isPurchasesReport,
     isReceivablesReport,
     isSalesReport,
     loadFinanceReport,
+    loadPayablesReport,
     loadPurchasesReport,
     loadReceivablesReport,
     loadSalesReport,
@@ -370,18 +437,26 @@ export function ReportsBoard() {
     if (status === "all") return "Todos os status";
 
     const options =
-      isFinanceReport || isReceivablesReport
+      isFinanceReport || isReceivablesReport || isPayablesReport
         ? FINANCIAL_STATUS_OPTIONS
         : isPurchasesReport
           ? PURCHASE_STATUS_OPTIONS
           : SALE_STATUS_OPTIONS;
 
     return options.find((item) => item.value === status)?.label ?? status;
-  }, [isFinanceReport, isPurchasesReport, isReceivablesReport, status]);
+  }, [
+    isFinanceReport,
+    isPayablesReport,
+    isPurchasesReport,
+    isReceivablesReport,
+    status,
+  ]);
 
   const activeCustomers = isReceivablesReport
     ? receivablesCustomers
     : customers;
+
+  const activeSuppliers = isPayablesReport ? payablesSuppliers : suppliers;
 
   const customerFilterLabel =
     customerId === "all"
@@ -393,7 +468,9 @@ export function ReportsBoard() {
   const supplierFilterLabel =
     supplierId === "all"
       ? "Todos os fornecedores"
-      : supplierLabel(suppliers.find((item) => item.id === supplierId) ?? null);
+      : supplierLabel(
+          activeSuppliers.find((item) => item.id === supplierId) ?? null
+        );
 
   const entryTypeLabel =
     entryType === "all"
@@ -410,9 +487,11 @@ export function ReportsBoard() {
     ? financeKpis
     : isReceivablesReport
       ? receivablesKpis
-      : isPurchasesReport
-        ? purchasesKpis
-        : salesKpis;
+      : isPayablesReport
+        ? payablesKpis
+        : isPurchasesReport
+          ? purchasesKpis
+          : salesKpis;
   const canExport =
     !loading && !error && Boolean(activeKpis) && Boolean(company);
 
@@ -444,6 +523,18 @@ export function ReportsBoard() {
           categoryFilterLabel,
           entries: receivablesEntries,
           kpis: receivablesKpis,
+        });
+      } else if (isPayablesReport) {
+        if (!payablesKpis) return;
+        await exportPayablesReportExcel({
+          companyName: company.name,
+          periodFrom,
+          periodTo,
+          statusLabel,
+          supplierFilterLabel,
+          categoryFilterLabel,
+          entries: payablesEntries,
+          kpis: payablesKpis,
         });
       } else if (isPurchasesReport) {
         if (!purchasesKpis) return;
@@ -516,17 +607,21 @@ export function ReportsBoard() {
     ? "Relatório Financeiro"
     : isReceivablesReport
       ? "Relatório de Contas a Receber"
-      : isPurchasesReport
-        ? "Relatório de Compras"
-        : "Relatório de Vendas";
+      : isPayablesReport
+        ? "Relatório de Contas a Pagar"
+        : isPurchasesReport
+          ? "Relatório de Compras"
+          : "Relatório de Vendas";
 
   const printMeta = isFinanceReport
     ? `Financeiro · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${entryTypeLabel} · ${statusLabel} · ${categoryFilterLabel}`
     : isReceivablesReport
       ? `Contas a receber · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel} · ${categoryFilterLabel}`
-      : isPurchasesReport
-        ? `Compras · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel}`
-        : `Vendas · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel}`;
+      : isPayablesReport
+        ? `Contas a pagar · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel} · ${categoryFilterLabel}`
+        : isPurchasesReport
+          ? `Compras · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel}`
+          : `Vendas · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel}`;
 
   return (
     <div id="reports-print-root" className="space-y-6">
@@ -750,6 +845,24 @@ export function ReportsBoard() {
           error={error}
           onStatusChange={setStatus}
           onCustomerChange={setCustomerId}
+          onCategoryChange={setCategory}
+        />
+      ) : isPayablesReport ? (
+        <PayablesReportPanel
+          companyName={company?.name ?? ""}
+          periodFrom={periodFrom}
+          periodTo={periodTo}
+          status={status}
+          supplierId={supplierId}
+          category={category}
+          suppliers={payablesSuppliers}
+          entries={payablesEntries}
+          kpis={payablesKpis}
+          series={payablesSeries}
+          loading={loading}
+          error={error}
+          onStatusChange={setStatus}
+          onSupplierChange={setSupplierId}
           onCategoryChange={setCategory}
         />
       ) : isPurchasesReport ? (

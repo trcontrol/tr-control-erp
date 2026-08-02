@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 type DashboardSectionCardProps = {
   title: string;
   description?: string;
+  titleIcon?: React.ReactNode;
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
@@ -18,6 +19,7 @@ type DashboardSectionCardProps = {
 export function DashboardSectionCard({
   title,
   description,
+  titleIcon,
   action,
   children,
   className,
@@ -46,14 +48,21 @@ export function DashboardSectionCard({
         )}
       >
         <div className="min-w-0 flex-1 basis-[10rem] sm:basis-[12rem]">
-          <h2
-            className={cn(
-              "truncate text-left text-[14.5px] font-semibold tracking-tight text-[var(--brand-navy)] sm:text-[15px]",
-              titleClassName
-            )}
-          >
-            {title}
-          </h2>
+          <div className="flex min-w-0 items-center gap-2">
+            {titleIcon ? (
+              <span className="inline-flex shrink-0 items-center justify-center">
+                {titleIcon}
+              </span>
+            ) : null}
+            <h2
+              className={cn(
+                "truncate text-left text-[14.5px] font-semibold tracking-tight text-[var(--brand-navy)] sm:text-[15px]",
+                titleClassName
+              )}
+            >
+              {title}
+            </h2>
+          </div>
           {description ? (
             <p className="mt-1 text-left text-[12px] leading-relaxed text-muted-foreground">
               {description}

@@ -745,6 +745,56 @@ export type TaskUpdate = Partial<Omit<TaskInsert, "company_id">> & {
   company_id?: string;
 };
 
+export type OpportunityStage =
+  | "new_lead"
+  | "contact_made"
+  | "briefing_sent"
+  | "proposal_sent"
+  | "negotiation"
+  | "contract_closed"
+  | "project_in_progress"
+  | "completed"
+  | "lost"
+  | string;
+
+export type OpportunityStatus = "active" | "inactive" | string;
+
+export type OpportunityRow = {
+  id: string;
+  company_id: string;
+  customer_id: string;
+  title: string;
+  estimated_value: number | string;
+  stage: OpportunityStage;
+  assigned_user_id: string | null;
+  next_action_date: string | null;
+  notes: string | null;
+  status: OpportunityStatus;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OpportunityInsert = {
+  id?: string;
+  company_id: string;
+  customer_id: string;
+  title: string;
+  estimated_value?: number | string;
+  stage?: string;
+  assigned_user_id?: string | null;
+  next_action_date?: string | null;
+  notes?: string | null;
+  status?: string;
+  created_by: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type OpportunityUpdate = Partial<Omit<OpportunityInsert, "company_id">> & {
+  company_id?: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -999,6 +1049,41 @@ export type Database = {
           },
         ];
       };
+      opportunities: {
+        Row: OpportunityRow;
+        Insert: OpportunityInsert;
+        Update: OpportunityUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "opportunities_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "opportunities_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "opportunities_assigned_user_id_fkey";
+            columns: ["assigned_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "opportunities_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           id: string;
@@ -1184,5 +1269,6 @@ export type PurchaseItem = Tables<"purchase_items">;
 export type Sale = Tables<"sales">;
 export type SaleItem = Tables<"sale_items">;
 export type Task = Tables<"tasks">;
+export type Opportunity = Tables<"opportunities">;
 export type Profile = Tables<"profiles">;
 export type CompanyMember = Tables<"company_members">;

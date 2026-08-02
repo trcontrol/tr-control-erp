@@ -22,6 +22,7 @@ import { ExecutiveQuickActions } from "@/components/dashboard/executive-quick-ac
 import { ExecutiveRecentActivities } from "@/components/dashboard/executive-recent-activities";
 import { ExecutiveSalesChart } from "@/components/dashboard/executive-sales-chart";
 import { ExecutiveStockSummary } from "@/components/dashboard/executive-stock-summary";
+import { ExecutiveFunnelSummary } from "@/components/dashboard/executive-funnel-summary";
 import { ExecutiveUpcomingTasks } from "@/components/dashboard/executive-upcoming-tasks";
 import { getExecutiveDashboard } from "@/lib/dashboard/actions";
 import {
@@ -79,6 +80,7 @@ export function ExecutiveDashboardBoard() {
         role,
       }),
       tasks: canViewDashboardSection(DASHBOARD_SECTIONS.tasks, { role }),
+      funnel: canViewDashboardSection(DASHBOARD_SECTIONS.funnel, { role }),
     }),
     [role]
   );
@@ -153,10 +155,20 @@ export function ExecutiveDashboardBoard() {
     );
   }
 
+  const showTopFunnel = Boolean(capabilities.funnel && company?.id);
   const showTopTasks = Boolean(capabilities.tasks && company?.id);
   const showTopFinance = capabilities.finance;
-  const showTopRow = showTopTasks || showTopFinance;
-  const topRowBoth = showTopTasks && showTopFinance;
+  const showTopRow = showTopFunnel || showTopTasks || showTopFinance;
+  const topVisibleCount = [showTopFunnel, showTopFinance, showTopTasks].filter(
+    Boolean
+  ).length;
+
+  const topGridClass =
+    topVisibleCount >= 3
+      ? "grid min-w-0 grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 md:gap-5 xl:auto-rows-fr xl:grid-cols-3 xl:gap-6"
+      : topVisibleCount === 2
+        ? "grid min-w-0 grid-cols-1 gap-4 sm:gap-5 lg:auto-rows-fr lg:grid-cols-2 lg:gap-6"
+        : "grid min-w-0 grid-cols-1 gap-4 sm:gap-5";
 
   const middleCount = [capabilities.sales, capabilities.stock].filter(
     Boolean
@@ -173,21 +185,22 @@ export function ExecutiveDashboardBoard() {
       {showTopRow ? (
         <section className="min-w-0">
           {/*
-            Grade superior do Dashboard.
-            Etapa atual (2 colunas): Resumo financeiro | Próximas tarefas
-            Evolução futura (3 colunas): Funil comercial | Resumo financeiro | Próximas tarefas
-            Não renderizar Funil até o módulo existir — apenas inserir o card na primeira posição.
+            Grade superior do Dashboard:
+            Funil comercial | Resumo financeiro | Próximas tarefas
           */}
-          <div
-            className={
-              topRowBoth
-                ? "grid min-w-0 grid-cols-1 gap-4 sm:gap-5 lg:auto-rows-fr lg:grid-cols-2 lg:gap-6"
-                : "grid min-w-0 grid-cols-1 gap-4 sm:gap-5"
-            }
-          >
+          <div className={topGridClass}>
+            {showTopFunnel && company?.id ? (
+              <div
+                className="dash-reveal flex min-h-0 min-w-0 xl:h-full"
+                style={{ animationDelay: "40ms" }}
+              >
+                <ExecutiveFunnelSummary companyId={company.id} />
+              </div>
+            ) : null}
+
             {showTopFinance ? (
               <div
-                className="dash-reveal flex min-h-0 min-w-0 lg:h-full"
+                className="dash-reveal flex min-h-0 min-w-0 xl:h-full"
                 style={{ animationDelay: "50ms" }}
               >
                 <DashboardSectionCard
@@ -202,7 +215,11 @@ export function ExecutiveDashboardBoard() {
 
             {showTopTasks && company?.id ? (
               <div
-                className="dash-reveal flex min-h-0 min-w-0 lg:h-full"
+                className={
+                  topVisibleCount >= 3
+                    ? "dash-reveal flex min-h-0 min-w-0 md:col-span-2 xl:col-span-1 xl:h-full"
+                    : "dash-reveal flex min-h-0 min-w-0 xl:h-full"
+                }
                 style={{ animationDelay: "70ms" }}
               >
                 <ExecutiveUpcomingTasks companyId={company.id} />

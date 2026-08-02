@@ -25,6 +25,8 @@ export const ROUTES = {
   stockInventory: "/stock/inventory",
   purchases: "/purchases",
   purchasesNew: "/purchases/new",
+  funnel: "/funnel",
+  funnelNew: "/funnel/new",
   sales: "/sales",
   salesNew: "/sales/new",
   finance: "/finance",
@@ -91,6 +93,14 @@ export function saleEditPath(id: string) {
   return `/sales/${id}/edit`;
 }
 
+export function opportunityDetailPath(id: string) {
+  return `/funnel/${id}`;
+}
+
+export function opportunityEditPath(id: string) {
+  return `/funnel/${id}/edit`;
+}
+
 export function taskDetailPath(id: string) {
   return `/tasks/${id}`;
 }
@@ -98,6 +108,59 @@ export function taskDetailPath(id: string) {
 export function taskEditPath(id: string) {
   return `/tasks/${id}/edit`;
 }
+
+/** Etapas do funil comercial + Perdido (preservado, fora da sequência principal). */
+export const OPPORTUNITY_STAGES = {
+  new_lead: "new_lead",
+  contact_made: "contact_made",
+  briefing_sent: "briefing_sent",
+  proposal_sent: "proposal_sent",
+  negotiation: "negotiation",
+  contract_closed: "contract_closed",
+  project_in_progress: "project_in_progress",
+  completed: "completed",
+  lost: "lost",
+} as const;
+
+export type OpportunityStageValue =
+  (typeof OPPORTUNITY_STAGES)[keyof typeof OPPORTUNITY_STAGES];
+
+/** Sequência numerada oficial (Dashboard e colunas principais). Sem Perdido. */
+export const OPPORTUNITY_FUNNEL_STAGE_OPTIONS = [
+  { value: OPPORTUNITY_STAGES.new_lead, label: "Novo Lead" },
+  { value: OPPORTUNITY_STAGES.contact_made, label: "Contato realizado" },
+  { value: OPPORTUNITY_STAGES.briefing_sent, label: "Briefing enviado" },
+  { value: OPPORTUNITY_STAGES.proposal_sent, label: "Proposta enviada" },
+  { value: OPPORTUNITY_STAGES.negotiation, label: "Negociação" },
+  { value: OPPORTUNITY_STAGES.contract_closed, label: "Contrato fechado" },
+  {
+    value: OPPORTUNITY_STAGES.project_in_progress,
+    label: "Projeto em andamento",
+  },
+  { value: OPPORTUNITY_STAGES.completed, label: "Concluído" },
+] as const;
+
+/**
+ * Todas as etapas disponíveis em filtros, formulários e board do /funnel.
+ * Inclui Perdido ao final, separado da sequência comercial.
+ */
+export const OPPORTUNITY_STAGE_OPTIONS = [
+  ...OPPORTUNITY_FUNNEL_STAGE_OPTIONS,
+  { value: OPPORTUNITY_STAGES.lost, label: "Perdido" },
+] as const;
+
+export const OPPORTUNITY_STATUS = {
+  active: "active",
+  inactive: "inactive",
+} as const;
+
+export type OpportunityStatusValue =
+  (typeof OPPORTUNITY_STATUS)[keyof typeof OPPORTUNITY_STATUS];
+
+export const OPPORTUNITY_STATUS_OPTIONS = [
+  { value: OPPORTUNITY_STATUS.active, label: "Ativo" },
+  { value: OPPORTUNITY_STATUS.inactive, label: "Inativo" },
+] as const;
 
 export const TASK_STATUS = {
   pending: "pending",

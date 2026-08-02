@@ -10,6 +10,7 @@ export const DASHBOARD_SECTIONS = {
   stock: "stock",
   shortcuts: "shortcuts",
   tasks: "tasks",
+  funnel: "funnel",
 } as const;
 
 export type DashboardSection =

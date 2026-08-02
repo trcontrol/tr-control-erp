@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  ChevronRight,
+  ShoppingCart,
+  type LucideIcon,
+} from "lucide-react";
 import { DashboardListRow } from "@/components/dashboard/dashboard-list-row";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { DashboardSectionLink } from "@/components/dashboard/dashboard-section-link";
@@ -13,7 +20,10 @@ import {
   formatDateBR,
   toNumberAmount,
 } from "@/lib/dashboard/format";
+import { cn } from "@/lib/utils";
 import type { ExecutiveDashboard } from "@/types/database";
+
+type ListAccent = "navy" | "gold" | "rosa";
 
 type ExecutiveListsProps = {
   data: ExecutiveDashboard;
@@ -21,27 +31,79 @@ type ExecutiveListsProps = {
   showPurchases?: boolean;
 };
 
+const ACCENT_STYLES: Record<
+  ListAccent,
+  { iconWrap: string; icon: string; amount: string }
+> = {
+  navy: {
+    iconWrap: "bg-[var(--brand-navy)]/[0.08]",
+    icon: "text-[var(--brand-navy)]",
+    amount: "font-bold text-[var(--brand-navy)]",
+  },
+  gold: {
+    iconWrap: "bg-[var(--brand-gold)]/15",
+    icon: "text-[var(--brand-gold)]",
+    amount: "font-bold text-[var(--brand-gold)]",
+  },
+  rosa: {
+    iconWrap: "bg-[var(--brand-coral)]/15",
+    icon: "text-[var(--brand-coral)]",
+    amount: "font-bold text-[var(--brand-coral)]",
+  },
+};
+
 function ListBlock({
   title,
   href,
   empty,
   items,
+  icon: Icon,
+  accent,
 }: {
   title: string;
   href: string;
   empty: string;
   items: React.ReactNode;
+  icon: LucideIcon;
+  accent: ListAccent;
 }) {
+  const styles = ACCENT_STYLES[accent];
+
   return (
-    <div className="min-w-0">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h3 className="text-[13px] font-semibold text-[var(--brand-navy)]/75">
-          {title}
-        </h3>
-        <DashboardSectionLink href={href}>Ver</DashboardSectionLink>
+    <div
+      className={cn(
+        "min-w-0 rounded-2xl border border-[var(--brand-navy)]/[0.06]",
+        "bg-[var(--brand-surface)]/70 px-4 py-4 sm:px-5 sm:py-5",
+        "shadow-[0_1px_3px_rgb(11_31_58/0.04)]",
+        "transition-all duration-300 ease-out",
+        "hover:border-[var(--brand-navy)]/[0.1]",
+        "hover:shadow-[0_6px_20px_rgb(11_31_58/0.07)]"
+      )}
+    >
+      <div className="mb-3.5 flex items-center justify-between gap-2 border-b border-[var(--brand-navy)]/[0.06] pb-3.5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+              styles.iconWrap
+            )}
+          >
+            <Icon className={cn("h-3.5 w-3.5", styles.icon)} strokeWidth={2.2} />
+          </span>
+          <h3 className="truncate text-[13px] font-semibold text-[var(--brand-navy)]">
+            {title}
+          </h3>
+        </div>
+        <DashboardSectionLink
+          href={href}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--brand-navy)]/35 transition-colors duration-200 hover:bg-[var(--brand-navy)]/[0.05] hover:text-[var(--brand-navy)]/70"
+        >
+          <ChevronRight className="h-4 w-4" aria-hidden />
+          <span className="sr-only">Ver {title}</span>
+        </DashboardSectionLink>
       </div>
       {items ?? (
-        <p className="py-5 text-sm text-muted-foreground">{empty}</p>
+        <p className="py-6 text-sm text-muted-foreground">{empty}</p>
       )}
     </div>
   );
@@ -82,9 +144,11 @@ export function ExecutiveLists({
             title="Compras"
             href={ROUTES.purchases}
             empty="Nenhuma compra confirmada."
+            icon={ShoppingCart}
+            accent="navy"
             items={
               data.recent_purchases.length ? (
-                <div className="divide-y divide-[var(--brand-navy)]/[0.045]">
+                <div className="divide-y divide-[var(--brand-navy)]/[0.05]">
                   {data.recent_purchases.slice(0, 4).map((purchase) => (
                     <DashboardListRow
                       key={purchase.id}
@@ -94,6 +158,7 @@ export function ExecutiveLists({
                       amount={formatCurrency(
                         toNumberAmount(purchase.total_amount)
                       )}
+                      amountClassName={ACCENT_STYLES.navy.amount}
                     />
                   ))}
                 </div>
@@ -107,9 +172,11 @@ export function ExecutiveLists({
             title="A receber"
             href={ROUTES.finance}
             empty="Sem vencimentos futuros."
+            icon={ArrowDownLeft}
+            accent="gold"
             items={
               data.upcoming_receivables.length ? (
-                <div className="divide-y divide-[var(--brand-navy)]/[0.045]">
+                <div className="divide-y divide-[var(--brand-navy)]/[0.05]">
                   {data.upcoming_receivables.slice(0, 4).map((entry) => (
                     <DashboardListRow
                       key={entry.id}
@@ -117,7 +184,7 @@ export function ExecutiveLists({
                       title={entry.party_name || entry.description}
                       meta={formatDateBR(entry.due_date)}
                       amount={formatCurrency(toNumberAmount(entry.amount))}
-                      amountClassName="text-emerald-700"
+                      amountClassName={ACCENT_STYLES.gold.amount}
                     />
                   ))}
                 </div>
@@ -131,9 +198,11 @@ export function ExecutiveLists({
             title="A pagar"
             href={ROUTES.finance}
             empty="Sem vencimentos futuros."
+            icon={ArrowUpRight}
+            accent="rosa"
             items={
               data.upcoming_payables.length ? (
-                <div className="divide-y divide-[var(--brand-navy)]/[0.045]">
+                <div className="divide-y divide-[var(--brand-navy)]/[0.05]">
                   {data.upcoming_payables.slice(0, 4).map((entry) => (
                     <DashboardListRow
                       key={entry.id}
@@ -141,7 +210,7 @@ export function ExecutiveLists({
                       title={entry.party_name || entry.description}
                       meta={formatDateBR(entry.due_date)}
                       amount={formatCurrency(toNumberAmount(entry.amount))}
-                      amountClassName="text-[var(--brand-coral)]"
+                      amountClassName={ACCENT_STYLES.rosa.amount}
                     />
                   ))}
                 </div>

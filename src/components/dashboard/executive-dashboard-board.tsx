@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +37,27 @@ import {
 import { ROUTES, saleDetailPath } from "@/lib/constants";
 import { useTenant } from "@/providers/tenant-provider";
 import type { ExecutiveDashboard } from "@/types/database";
+
+const RECENT_SALE_AVATAR_TONES = [
+  "bg-[#11203b] text-white",
+  "bg-[#e8c9d1] text-[#11203b]",
+  "bg-[#c89b3c]/[0.22] text-[#11203b]",
+] as const;
+
+function salePartyInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[parts.length - 1]?.[0] ?? ""}`.toUpperCase();
+}
+
+function saleAvatarTone(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = (hash + name.charCodeAt(i)) % RECENT_SALE_AVATAR_TONES.length;
+  }
+  return RECENT_SALE_AVATAR_TONES[hash] ?? RECENT_SALE_AVATAR_TONES[0];
+}
 
 export function ExecutiveDashboardBoard() {
   const { company, role } = useTenant();
@@ -271,6 +293,8 @@ export function ExecutiveDashboardBoard() {
               >
                 <DashboardSectionCard
                   title="Entradas e saídas"
+                  titleClassName="text-[16px] font-bold tracking-[-0.02em] text-[#11203b]"
+                  className="border border-[#11203b]/[0.06] bg-[#fffdfd] shadow-[0_1px_2px_rgb(17_32_59/0.03),0_8px_20px_rgb(17_32_59/0.045)] hover:shadow-[0_2px_6px_rgb(17_32_59/0.04),0_12px_26px_rgb(17_32_59/0.065)]"
                   contentClassName="min-w-0"
                 >
                   <ExecutiveCashFlowChart series={dashboard.cash_flow_series} />
@@ -289,19 +313,32 @@ export function ExecutiveDashboardBoard() {
               >
                 <DashboardSectionCard
                   title="Últimas vendas"
-                  elevation="secondary"
+                  titleClassName="text-[16px] font-bold tracking-[-0.02em] text-[#11203b]"
+                  className="border border-[#11203b]/[0.06] bg-[#fffdfd] shadow-[0_1px_2px_rgb(17_32_59/0.03),0_8px_20px_rgb(17_32_59/0.045)] hover:shadow-[0_2px_6px_rgb(17_32_59/0.04),0_12px_26px_rgb(17_32_59/0.065)]"
+                  headerClassName="items-center"
                   action={
-                    <DashboardSectionLink href={ROUTES.sales}>
+                    <DashboardSectionLink
+                      href={ROUTES.sales}
+                      className="rounded-full bg-[#c05c7d]/[0.08] px-3 py-1 text-[12px] font-semibold text-[#c05c7d] transition-colors duration-200 hover:bg-[#e8c9d1]/55 hover:text-[#c89b3c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b3c]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdfd]"
+                    >
                       Ver todas
                     </DashboardSectionLink>
                   }
                 >
                   {!dashboard.recent_sales.length ? (
-                    <p className="py-8 text-center text-sm text-muted-foreground">
-                      Nenhuma venda confirmada ainda.
-                    </p>
+                    <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+                      <p className="text-sm font-medium text-[#11203b]/55">
+                        Nenhuma venda registrada no período.
+                      </p>
+                      <Link
+                        href={ROUTES.salesNew}
+                        className="rounded-full px-3 py-1 text-[12px] font-semibold text-[#c05c7d] transition-colors duration-200 hover:bg-[#e8c9d1]/40 hover:text-[#c89b3c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b3c]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdfd]"
+                      >
+                        Nova venda
+                      </Link>
+                    </div>
                   ) : (
-                    <div className="divide-y divide-[var(--brand-navy)]/[0.045]">
+                    <div className="divide-y divide-[#11203b]/[0.045]">
                       {dashboard.recent_sales.map((sale) => (
                         <DashboardListRow
                           key={sale.id}
@@ -309,12 +346,14 @@ export function ExecutiveDashboardBoard() {
                           title={sale.party_name}
                           meta={`${formatDateBR(sale.sale_date)}${
                             sale.document_number
-                              ? ` · ${sale.document_number}`
+                              ? ` • ${sale.document_number}`
                               : ""
                           }`}
                           amount={formatCurrency(
                             toNumberAmount(sale.total_amount)
                           )}
+                          initials={salePartyInitials(sale.party_name)}
+                          avatarClassName={saleAvatarTone(sale.party_name)}
                         />
                       ))}
                     </div>

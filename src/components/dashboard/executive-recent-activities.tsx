@@ -38,7 +38,7 @@ export function ExecutiveRecentActivities({
           Nenhuma movimentação financeira recente.
         </p>
       ) : (
-        <div className="pt-1">
+        <div className="space-y-0.5 pt-0.5">
           {items.map((activity, index) => {
             const isInflow = activity.type === "entrada";
             return (

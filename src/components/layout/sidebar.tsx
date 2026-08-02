@@ -11,7 +11,6 @@ import {
   Settings,
   ShoppingBag,
   ShoppingCart,
-  Sparkles,
   Truck,
   Users,
   UsersRound,
@@ -139,15 +138,18 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
 
         {/* Espaço flexível implícito via flex-1 no nav; bloco inferior ancorado */}
         <div className="mt-auto shrink-0 px-3.5 pb-5 pt-2 sm:px-4 sm:pb-6">
-          <div className="rounded-2xl border border-[var(--brand-gold)]/30 bg-gradient-to-br from-white/[0.08] to-transparent px-4 py-4 shadow-[inset_0_1px_0_rgb(255_255_255_/6%)]">
-            <div className="mb-2.5 flex items-center gap-2 text-[var(--brand-gold-soft)]">
-              <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
-                Visão
-              </span>
-            </div>
+          <div className="rounded-2xl border border-[var(--brand-gold)]/30 bg-gradient-to-br from-white/[0.08] to-transparent px-5 py-5 text-center shadow-[inset_0_1px_0_rgb(255_255_255_/6%)]">
+            <div
+              className="mx-auto mb-3.5 h-px w-8 bg-[var(--brand-gold)]/35"
+              aria-hidden
+            />
+            <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--brand-gold-soft)]">
+              Visão
+            </p>
             <p className="font-display text-[13px] italic leading-relaxed text-[var(--brand-gold-soft)]/95">
-              Controle claro. Decisões rápidas.
+              Clareza para decidir.
+              <br />
+              Liberdade para crescer.
             </p>
           </div>
         </div>

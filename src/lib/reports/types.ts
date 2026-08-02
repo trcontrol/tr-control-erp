@@ -29,7 +29,7 @@ export const REPORT_TYPE_OPTIONS: ReportTypeMeta[] = [
     id: REPORT_TYPES.purchases,
     title: "Compras",
     description: "Aquisições e totais por fornecedor",
-    available: false,
+    available: true,
   },
   {
     id: REPORT_TYPES.finance,

@@ -1,9 +1,13 @@
+import type { PurchaseListItem } from "@/lib/purchases/actions";
 import type { SaleListItem } from "@/lib/sales/actions";
 import {
   customerLabel,
   formatDateBR,
+  purchaseStatusLabel,
   saleStatusLabel,
+  supplierLabel,
   toNumberAmount,
+  type PurchasesReportKpis,
   type SalesReportKpis,
 } from "@/lib/reports/format";
 
@@ -15,6 +19,16 @@ export type SalesExcelExportInput = {
   customerFilterLabel: string;
   sales: SaleListItem[];
   kpis: SalesReportKpis;
+};
+
+export type PurchasesExcelExportInput = {
+  companyName: string;
+  periodFrom: string;
+  periodTo: string;
+  statusLabel: string;
+  supplierFilterLabel: string;
+  purchases: PurchaseListItem[];
+  kpis: PurchasesReportKpis;
 };
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -101,4 +115,83 @@ export async function exportSalesReportExcel(input: SalesExcelExportInput) {
 
   const stamp = new Date().toISOString().slice(0, 10);
   downloadBlob(blob, `relatorio-vendas_${stamp}.xlsx`);
+}
+
+export async function exportPurchasesReportExcel(
+  input: PurchasesExcelExportInput
+) {
+  const ExcelJS = (await import("exceljs")).default;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "TR Control ERP";
+  workbook.created = new Date();
+
+  const summary = workbook.addWorksheet("Resumo");
+  summary.columns = [
+    { header: "Indicador", key: "label", width: 28 },
+    { header: "Valor", key: "value", width: 24 },
+  ];
+
+  summary.addRows([
+    { label: "Empresa", value: input.companyName },
+    {
+      label: "Período",
+      value: `${formatDateBR(input.periodFrom)} a ${formatDateBR(input.periodTo)}`,
+    },
+    { label: "Status", value: input.statusLabel },
+    { label: "Fornecedor", value: input.supplierFilterLabel },
+    { label: "Total do período", value: toNumberAmount(input.kpis.totalAmount) },
+    { label: "Quantidade de compras", value: input.kpis.purchasesCount },
+    { label: "Ticket médio", value: toNumberAmount(input.kpis.averageTicket) },
+    {
+      label: "Confirmadas (valor)",
+      value: toNumberAmount(input.kpis.confirmedAmount),
+    },
+    { label: "Confirmadas (qtd.)", value: input.kpis.confirmedCount },
+    { label: "Rascunhos", value: input.kpis.draftCount },
+    { label: "Canceladas", value: input.kpis.cancelledCount },
+  ]);
+
+  summary.getCell("B6").numFmt = '"R$"#,##0.00';
+  summary.getCell("B8").numFmt = '"R$"#,##0.00';
+  summary.getCell("B9").numFmt = '"R$"#,##0.00';
+
+  const details = workbook.addWorksheet("Compras");
+  details.columns = [
+    { header: "Data", key: "date", width: 14 },
+    { header: "Fornecedor", key: "supplier", width: 32 },
+    { header: "Documento", key: "document", width: 18 },
+    { header: "Status", key: "status", width: 14 },
+    { header: "Subtotal itens", key: "itemsSubtotal", width: 16 },
+    { header: "Desconto", key: "discount", width: 14 },
+    { header: "Frete", key: "freight", width: 14 },
+    { header: "Total", key: "total", width: 16 },
+  ];
+
+  for (const purchase of input.purchases) {
+    details.addRow({
+      date: formatDateBR(purchase.purchase_date),
+      supplier: supplierLabel(purchase.supplier),
+      document: purchase.document_number || "—",
+      status: purchaseStatusLabel(purchase.status),
+      itemsSubtotal: toNumberAmount(purchase.items_subtotal),
+      discount: toNumberAmount(purchase.discount_amount),
+      freight: toNumberAmount(purchase.freight_amount),
+      total: toNumberAmount(purchase.total_amount),
+    });
+  }
+
+  for (const key of ["itemsSubtotal", "discount", "freight", "total"] as const) {
+    details.getColumn(key).numFmt = '"R$"#,##0.00';
+  }
+
+  details.getRow(1).font = { bold: true };
+  summary.getRow(1).font = { bold: true };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadBlob(blob, `relatorio-compras_${stamp}.xlsx`);
 }

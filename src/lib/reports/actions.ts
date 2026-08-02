@@ -1,9 +1,15 @@
 import { listCustomers } from "@/lib/customers/actions";
+import { listPurchases, type PurchaseListItem } from "@/lib/purchases/actions";
 import { listSales, type SaleListItem } from "@/lib/sales/actions";
-import type { Customer } from "@/types/database";
+import { listSuppliers } from "@/lib/suppliers/actions";
+import type { Customer, Supplier } from "@/types/database";
 import {
+  buildPurchasesReportKpis,
+  buildPurchasesReportSeries,
   buildSalesReportKpis,
   buildSalesReportSeries,
+  type PurchasesReportKpis,
+  type PurchasesReportSeriesPoint,
   type SalesReportKpis,
   type SalesReportSeriesPoint,
 } from "@/lib/reports/format";
@@ -17,6 +23,13 @@ export type SalesReportData = {
   customers: Customer[];
   kpis: SalesReportKpis;
   series: SalesReportSeriesPoint[];
+};
+
+export type PurchasesReportData = {
+  purchases: PurchaseListItem[];
+  suppliers: Supplier[];
+  kpis: PurchasesReportKpis;
+  series: PurchasesReportSeriesPoint[];
 };
 
 export async function getSalesReport(params: {
@@ -51,6 +64,46 @@ export async function getSalesReport(params: {
       kpis: buildSalesReportKpis(sales),
       series: buildSalesReportSeries(
         sales,
+        params.periodFrom,
+        params.periodTo
+      ),
+    },
+    error: null,
+  };
+}
+
+export async function getPurchasesReport(params: {
+  companyId: string;
+  status?: string;
+  supplierId?: string;
+  periodFrom: string;
+  periodTo: string;
+}): Promise<Result<PurchasesReportData>> {
+  const [purchasesResult, suppliersResult] = await Promise.all([
+    listPurchases({
+      companyId: params.companyId,
+      status: params.status,
+      supplierId: params.supplierId,
+      periodFrom: params.periodFrom,
+      periodTo: params.periodTo,
+    }),
+    listSuppliers({ companyId: params.companyId, status: "active" }),
+  ]);
+
+  if (purchasesResult.error) {
+    return { data: null, error: purchasesResult.error };
+  }
+
+  const purchases = purchasesResult.data;
+  const suppliers = suppliersResult.data ?? [];
+
+  return {
+    data: {
+      purchases,
+      suppliers,
+      kpis: buildPurchasesReportKpis(purchases),
+      series: buildPurchasesReportSeries(
+        purchases,
         params.periodFrom,
         params.periodTo
       ),

@@ -29,7 +29,7 @@ export function DashboardListRow({
     <Link
       href={href}
       className={cn(
-        "group grid min-w-0 items-center gap-x-3 rounded-xl px-2 transition-colors duration-200",
+        "group grid min-w-0 items-center gap-x-2 rounded-xl px-1.5 transition-colors duration-200 sm:gap-x-3 sm:px-2",
         withAvatar
           ? "grid-cols-[auto_minmax(0,1fr)_auto] gap-y-0.5 py-3 hover:bg-[#11203b]/[0.03]"
           : "grid-cols-[minmax(0,1fr)_auto] gap-y-1 py-3.5 hover:bg-[var(--brand-navy)]/[0.025]"
@@ -59,10 +59,10 @@ export function DashboardListRow({
 
       <p
         className={cn(
-          "self-center whitespace-nowrap text-right font-bold tabular-nums tracking-tight",
+          "max-w-[9.5rem] self-center break-words text-right font-bold tabular-nums tracking-tight sm:max-w-none sm:whitespace-nowrap",
           withAvatar
-            ? "row-span-2 text-[13px] text-[#11203b] sm:text-[13.5px]"
-            : "row-span-2 text-[13.5px] text-[var(--brand-navy)]",
+            ? "row-span-2 text-[12.5px] text-[#11203b] sm:text-[13.5px]"
+            : "row-span-2 text-[12.5px] text-[var(--brand-navy)] sm:text-[13.5px]",
           amountClassName
         )}
       >

@@ -137,16 +137,16 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         </nav>
 
         {/* Espaço flexível implícito via flex-1 no nav; bloco inferior ancorado */}
-        <div className="mt-auto shrink-0 px-3.5 pb-5 pt-2 sm:px-4 sm:pb-6">
-          <div className="rounded-2xl border border-[var(--brand-gold)]/30 bg-gradient-to-br from-white/[0.08] to-transparent px-5 py-5 text-center shadow-[inset_0_1px_0_rgb(255_255_255_/6%)]">
+        <div className="mt-auto min-w-0 shrink-0 px-3 pb-5 pt-2 sm:px-4 sm:pb-6">
+          <div className="min-w-0 rounded-2xl border border-[var(--brand-gold)]/30 bg-gradient-to-br from-white/[0.08] to-transparent px-4 py-4 text-center shadow-[inset_0_1px_0_rgb(255_255_255_/6%)] sm:px-5 sm:py-5">
             <div
-              className="mx-auto mb-3.5 h-px w-8 bg-[var(--brand-gold)]/35"
+              className="mx-auto mb-3 h-px w-10 bg-[var(--brand-gold)]/35 sm:mb-3.5 sm:w-8"
               aria-hidden
             />
             <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--brand-gold-soft)]">
               Visão
             </p>
-            <p className="font-display text-[13px] italic leading-relaxed text-[var(--brand-gold-soft)]/95">
+            <p className="break-words font-display text-[12.5px] italic leading-relaxed text-[var(--brand-gold-soft)]/95 sm:text-[13px]">
               Clareza para decidir.
               <br />
               Liberdade para crescer.

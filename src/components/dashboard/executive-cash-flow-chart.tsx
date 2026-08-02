@@ -16,6 +16,7 @@ import {
   formatCurrency,
   toNumberAmount,
 } from "@/lib/dashboard/format";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 type ExecutiveCashFlowChartProps = {
   series: ExecutiveDashboard["cash_flow_series"];
@@ -125,6 +126,7 @@ function CashFlowTooltip({ active, payload, label }: CashFlowTooltipProps) {
 }
 
 export function ExecutiveCashFlowChart({ series }: ExecutiveCashFlowChartProps) {
+  const isMobile = useIsMobile();
   const data = useMemo<CashFlowPoint[]>(
     () =>
       series.map((point) => ({
@@ -150,57 +152,68 @@ export function ExecutiveCashFlowChart({ series }: ExecutiveCashFlowChartProps) 
 
   if (!data.length) {
     return (
-      <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
+      <div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground sm:h-[300px]">
         Sem movimentos realizados no mês para o gráfico.
       </div>
     );
   }
 
-  const tickInterval =
-    data.length <= 8 ? 0 : data.length <= 16 ? 1 : Math.ceil(data.length / 8);
+  const tickInterval = isMobile
+    ? data.length <= 6
+      ? 0
+      : Math.ceil(data.length / 5)
+    : data.length <= 8
+      ? 0
+      : data.length <= 16
+        ? 1
+        : Math.ceil(data.length / 8);
+
+  const chartMargin = isMobile
+    ? { top: 8, right: 2, left: 0, bottom: 2 }
+    : { top: 14, right: 10, left: 2, bottom: 6 };
 
   return (
-    <div className="w-full min-w-0 space-y-5 overflow-hidden">
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
-        <span className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-[#11203b]/80">
+    <div className="w-full min-w-0 space-y-3 overflow-hidden sm:space-y-5">
+      <div className="flex min-w-0 flex-col gap-y-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-2.5">
+        <span className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[12px] font-semibold text-[#11203b]/80 sm:text-[12.5px]">
           <span
-            className="h-2 w-2 shrink-0 rounded-full"
+            className="h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2"
             style={{ backgroundColor: CF.green }}
           />
           Entradas{" "}
-          <span className="font-extrabold tabular-nums tracking-tight text-[#11203b]">
+          <span className="break-words text-left font-extrabold tabular-nums tracking-tight text-[#11203b]">
             {formatCurrency(totals.inflows)}
           </span>
         </span>
-        <span className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-[#11203b]/80">
+        <span className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[12px] font-semibold text-[#11203b]/80 sm:text-[12.5px]">
           <span
-            className="h-2 w-2 shrink-0 rounded-full"
+            className="h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2"
             style={{ backgroundColor: CF.rosa }}
           />
           Saídas{" "}
-          <span className="font-extrabold tabular-nums tracking-tight text-[#11203b]">
+          <span className="break-words text-left font-extrabold tabular-nums tracking-tight text-[#11203b]">
             {formatCurrency(totals.outflows)}
           </span>
         </span>
-        <span className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-[#c89b3c]">
+        <span className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[12px] font-semibold text-[#c89b3c] sm:text-[12.5px]">
           <span
-            className="h-2 w-2 shrink-0 rounded-full"
+            className="h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2"
             style={{ backgroundColor: CF.dourado }}
           />
           Resultado{" "}
-          <span className="font-extrabold tabular-nums tracking-tight text-[#c89b3c]">
+          <span className="break-words text-left font-extrabold tabular-nums tracking-tight text-[#c89b3c]">
             {formatCurrency(result)}
           </span>
         </span>
       </div>
 
-      <div className="h-[300px] w-full min-w-0">
+      <div className="h-[210px] w-full min-w-0 sm:h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
-            margin={{ top: 14, right: 10, left: 2, bottom: 6 }}
-            barCategoryGap="22%"
-            barGap={3}
+            margin={chartMargin}
+            barCategoryGap={isMobile ? "18%" : "22%"}
+            barGap={isMobile ? 2 : 3}
           >
             <CartesianGrid
               strokeDasharray="2 12"
@@ -212,15 +225,23 @@ export function ExecutiveCashFlowChart({ series }: ExecutiveCashFlowChartProps) 
               tickLine={false}
               axisLine={false}
               interval={tickInterval}
-              tick={{ fontSize: 11, fill: CF.cinza, fontWeight: 500 }}
-              minTickGap={14}
-              tickMargin={10}
+              tick={{
+                fontSize: isMobile ? 9 : 11,
+                fill: CF.cinza,
+                fontWeight: 500,
+              }}
+              minTickGap={isMobile ? 8 : 14}
+              tickMargin={isMobile ? 6 : 10}
             />
             <YAxis
-              width={58}
+              width={isMobile ? 40 : 52}
               tickLine={false}
               axisLine={false}
-              tick={{ fontSize: 11, fill: CF.cinza, fontWeight: 500 }}
+              tick={{
+                fontSize: isMobile ? 9 : 10,
+                fill: CF.cinza,
+                fontWeight: 500,
+              }}
               tickFormatter={(value: number) => formatCompactCurrency(value)}
             />
             <Tooltip
@@ -233,7 +254,7 @@ export function ExecutiveCashFlowChart({ series }: ExecutiveCashFlowChartProps) 
               name="inflows"
               fill={CF.green}
               radius={[7, 7, 2, 2]}
-              maxBarSize={22}
+              maxBarSize={isMobile ? 16 : 22}
               isAnimationActive
               animationDuration={850}
               animationEasing="ease-out"
@@ -248,7 +269,7 @@ export function ExecutiveCashFlowChart({ series }: ExecutiveCashFlowChartProps) 
               name="outflows"
               fill={CF.rosa}
               radius={[7, 7, 2, 2]}
-              maxBarSize={22}
+              maxBarSize={isMobile ? 16 : 22}
               isAnimationActive
               animationDuration={850}
               animationEasing="ease-out"

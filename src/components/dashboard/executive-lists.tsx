@@ -72,33 +72,36 @@ function ListBlock({
   return (
     <div
       className={cn(
-        "min-w-0 rounded-2xl border border-[var(--brand-navy)]/[0.06]",
-        "bg-[var(--brand-surface)]/70 px-4 py-4 sm:px-5 sm:py-5",
+        "min-w-0 overflow-hidden rounded-2xl border border-[var(--brand-navy)]/[0.06]",
+        "bg-[var(--brand-surface)]/70 px-3 py-3.5 sm:px-5 sm:py-5",
         "shadow-[0_1px_3px_rgb(11_31_58/0.04)]",
         "transition-all duration-300 ease-out",
         "hover:border-[var(--brand-navy)]/[0.1]",
         "hover:shadow-[0_6px_20px_rgb(11_31_58/0.07)]"
       )}
     >
-      <div className="mb-3.5 flex items-center justify-between gap-2 border-b border-[var(--brand-navy)]/[0.06] pb-3.5">
-        <div className="flex min-w-0 items-center gap-2.5">
+      <div className="mb-3 flex min-w-0 items-center justify-between gap-2 border-b border-[var(--brand-navy)]/[0.06] pb-3 sm:mb-3.5 sm:pb-3.5">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
           <span
             className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-full sm:h-8 sm:w-8",
               styles.iconWrap
             )}
           >
-            <Icon className={cn("h-3.5 w-3.5", styles.icon)} strokeWidth={2.2} />
+            <Icon
+              className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5", styles.icon)}
+              strokeWidth={2.2}
+            />
           </span>
-          <h3 className="truncate text-[13px] font-semibold text-[var(--brand-navy)]">
+          <h3 className="truncate text-left text-[12.5px] font-semibold text-[var(--brand-navy)] sm:text-[13px]">
             {title}
           </h3>
         </div>
         <DashboardSectionLink
           href={href}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--brand-navy)]/35 transition-colors duration-200 hover:bg-[var(--brand-navy)]/[0.05] hover:text-[var(--brand-navy)]/70"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--brand-navy)]/35 transition-colors duration-200 hover:bg-[var(--brand-navy)]/[0.05] hover:text-[var(--brand-navy)]/70"
         >
-          <ChevronRight className="h-4 w-4" aria-hidden />
+          <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
           <span className="sr-only">Ver {title}</span>
         </DashboardSectionLink>
       </div>
@@ -133,10 +136,10 @@ export function ExecutiveLists({
       <div
         className={
           columnCount >= 3
-            ? "grid gap-6 lg:grid-cols-3 lg:gap-7"
+            ? "grid min-w-0 gap-4 sm:gap-5 lg:grid-cols-3 lg:gap-6"
             : columnCount === 2
-              ? "grid gap-6 sm:grid-cols-2"
-              : "grid gap-6"
+              ? "grid min-w-0 gap-4 sm:grid-cols-2 sm:gap-5"
+              : "grid min-w-0 gap-4 sm:gap-5"
         }
       >
         {showPurchases ? (

@@ -169,7 +169,7 @@ export function ExecutiveKpiGrid({
         : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3";
 
   return (
-    <div className={`grid w-full min-w-0 gap-4 ${columns}`}>
+    <div className={`grid w-full min-w-0 gap-3 sm:gap-4 ${columns}`}>
       {cards.map((card, index) => (
         <DashboardKpiCard
           key={card.key}

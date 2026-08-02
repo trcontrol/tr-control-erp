@@ -75,7 +75,7 @@ function TaskBadge({
 }
 
 const miniCardClass = cn(
-  "min-h-[108px] min-w-0 rounded-2xl border border-[var(--brand-gold)]/22 bg-[#fdfdfd] px-4 py-3.5",
+  "min-h-[96px] min-w-0 rounded-2xl border border-[var(--brand-gold)]/22 bg-[#fdfdfd] px-3.5 py-3 sm:min-h-[108px] sm:px-4 sm:py-3.5",
   "shadow-[0_3px_10px_rgb(11_31_58/0.05)]",
   "transition-[background-color,border-color,box-shadow,transform] duration-300 ease-out"
 );
@@ -138,24 +138,24 @@ export function ExecutiveUpcomingTasks({
       className={cn(
         "relative h-full w-full min-w-0 overflow-hidden",
         "border border-[var(--brand-gold)]/28 bg-[var(--brand-coral)]/[0.045]",
-        "border-l-[3px] border-l-[var(--brand-gold)]",
+        "border-l-2 border-l-[var(--brand-gold)] sm:border-l-[3px]",
         "shadow-[0_6px_16px_rgb(11_31_58/0.08),0_20px_44px_rgb(11_31_58/0.1)]",
-        "before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-[1] before:h-[3px] before:bg-[var(--brand-coral)]"
+        "before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-[1] before:h-0.5 before:bg-[var(--brand-coral)] sm:before:h-[3px]"
       )}
-      headerClassName="items-center gap-3 px-4 pb-3 pt-4 sm:px-5 sm:pt-4"
-      titleClassName="text-[16px] font-semibold tracking-[-0.01em] text-[var(--brand-navy)]"
-      contentClassName="flex-none px-4 pb-4 pt-0.5 sm:px-5 sm:pb-4"
+      headerClassName="items-start gap-2.5 px-3.5 pb-2.5 pt-3.5 sm:items-center sm:gap-3 sm:px-5 sm:pb-3 sm:pt-4"
+      titleClassName="text-[15px] font-semibold tracking-[-0.01em] text-[var(--brand-navy)] sm:text-[16px]"
+      contentClassName="flex-none px-3.5 pb-3.5 pt-0.5 sm:px-5 sm:pb-4"
       action={
-        <div className="flex flex-wrap items-center justify-end gap-x-2.5 gap-y-1.5">
+        <div className="flex max-w-full flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
           <DashboardSectionLink
             href={ROUTES.tasksNew}
-            className="rounded-full bg-[var(--brand-coral)] px-3.5 py-1.5 text-[12.5px] font-semibold text-white shadow-[0_2px_8px_rgb(196_147_159/0.35)] transition-all duration-200 hover:bg-[var(--brand-coral)]/90 hover:text-white hover:shadow-[0_4px_12px_rgb(196_147_159/0.4)]"
+            className="rounded-full bg-[var(--brand-coral)] px-3 py-1.5 text-[12px] font-semibold text-white shadow-[0_2px_8px_rgb(196_147_159/0.35)] transition-all duration-200 hover:bg-[var(--brand-coral)]/90 hover:text-white hover:shadow-[0_4px_12px_rgb(196_147_159/0.4)] sm:px-3.5 sm:text-[12.5px]"
           >
             Nova tarefa
           </DashboardSectionLink>
           <DashboardSectionLink
             href={ROUTES.tasks}
-            className="rounded-full border border-[var(--brand-gold)]/55 bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-[var(--brand-navy)]/75 shadow-[0_1px_3px_rgb(11_31_58/0.04)] transition-all duration-200 hover:border-[var(--brand-gold)] hover:bg-[var(--brand-gold)]/[0.06] hover:text-[var(--brand-navy)]"
+            className="rounded-full border border-[var(--brand-gold)]/55 bg-white px-3 py-1.5 text-[12px] font-semibold text-[var(--brand-navy)]/75 shadow-[0_1px_3px_rgb(11_31_58/0.04)] transition-all duration-200 hover:border-[var(--brand-gold)] hover:bg-[var(--brand-gold)]/[0.06] hover:text-[var(--brand-navy)] sm:px-3.5 sm:text-[12.5px]"
           >
             Ver todas
           </DashboardSectionLink>
@@ -241,7 +241,7 @@ export function ExecutiveUpcomingTasks({
                   >
                     <p
                       className={cn(
-                        "line-clamp-2 text-left text-[15px] font-bold tracking-[-0.015em] leading-snug text-[var(--brand-navy)]",
+                        "line-clamp-2 text-left text-[14px] font-bold tracking-[-0.015em] leading-snug text-[var(--brand-navy)] sm:text-[15px]",
                         overdue && "text-[var(--brand-navy)]"
                       )}
                     >
@@ -252,7 +252,7 @@ export function ExecutiveUpcomingTasks({
                   <button
                     type="button"
                     className={cn(
-                      "-mr-1 -mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                      "-mr-0.5 -mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full sm:-mr-1 sm:-mt-1 sm:h-9 sm:w-9",
                       "text-[var(--brand-gold)] transition-all duration-300 ease-out",
                       "hover:bg-[var(--brand-gold)]/14 hover:text-[var(--brand-gold-soft)]",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-gold)]/45",
@@ -264,26 +264,26 @@ export function ExecutiveUpcomingTasks({
                     aria-label={`Concluir tarefa ${task.title}`}
                   >
                     {busy ? (
-                      <Loader2 className="h-5 w-5 animate-spin text-[var(--brand-coral)]" />
+                      <Loader2 className="h-4 w-4 animate-spin text-[var(--brand-coral)] sm:h-5 sm:w-5" />
                     ) : (
-                      <Circle className="h-5 w-5" strokeWidth={1.75} />
+                      <Circle className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={1.75} />
                     )}
                   </button>
                 </div>
 
                 <Link
                   href={detailHref}
-                  className="mt-2.5 block min-w-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-gold)]/45"
+                  className="mt-2 block min-w-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-gold)]/45 sm:mt-2.5"
                 >
                   <p
                     className={cn(
-                      "truncate text-[12px] text-[var(--brand-navy)]/48",
+                      "truncate text-left text-[11.5px] text-[var(--brand-navy)]/48 sm:text-[12px]",
                       overdue && "text-[var(--brand-coral)]"
                     )}
                   >
                     {dueLine}
                   </p>
-                  <div className="mt-2.5 flex min-w-0 flex-wrap items-center gap-1.5">
+                  <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5 sm:mt-2.5">
                     <TaskBadge
                       label={taskPriorityLabel(task.priority)}
                       className={priorityBadgeClass(task.priority)}

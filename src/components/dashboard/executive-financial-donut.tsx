@@ -128,15 +128,15 @@ export function ExecutiveFinancialDonut({
   return (
     <div
       className={cn(
-        "@container/finance flex h-full min-w-0 flex-col",
-        compact ? "gap-5" : "gap-5"
+        "@container/finance flex h-full min-w-0 flex-col gap-4 sm:gap-5"
       )}
     >
-      <div className="flex min-w-0 flex-1 flex-col items-center gap-5 @[26rem]:flex-row @[26rem]:items-center @[26rem]:gap-6">
-        <div className="relative shrink-0">
+      <div className="flex min-w-0 flex-1 flex-col items-stretch gap-4 sm:items-center sm:gap-5 @[26rem]:flex-row @[26rem]:items-center @[26rem]:gap-6">
+        <div className="relative mx-auto shrink-0">
           <svg
             width={chart.size}
             height={chart.size}
+            className="max-h-[168px] w-auto max-w-[168px] sm:max-h-none sm:max-w-none"
             viewBox={`0 0 ${chart.size} ${chart.size}`}
             role="img"
             aria-label="Composição financeira do mês"
@@ -166,36 +166,36 @@ export function ExecutiveFinancialDonut({
               />
             ))}
           </svg>
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-5 text-center">
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
             <span className="text-[11px] font-medium text-muted-foreground">
               Total
             </span>
-            <span className="mt-1 whitespace-nowrap text-[13px] font-bold leading-snug tabular-nums text-[var(--brand-navy)] sm:text-sm">
+            <span className="mt-1 max-w-full break-words text-[12px] font-bold leading-snug tabular-nums text-[var(--brand-navy)] sm:text-[13px]">
               {formatCurrency(chart.total)}
             </span>
           </div>
         </div>
 
-        <ul className="w-full min-w-0 flex-1 space-y-2.5 @[26rem]:min-w-[11.5rem]">
+        <ul className="w-full min-w-0 flex-1 space-y-2 sm:space-y-2.5 @[26rem]:min-w-[11.5rem]">
           {chart.segments.map((segment) => (
             <li
               key={segment.key}
-              className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 px-0.5"
+              className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,max-content)] items-start gap-x-2 px-0.5 sm:gap-x-2.5"
             >
-              <span className="inline-flex min-w-0 items-center gap-2.5 pr-1">
+              <span className="inline-flex min-w-0 items-center gap-2 pr-1 sm:gap-2.5">
                 <span
-                  className="h-2 w-2 shrink-0 rounded-full"
+                  className="h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2"
                   style={{ backgroundColor: segment.color }}
                 />
-                <span className="truncate text-[12.5px] font-medium text-[var(--brand-navy)]/80">
+                <span className="truncate text-left text-[12px] font-medium text-[var(--brand-navy)]/80 sm:text-[12.5px]">
                   {segment.label}
                 </span>
               </span>
-              <span className="min-w-0 text-right">
-                <span className="block whitespace-nowrap text-[12.5px] font-semibold tabular-nums text-[var(--brand-navy)]">
+              <span className="min-w-0 max-w-full text-right">
+                <span className="block break-words text-[12px] font-semibold tabular-nums text-[var(--brand-navy)] sm:text-[12.5px]">
                   {formatCurrency(segment.value)}
                 </span>
-                <span className="block whitespace-nowrap text-[11px] text-muted-foreground">
+                <span className="block text-[11px] text-muted-foreground">
                   {participationPercent(segment.value, chart.total)}
                 </span>
               </span>
@@ -204,42 +204,42 @@ export function ExecutiveFinancialDonut({
         </ul>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 border-t border-[var(--brand-navy)]/[0.05] pt-4 @[28rem]:grid-cols-4">
-        <div className="flex min-w-0 flex-col rounded-xl bg-[var(--brand-navy)]/[0.05] px-3 py-3">
+      <div className="grid grid-cols-2 gap-2 border-t border-[var(--brand-navy)]/[0.05] pt-3.5 sm:gap-2.5 sm:pt-4 @[28rem]:grid-cols-4">
+        <div className="flex min-w-0 flex-col overflow-hidden rounded-xl bg-[var(--brand-navy)]/[0.05] px-2.5 py-2.5 sm:px-3 sm:py-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-            <CircleDollarSign className="h-3.5 w-3.5 shrink-0 text-[var(--brand-navy)]" />
-            <span className="truncate">Recebido</span>
+            <CircleDollarSign className="h-3 w-3 shrink-0 text-[var(--brand-navy)] sm:h-3.5 sm:w-3.5" />
+            <span className="truncate text-left">Recebido</span>
           </div>
-          <p className="mt-2 whitespace-nowrap text-[12.5px] font-bold leading-snug tabular-nums text-[var(--brand-navy)]">
+          <p className="mt-1.5 break-words text-left text-[12px] font-bold leading-snug tabular-nums text-[var(--brand-navy)] sm:mt-2 sm:text-[12.5px]">
             {formatCurrency(chart.received)}
           </p>
         </div>
-        <div className="flex min-w-0 flex-col rounded-xl bg-[#b8788a]/[0.1] px-3 py-3">
+        <div className="flex min-w-0 flex-col overflow-hidden rounded-xl bg-[#b8788a]/[0.1] px-2.5 py-2.5 sm:px-3 sm:py-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-            <WalletCards className="h-3.5 w-3.5 shrink-0 text-[#b8788a]" />
-            <span className="truncate">A receber</span>
+            <WalletCards className="h-3 w-3 shrink-0 text-[#b8788a] sm:h-3.5 sm:w-3.5" />
+            <span className="truncate text-left">A receber</span>
           </div>
-          <p className="mt-2 whitespace-nowrap text-[12.5px] font-bold leading-snug tabular-nums text-[var(--brand-navy)]">
+          <p className="mt-1.5 break-words text-left text-[12px] font-bold leading-snug tabular-nums text-[var(--brand-navy)] sm:mt-2 sm:text-[12.5px]">
             {formatCurrency(chart.openReceivables)}
           </p>
         </div>
-        <div className="flex min-w-0 flex-col rounded-xl bg-[#9aa3b2]/[0.12] px-3 py-3">
+        <div className="flex min-w-0 flex-col overflow-hidden rounded-xl bg-[#9aa3b2]/[0.12] px-2.5 py-2.5 sm:px-3 sm:py-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-[#8b93a3]" />
-            <span className="truncate">Em atraso</span>
+            <AlertTriangle className="h-3 w-3 shrink-0 text-[#8b93a3] sm:h-3.5 sm:w-3.5" />
+            <span className="truncate text-left">Em atraso</span>
           </div>
-          <p className="mt-2 whitespace-nowrap text-[12.5px] font-bold leading-snug tabular-nums text-[var(--brand-navy)]/75">
+          <p className="mt-1.5 break-words text-left text-[12px] font-bold leading-snug tabular-nums text-[var(--brand-navy)]/75 sm:mt-2 sm:text-[12.5px]">
             {formatCurrency(chart.overdue)}
           </p>
         </div>
-        <div className="flex min-w-0 flex-col rounded-xl bg-[var(--brand-gold)]/[0.1] px-3 py-3">
+        <div className="flex min-w-0 flex-col overflow-hidden rounded-xl bg-[var(--brand-gold)]/[0.1] px-2.5 py-2.5 sm:px-3 sm:py-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-            <Scale className="h-3.5 w-3.5 shrink-0 text-[var(--brand-gold)]" />
-            <span className="truncate">Resultado</span>
+            <Scale className="h-3 w-3 shrink-0 text-[var(--brand-gold)] sm:h-3.5 sm:w-3.5" />
+            <span className="truncate text-left">Resultado</span>
           </div>
           <p
             className={cn(
-              "mt-2 whitespace-nowrap text-[12.5px] font-bold leading-snug tabular-nums",
+              "mt-1.5 break-words text-left text-[12px] font-bold leading-snug tabular-nums sm:mt-2 sm:text-[12.5px]",
               resultPositive
                 ? "text-[var(--brand-navy)]"
                 : "text-[var(--brand-coral)]"

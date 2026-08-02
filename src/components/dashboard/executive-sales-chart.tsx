@@ -17,6 +17,7 @@ import {
   monthBucketLabel,
   toNumberAmount,
 } from "@/lib/dashboard/format";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 type ExecutiveSalesChartProps = {
   series: ExecutiveDashboard["sales_series"];
@@ -57,6 +58,20 @@ function isCurrentMonthBucket(bucket: string) {
   return bucket.startsWith(`${year}-${month}`);
 }
 
+function formatCompactCurrency(value: number) {
+  if (Math.abs(value) >= 1_000_000) {
+    return `R$ ${(value / 1_000_000).toLocaleString("pt-BR", {
+      maximumFractionDigits: 1,
+    })}M`;
+  }
+  if (Math.abs(value) >= 1_000) {
+    return `R$ ${(value / 1_000).toLocaleString("pt-BR", {
+      maximumFractionDigits: 0,
+    })}k`;
+  }
+  return formatCurrency(value);
+}
+
 function SalesChartTooltip({ active, payload, label }: SalesTooltipProps) {
   if (!active || !payload?.length) return null;
 
@@ -87,6 +102,7 @@ export function ExecutiveSalesChart({
   averageTicket,
   compact = false,
 }: ExecutiveSalesChartProps) {
+  const isMobile = useIsMobile();
   const gradientUid = useId().replace(/:/g, "");
   const gradientMainId = `sales-bar-main-${gradientUid}`;
   const gradientSoftId = `sales-bar-soft-${gradientUid}`;
@@ -112,7 +128,11 @@ export function ExecutiveSalesChart({
     averageTicket !== undefined ? toNumberAmount(averageTicket) : null;
   const ticketIsZero = ticketValue === 0;
 
-  const chartHeight = compact ? 248 : 280;
+  const chartHeight = isMobile ? 200 : compact ? 248 : 280;
+  const chartMargin = isMobile
+    ? { top: 10, right: 2, left: 0, bottom: 4 }
+    : { top: 18, right: 8, left: 4, bottom: 10 };
+  const yAxisWidth = isMobile ? 40 : compact ? 52 : 58;
 
   if (!data.length) {
     return (
@@ -126,17 +146,17 @@ export function ExecutiveSalesChart({
   }
 
   return (
-    <div className="w-full min-w-0 space-y-5 overflow-hidden">
-      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-        <span className="text-[15px] font-extrabold tabular-nums tracking-tight text-[#11203b] sm:text-[16px]">
+    <div className="w-full min-w-0 space-y-3 overflow-hidden sm:space-y-5">
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 sm:gap-x-2.5">
+        <span className="break-words text-left text-[14px] font-extrabold tabular-nums tracking-tight text-[#11203b] sm:text-[16px]">
           {formatCurrency(periodTotal)}
         </span>
         {ticketValue !== null ? (
           <span
             className={
               ticketIsZero
-                ? "text-[11px] font-medium tabular-nums text-[#b6b6b6]"
-                : "text-[11px] font-medium tabular-nums text-[#11203b]/42"
+                ? "min-w-0 break-words text-left text-[11px] font-medium tabular-nums text-[#b6b6b6]"
+                : "min-w-0 break-words text-left text-[11px] font-medium tabular-nums text-[#11203b]/42"
             }
           >
             <span className={ticketIsZero ? "text-[#b6b6b6]" : "text-[#c89b3c]/65"}>
@@ -160,8 +180,8 @@ export function ExecutiveSalesChart({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
-            margin={{ top: 18, right: 8, left: 4, bottom: 10 }}
-            barCategoryGap="34%"
+            margin={chartMargin}
+            barCategoryGap={isMobile ? "28%" : "34%"}
           >
             <defs>
               <linearGradient id={gradientMainId} x1="0" y1="0" x2="0" y2="1">
@@ -183,15 +203,25 @@ export function ExecutiveSalesChart({
               dataKey="label"
               tickLine={false}
               axisLine={false}
-              tick={{ fontSize: 11, fill: TR.cinza, fontWeight: 500 }}
-              tickMargin={12}
+              tick={{
+                fontSize: isMobile ? 10 : 11,
+                fill: TR.cinza,
+                fontWeight: 500,
+              }}
+              tickMargin={isMobile ? 8 : 12}
+              interval="preserveStartEnd"
+              minTickGap={isMobile ? 4 : 8}
             />
             <YAxis
-              width={compact ? 76 : 84}
+              width={yAxisWidth}
               tickLine={false}
               axisLine={false}
-              tick={{ fontSize: 10, fill: TR.cinza, fontWeight: 500 }}
-              tickFormatter={(value: number) => formatCurrency(value)}
+              tick={{
+                fontSize: isMobile ? 9 : 10,
+                fill: TR.cinza,
+                fontWeight: 500,
+              }}
+              tickFormatter={(value: number) => formatCompactCurrency(value)}
             />
             <Tooltip
               cursor={{ fill: "rgb(192 92 125 / 6%)", radius: 8 }}
@@ -201,7 +231,7 @@ export function ExecutiveSalesChart({
             <Bar
               dataKey="total"
               radius={[10, 10, 4, 4]}
-              maxBarSize={compact ? 28 : 34}
+              maxBarSize={isMobile ? 22 : compact ? 28 : 34}
               isAnimationActive
               animationDuration={850}
               animationEasing="ease-out"

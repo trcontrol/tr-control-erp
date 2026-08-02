@@ -163,7 +163,7 @@ export function ExecutiveDashboardBoard() {
   ).length;
 
   return (
-    <div className="min-w-0 space-y-5 md:space-y-7">
+    <div className="min-w-0 space-y-5 md:space-y-6 xl:space-y-7">
       {capabilities.shortcuts ? (
         <div className="dash-reveal w-full min-w-0" style={{ animationDelay: "40ms" }}>
           <ExecutiveQuickActions />
@@ -181,8 +181,8 @@ export function ExecutiveDashboardBoard() {
           <div
             className={
               topRowBoth
-                ? "grid min-w-0 auto-rows-fr grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6 xl:grid-cols-2"
-                : "grid min-w-0 grid-cols-1 gap-5"
+                ? "grid min-w-0 grid-cols-1 gap-4 sm:gap-5 lg:auto-rows-fr lg:grid-cols-2 lg:gap-6"
+                : "grid min-w-0 grid-cols-1 gap-4 sm:gap-5"
             }
           >
             {showTopFinance ? (
@@ -229,7 +229,7 @@ export function ExecutiveDashboardBoard() {
       </section>
 
       {(capabilities.sales || capabilities.stock) && (
-        <section className="mb-3 min-w-0 space-y-2.5 md:mb-5">
+        <section className="mb-2 min-w-0 space-y-2.5 md:mb-4 xl:mb-5">
           <div className="dash-reveal" style={{ animationDelay: "100ms" }}>
             <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
               Resumo operacional
@@ -238,8 +238,8 @@ export function ExecutiveDashboardBoard() {
           <div
             className={
               middleCount === 2
-                ? "grid min-w-0 gap-5 xl:grid-cols-2 xl:gap-6"
-                : "grid min-w-0 gap-5"
+                ? "grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-2 xl:gap-6"
+                : "grid min-w-0 gap-4 sm:gap-5"
             }
           >
             {capabilities.sales ? (
@@ -281,7 +281,7 @@ export function ExecutiveDashboardBoard() {
               Fluxo e vendas recentes
             </p>
           </div>
-          <div className="grid min-w-0 gap-5 xl:grid-cols-12 xl:gap-6">
+          <div className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-12 xl:gap-6">
             {capabilities.finance ? (
               <div
                 className={
@@ -372,7 +372,7 @@ export function ExecutiveDashboardBoard() {
               Pendências e atividades
             </p>
           </div>
-          <div className="grid min-w-0 gap-5 xl:grid-cols-12 xl:gap-6">
+          <div className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-12 xl:gap-6">
             <div
               className={
                 capabilities.finance

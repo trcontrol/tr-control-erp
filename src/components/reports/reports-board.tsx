@@ -16,6 +16,7 @@ import {
   CircleDollarSign,
   HandCoins,
 } from "lucide-react";
+import { FinanceReportPanel } from "@/components/reports/finance-report-panel";
 import { PurchasesReportPanel } from "@/components/reports/purchases-report-panel";
 import { SalesReportPanel } from "@/components/reports/sales-report-panel";
 import { Button } from "@/components/ui/button";
@@ -28,22 +29,30 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  FINANCIAL_ENTRY_TYPE_OPTIONS,
+  FINANCIAL_STATUS_OPTIONS,
   PURCHASE_STATUS_OPTIONS,
   SALE_STATUS_OPTIONS,
 } from "@/lib/constants";
+import type { FinancialEntryWithRelations } from "@/lib/finance/actions";
 import {
+  getFinanceReport,
   getPurchasesReport,
   getSalesReport,
 } from "@/lib/reports/actions";
 import {
+  exportFinanceReportExcel,
   exportPurchasesReportExcel,
   exportSalesReportExcel,
 } from "@/lib/reports/export-excel";
 import {
   currentMonthPeriod,
   customerLabel,
+  financeEntryTypeLabel,
   formatDateBR,
   supplierLabel,
+  type FinanceReportKpis,
+  type FinanceReportSeriesPoint,
   type PurchasesReportKpis,
   type PurchasesReportSeriesPoint,
   type SalesReportKpis,
@@ -90,6 +99,8 @@ export function ReportsBoard() {
   const [status, setStatus] = useState("all");
   const [customerId, setCustomerId] = useState("all");
   const [supplierId, setSupplierId] = useState("all");
+  const [entryType, setEntryType] = useState("all");
+  const [category, setCategory] = useState("all");
 
   const [sales, setSales] = useState<SaleListItem[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -104,6 +115,12 @@ export function ReportsBoard() {
     PurchasesReportSeriesPoint[]
   >([]);
 
+  const [entries, setEntries] = useState<FinancialEntryWithRelations[]>([]);
+  const [financeKpis, setFinanceKpis] = useState<FinanceReportKpis | null>(null);
+  const [financeSeries, setFinanceSeries] = useState<FinanceReportSeriesPoint[]>(
+    []
+  );
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -112,6 +129,7 @@ export function ReportsBoard() {
 
   const isSalesReport = selectedReportType === REPORT_TYPES.sales;
   const isPurchasesReport = selectedReportType === REPORT_TYPES.purchases;
+  const isFinanceReport = selectedReportType === REPORT_TYPES.finance;
 
   const validatePeriod = useCallback(() => {
     if (!company?.id) {
@@ -209,19 +227,66 @@ export function ReportsBoard() {
     setLoading(false);
   }, [company?.id, periodFrom, periodTo, status, supplierId, validatePeriod]);
 
+  const loadFinanceReport = useCallback(async () => {
+    if (!validatePeriod() || !company?.id) {
+      setEntries([]);
+      setFinanceKpis(null);
+      setFinanceSeries([]);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const result = await getFinanceReport({
+      companyId: company.id,
+      entryType,
+      status,
+      category,
+      periodFrom,
+      periodTo,
+    });
+
+    if (result.error || !result.data) {
+      setEntries([]);
+      setFinanceKpis(null);
+      setFinanceSeries([]);
+      setError(result.error?.message ?? "Erro ao carregar o relatório.");
+      setLoading(false);
+      return;
+    }
+
+    setEntries(result.data.entries);
+    setFinanceKpis(result.data.kpis);
+    setFinanceSeries(result.data.series);
+    setLoading(false);
+  }, [
+    category,
+    company?.id,
+    entryType,
+    periodFrom,
+    periodTo,
+    status,
+    validatePeriod,
+  ]);
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (isSalesReport) {
         void loadSalesReport();
       } else if (isPurchasesReport) {
         void loadPurchasesReport();
+      } else if (isFinanceReport) {
+        void loadFinanceReport();
       }
     }, 200);
 
     return () => clearTimeout(timeout);
   }, [
+    isFinanceReport,
     isPurchasesReport,
     isSalesReport,
+    loadFinanceReport,
     loadPurchasesReport,
     loadSalesReport,
   ]);
@@ -236,12 +301,14 @@ export function ReportsBoard() {
   const statusLabel = useMemo(() => {
     if (status === "all") return "Todos os status";
 
-    const options = isPurchasesReport
-      ? PURCHASE_STATUS_OPTIONS
-      : SALE_STATUS_OPTIONS;
+    const options = isFinanceReport
+      ? FINANCIAL_STATUS_OPTIONS
+      : isPurchasesReport
+        ? PURCHASE_STATUS_OPTIONS
+        : SALE_STATUS_OPTIONS;
 
     return options.find((item) => item.value === status)?.label ?? status;
-  }, [isPurchasesReport, status]);
+  }, [isFinanceReport, isPurchasesReport, status]);
 
   const customerFilterLabel =
     customerId === "all"
@@ -253,7 +320,22 @@ export function ReportsBoard() {
       ? "Todos os fornecedores"
       : supplierLabel(suppliers.find((item) => item.id === supplierId) ?? null);
 
-  const activeKpis = isPurchasesReport ? purchasesKpis : salesKpis;
+  const entryTypeLabel =
+    entryType === "all"
+      ? "Todos os tipos"
+      : financeEntryTypeLabel(entryType) ||
+        FINANCIAL_ENTRY_TYPE_OPTIONS.find((item) => item.value === entryType)
+          ?.label ||
+        entryType;
+
+  const categoryFilterLabel =
+    category === "all" ? "Todas as categorias" : category;
+
+  const activeKpis = isFinanceReport
+    ? financeKpis
+    : isPurchasesReport
+      ? purchasesKpis
+      : salesKpis;
   const canExport =
     !loading && !error && Boolean(activeKpis) && Boolean(company);
 
@@ -262,7 +344,19 @@ export function ReportsBoard() {
 
     setExporting(true);
     try {
-      if (isPurchasesReport) {
+      if (isFinanceReport) {
+        if (!financeKpis) return;
+        await exportFinanceReportExcel({
+          companyName: company.name,
+          periodFrom,
+          periodTo,
+          statusLabel,
+          entryTypeLabel,
+          categoryFilterLabel,
+          entries,
+          kpis: financeKpis,
+        });
+      } else if (isPurchasesReport) {
         if (!purchasesKpis) return;
         await exportPurchasesReportExcel({
           companyName: company.name,
@@ -324,12 +418,22 @@ export function ReportsBoard() {
     setStatus("all");
     setCustomerId("all");
     setSupplierId("all");
+    setEntryType("all");
+    setCategory("all");
     setError(null);
   };
 
-  const printMeta = isPurchasesReport
-    ? `Compras · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel}`
-    : `Vendas · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel}`;
+  const printTitle = isFinanceReport
+    ? "Relatório Financeiro"
+    : isPurchasesReport
+      ? "Relatório de Compras"
+      : "Relatório de Vendas";
+
+  const printMeta = isFinanceReport
+    ? `Financeiro · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${entryTypeLabel} · ${statusLabel} · ${categoryFilterLabel}`
+    : isPurchasesReport
+      ? `Compras · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel}`
+      : `Vendas · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel}`;
 
   return (
     <div id="reports-print-root" className="space-y-6">
@@ -512,7 +616,7 @@ export function ReportsBoard() {
 
       <div className="hidden print:block">
         <h2 className="text-xl font-bold text-[var(--brand-navy)]">
-          {isPurchasesReport ? "Relatório de Compras" : "Relatório de Vendas"}
+          {printTitle}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {company?.name ? `${company.name} · ` : ""}
@@ -520,7 +624,24 @@ export function ReportsBoard() {
         </p>
       </div>
 
-      {isPurchasesReport ? (
+      {isFinanceReport ? (
+        <FinanceReportPanel
+          companyName={company?.name ?? ""}
+          periodFrom={periodFrom}
+          periodTo={periodTo}
+          entryType={entryType}
+          status={status}
+          category={category}
+          entries={entries}
+          kpis={financeKpis}
+          series={financeSeries}
+          loading={loading}
+          error={error}
+          onEntryTypeChange={setEntryType}
+          onStatusChange={setStatus}
+          onCategoryChange={setCategory}
+        />
+      ) : isPurchasesReport ? (
         <PurchasesReportPanel
           companyName={company?.name ?? ""}
           periodFrom={periodFrom}

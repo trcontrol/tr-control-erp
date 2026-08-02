@@ -1,12 +1,16 @@
+import type { FinancialEntryWithRelations } from "@/lib/finance/actions";
 import type { PurchaseListItem } from "@/lib/purchases/actions";
 import type { SaleListItem } from "@/lib/sales/actions";
 import {
   customerLabel,
+  financeEntryTypeLabel,
+  financeStatusLabel,
   formatDateBR,
   purchaseStatusLabel,
   saleStatusLabel,
   supplierLabel,
   toNumberAmount,
+  type FinanceReportKpis,
   type PurchasesReportKpis,
   type SalesReportKpis,
 } from "@/lib/reports/format";
@@ -29,6 +33,17 @@ export type PurchasesExcelExportInput = {
   supplierFilterLabel: string;
   purchases: PurchaseListItem[];
   kpis: PurchasesReportKpis;
+};
+
+export type FinanceExcelExportInput = {
+  companyName: string;
+  periodFrom: string;
+  periodTo: string;
+  statusLabel: string;
+  entryTypeLabel: string;
+  categoryFilterLabel: string;
+  entries: FinancialEntryWithRelations[];
+  kpis: FinanceReportKpis;
 };
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -194,4 +209,73 @@ export async function exportPurchasesReportExcel(
 
   const stamp = new Date().toISOString().slice(0, 10);
   downloadBlob(blob, `relatorio-compras_${stamp}.xlsx`);
+}
+
+export async function exportFinanceReportExcel(input: FinanceExcelExportInput) {
+  const ExcelJS = (await import("exceljs")).default;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "TR Control ERP";
+  workbook.created = new Date();
+
+  const summary = workbook.addWorksheet("Resumo");
+  summary.columns = [
+    { header: "Indicador", key: "label", width: 28 },
+    { header: "Valor", key: "value", width: 28 },
+  ];
+
+  summary.addRows([
+    { label: "Empresa", value: input.companyName },
+    {
+      label: "Período",
+      value: `${formatDateBR(input.periodFrom)} a ${formatDateBR(input.periodTo)}`,
+    },
+    { label: "Tipo de movimentação", value: input.entryTypeLabel },
+    { label: "Status", value: input.statusLabel },
+    { label: "Categoria", value: input.categoryFilterLabel },
+    { label: "Receitas", value: toNumberAmount(input.kpis.totalReceitas) },
+    { label: "Despesas", value: toNumberAmount(input.kpis.totalDespesas) },
+    { label: "Saldo", value: toNumberAmount(input.kpis.saldoPeriodo) },
+    { label: "A receber", value: toNumberAmount(input.kpis.totalAReceber) },
+    { label: "A pagar", value: toNumberAmount(input.kpis.totalAPagar) },
+    { label: "Em atraso", value: toNumberAmount(input.kpis.totalEmAtraso) },
+  ]);
+
+  for (const row of [6, 7, 8, 9, 10, 11] as const) {
+    summary.getCell(`B${row}`).numFmt = '"R$"#,##0.00';
+  }
+
+  const details = workbook.addWorksheet("Lançamentos");
+  details.columns = [
+    { header: "Data", key: "date", width: 14 },
+    { header: "Descrição", key: "description", width: 36 },
+    { header: "Categoria", key: "category", width: 18 },
+    { header: "Tipo", key: "type", width: 18 },
+    { header: "Status", key: "status", width: 14 },
+    { header: "Vencimento", key: "dueDate", width: 14 },
+    { header: "Valor", key: "amount", width: 16 },
+  ];
+
+  for (const entry of input.entries) {
+    details.addRow({
+      date: formatDateBR(entry.issue_date),
+      description: entry.description || "—",
+      category: entry.category || "—",
+      type: financeEntryTypeLabel(entry.entry_type),
+      status: financeStatusLabel(entry.status),
+      dueDate: formatDateBR(entry.due_date),
+      amount: toNumberAmount(entry.amount),
+    });
+  }
+
+  details.getColumn("amount").numFmt = '"R$"#,##0.00';
+  details.getRow(1).font = { bold: true };
+  summary.getRow(1).font = { bold: true };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadBlob(blob, `relatorio-financeiro_${stamp}.xlsx`);
 }

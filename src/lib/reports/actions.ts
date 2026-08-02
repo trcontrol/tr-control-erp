@@ -1,13 +1,22 @@
 import { listCustomers } from "@/lib/customers/actions";
+import {
+  listFinancialEntries,
+  type FinancialEntryWithRelations,
+} from "@/lib/finance/actions";
 import { listPurchases, type PurchaseListItem } from "@/lib/purchases/actions";
 import { listSales, type SaleListItem } from "@/lib/sales/actions";
 import { listSuppliers } from "@/lib/suppliers/actions";
 import type { Customer, Supplier } from "@/types/database";
 import {
+  buildFinanceReportKpis,
+  buildFinanceReportSeries,
   buildPurchasesReportKpis,
   buildPurchasesReportSeries,
   buildSalesReportKpis,
   buildSalesReportSeries,
+  filterFinanceEntriesByCategory,
+  type FinanceReportKpis,
+  type FinanceReportSeriesPoint,
   type PurchasesReportKpis,
   type PurchasesReportSeriesPoint,
   type SalesReportKpis,
@@ -30,6 +39,12 @@ export type PurchasesReportData = {
   suppliers: Supplier[];
   kpis: PurchasesReportKpis;
   series: PurchasesReportSeriesPoint[];
+};
+
+export type FinanceReportData = {
+  entries: FinancialEntryWithRelations[];
+  kpis: FinanceReportKpis;
+  series: FinanceReportSeriesPoint[];
 };
 
 export async function getSalesReport(params: {
@@ -104,6 +119,48 @@ export async function getPurchasesReport(params: {
       kpis: buildPurchasesReportKpis(purchases),
       series: buildPurchasesReportSeries(
         purchases,
+        params.periodFrom,
+        params.periodTo
+      ),
+    },
+    error: null,
+  };
+}
+
+export async function getFinanceReport(params: {
+  companyId: string;
+  entryType?: string;
+  status?: string;
+  category?: string;
+  periodFrom: string;
+  periodTo: string;
+}): Promise<Result<FinanceReportData>> {
+  const result = await listFinancialEntries({
+    companyId: params.companyId,
+    entryType: params.entryType,
+    status: params.status,
+    periodFrom: params.periodFrom,
+    periodTo: params.periodTo,
+  });
+
+  if (result.error || !result.data) {
+    return {
+      data: null,
+      error: result.error ?? { message: "Erro ao carregar o relatório." },
+    };
+  }
+
+  const entries = filterFinanceEntriesByCategory(
+    result.data,
+    params.category ?? "all"
+  );
+
+  return {
+    data: {
+      entries,
+      kpis: buildFinanceReportKpis(entries),
+      series: buildFinanceReportSeries(
+        entries,
         params.periodFrom,
         params.periodTo
       ),

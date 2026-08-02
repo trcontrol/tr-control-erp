@@ -35,7 +35,7 @@ export const REPORT_TYPE_OPTIONS: ReportTypeMeta[] = [
     id: REPORT_TYPES.finance,
     title: "Financeiro",
     description: "Visão consolidada de lançamentos",
-    available: false,
+    available: true,
   },
   {
     id: REPORT_TYPES.receivables,

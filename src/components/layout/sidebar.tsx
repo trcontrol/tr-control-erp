@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight,
+  BarChart3,
   Building2,
   LayoutDashboard,
   ListTodo,
@@ -37,6 +38,7 @@ const navigation = [
   { name: "Financeiro", href: ROUTES.finance, icon: Wallet },
   { name: "Fluxo de Caixa", href: ROUTES.cashFlow, icon: ArrowLeftRight },
   { name: "Tarefas", href: ROUTES.tasks, icon: ListTodo },
+  { name: "Relatórios", href: ROUTES.reports, icon: BarChart3 },
   { name: "Usuários", href: "/users", icon: Users },
   { name: "Configurações", href: "/settings", icon: Settings },
 ];

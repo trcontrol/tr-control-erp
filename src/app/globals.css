@@ -236,3 +236,28 @@
     animation: none !important;
   }
 }
+
+@media print {
+  aside,
+  header,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .bg-app-shell,
+  main {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  #reports-print-root {
+    color: #11203b;
+  }
+
+  #reports-print-root .shadow-card,
+  #reports-print-root .shadow-card-hover {
+    box-shadow: none !important;
+  }
+}

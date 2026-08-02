@@ -34,6 +34,7 @@ export const ROUTES = {
   cashFlow: "/cash-flow",
   tasks: "/tasks",
   tasksNew: "/tasks/new",
+  reports: "/reports",
   authCallback: "/api/auth/callback",
 } as const;
 

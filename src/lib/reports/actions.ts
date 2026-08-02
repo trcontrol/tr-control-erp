@@ -1,3 +1,4 @@
+import { FINANCIAL_ENTRY_TYPES } from "@/lib/constants";
 import { listCustomers } from "@/lib/customers/actions";
 import {
   listFinancialEntries,
@@ -12,13 +13,18 @@ import {
   buildFinanceReportSeries,
   buildPurchasesReportKpis,
   buildPurchasesReportSeries,
+  buildReceivablesReportKpis,
+  buildReceivablesReportSeries,
   buildSalesReportKpis,
   buildSalesReportSeries,
   filterFinanceEntriesByCategory,
+  filterFinanceEntriesByCustomer,
   type FinanceReportKpis,
   type FinanceReportSeriesPoint,
   type PurchasesReportKpis,
   type PurchasesReportSeriesPoint,
+  type ReceivablesReportKpis,
+  type ReceivablesReportSeriesPoint,
   type SalesReportKpis,
   type SalesReportSeriesPoint,
 } from "@/lib/reports/format";
@@ -45,6 +51,13 @@ export type FinanceReportData = {
   entries: FinancialEntryWithRelations[];
   kpis: FinanceReportKpis;
   series: FinanceReportSeriesPoint[];
+};
+
+export type ReceivablesReportData = {
+  entries: FinancialEntryWithRelations[];
+  customers: Customer[];
+  kpis: ReceivablesReportKpis;
+  series: ReceivablesReportSeriesPoint[];
 };
 
 export async function getSalesReport(params: {
@@ -160,6 +173,56 @@ export async function getFinanceReport(params: {
       entries,
       kpis: buildFinanceReportKpis(entries),
       series: buildFinanceReportSeries(
+        entries,
+        params.periodFrom,
+        params.periodTo
+      ),
+    },
+    error: null,
+  };
+}
+
+export async function getReceivablesReport(params: {
+  companyId: string;
+  status?: string;
+  customerId?: string;
+  category?: string;
+  periodFrom: string;
+  periodTo: string;
+}): Promise<Result<ReceivablesReportData>> {
+  const [entriesResult, customersResult] = await Promise.all([
+    listFinancialEntries({
+      companyId: params.companyId,
+      entryType: FINANCIAL_ENTRY_TYPES.receivable,
+      status: params.status,
+      periodFrom: params.periodFrom,
+      periodTo: params.periodTo,
+    }),
+    listCustomers({ companyId: params.companyId, status: "active" }),
+  ]);
+
+  if (entriesResult.error || !entriesResult.data) {
+    return {
+      data: null,
+      error:
+        entriesResult.error ?? { message: "Erro ao carregar o relatório." },
+    };
+  }
+
+  const entries = filterFinanceEntriesByCustomer(
+    filterFinanceEntriesByCategory(
+      entriesResult.data,
+      params.category ?? "all"
+    ),
+    params.customerId ?? "all"
+  );
+
+  return {
+    data: {
+      entries,
+      customers: customersResult.data ?? [],
+      kpis: buildReceivablesReportKpis(entries),
+      series: buildReceivablesReportSeries(
         entries,
         params.periodFrom,
         params.periodTo

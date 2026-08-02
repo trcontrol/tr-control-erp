@@ -77,6 +77,22 @@ export type FinanceReportSeriesPoint = {
   saldo: number;
 };
 
+export type ReceivablesReportKpis = {
+  totalAReceber: number;
+  totalRecebido: number;
+  totalPendente: number;
+  totalEmAtraso: number;
+  entriesCount: number;
+  averageTicket: number;
+};
+
+export type ReceivablesReportSeriesPoint = {
+  bucket: string;
+  received: number;
+  pending: number;
+  overdue: number;
+};
+
 export function financeStatusLabel(status: string | null | undefined) {
   if (!status) return "—";
   return (
@@ -274,6 +290,21 @@ export function filterFinanceEntriesByCategory(
   return entries.filter((entry) => (entry.category ?? "") === category);
 }
 
+export function filterFinanceEntriesByCustomer(
+  entries: FinancialEntryWithRelations[],
+  customerId: string
+) {
+  if (!customerId || customerId === "all") return entries;
+  return entries.filter((entry) => entry.customer_id === customerId);
+}
+
+export function receivablePartyLabel(entry: FinancialEntryWithRelations) {
+  const linked = customerLabel(entry.customer);
+  if (linked !== "—") return linked;
+  const party = entry.party_name?.trim();
+  return party || "—";
+}
+
 export function buildFinanceReportKpis(
   entries: FinancialEntryWithRelations[]
 ): FinanceReportKpis {
@@ -360,6 +391,82 @@ export function buildFinanceReportSeries(
     }
 
     current.saldo = current.receitas - current.despesas;
+    buckets.set(bucket, current);
+  }
+
+  return Array.from(buckets.values()).sort((a, b) =>
+    a.bucket.localeCompare(b.bucket)
+  );
+}
+
+export function buildReceivablesReportKpis(
+  entries: FinancialEntryWithRelations[]
+): ReceivablesReportKpis {
+  let totalAReceber = 0;
+  let totalRecebido = 0;
+  let totalPendente = 0;
+  let totalEmAtraso = 0;
+  let validCount = 0;
+
+  for (const entry of entries) {
+    if (entry.status === FINANCIAL_STATUS.cancelled) continue;
+
+    const amount = toNumberAmount(entry.amount);
+    totalAReceber += amount;
+    validCount += 1;
+
+    if (entry.status === FINANCIAL_STATUS.received) {
+      totalRecebido += amount;
+    } else if (entry.status === FINANCIAL_STATUS.pending) {
+      totalPendente += amount;
+    } else if (entry.status === FINANCIAL_STATUS.overdue) {
+      totalEmAtraso += amount;
+    }
+  }
+
+  return {
+    totalAReceber,
+    totalRecebido,
+    totalPendente,
+    totalEmAtraso,
+    entriesCount: entries.length,
+    averageTicket: validCount > 0 ? totalAReceber / validCount : 0,
+  };
+}
+
+export function buildReceivablesReportSeries(
+  entries: FinancialEntryWithRelations[],
+  periodFrom: string,
+  periodTo: string
+): ReceivablesReportSeriesPoint[] {
+  const useDaily = isDailySeries(periodFrom, periodTo);
+  const buckets = new Map<string, ReceivablesReportSeriesPoint>();
+
+  for (const entry of entries) {
+    if (entry.status === FINANCIAL_STATUS.cancelled) continue;
+
+    const bucket = useDaily
+      ? entry.due_date
+      : monthBucketFromDate(entry.due_date);
+
+    if (!bucket) continue;
+
+    const current = buckets.get(bucket) ?? {
+      bucket,
+      received: 0,
+      pending: 0,
+      overdue: 0,
+    };
+    const amount = toNumberAmount(entry.amount);
+
+    if (entry.status === FINANCIAL_STATUS.received) {
+      current.received += amount;
+    } else if (entry.status === FINANCIAL_STATUS.pending) {
+      current.pending += amount;
+    } else if (entry.status === FINANCIAL_STATUS.overdue) {
+      current.overdue += amount;
+    }
+
     buckets.set(bucket, current);
   }
 

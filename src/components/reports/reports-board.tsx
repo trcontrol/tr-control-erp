@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { FinanceReportPanel } from "@/components/reports/finance-report-panel";
 import { PurchasesReportPanel } from "@/components/reports/purchases-report-panel";
+import { ReceivablesReportPanel } from "@/components/reports/receivables-report-panel";
 import { SalesReportPanel } from "@/components/reports/sales-report-panel";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,11 +39,13 @@ import type { FinancialEntryWithRelations } from "@/lib/finance/actions";
 import {
   getFinanceReport,
   getPurchasesReport,
+  getReceivablesReport,
   getSalesReport,
 } from "@/lib/reports/actions";
 import {
   exportFinanceReportExcel,
   exportPurchasesReportExcel,
+  exportReceivablesReportExcel,
   exportSalesReportExcel,
 } from "@/lib/reports/export-excel";
 import {
@@ -55,6 +58,8 @@ import {
   type FinanceReportSeriesPoint,
   type PurchasesReportKpis,
   type PurchasesReportSeriesPoint,
+  type ReceivablesReportKpis,
+  type ReceivablesReportSeriesPoint,
   type SalesReportKpis,
   type SalesReportSeriesPoint,
 } from "@/lib/reports/format";
@@ -121,6 +126,18 @@ export function ReportsBoard() {
     []
   );
 
+  const [receivablesEntries, setReceivablesEntries] = useState<
+    FinancialEntryWithRelations[]
+  >([]);
+  const [receivablesCustomers, setReceivablesCustomers] = useState<Customer[]>(
+    []
+  );
+  const [receivablesKpis, setReceivablesKpis] =
+    useState<ReceivablesReportKpis | null>(null);
+  const [receivablesSeries, setReceivablesSeries] = useState<
+    ReceivablesReportSeriesPoint[]
+  >([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -130,6 +147,7 @@ export function ReportsBoard() {
   const isSalesReport = selectedReportType === REPORT_TYPES.sales;
   const isPurchasesReport = selectedReportType === REPORT_TYPES.purchases;
   const isFinanceReport = selectedReportType === REPORT_TYPES.finance;
+  const isReceivablesReport = selectedReportType === REPORT_TYPES.receivables;
 
   const validatePeriod = useCallback(() => {
     if (!company?.id) {
@@ -270,6 +288,52 @@ export function ReportsBoard() {
     validatePeriod,
   ]);
 
+  const loadReceivablesReport = useCallback(async () => {
+    if (!validatePeriod() || !company?.id) {
+      setReceivablesEntries([]);
+      setReceivablesCustomers([]);
+      setReceivablesKpis(null);
+      setReceivablesSeries([]);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const result = await getReceivablesReport({
+      companyId: company.id,
+      status,
+      customerId,
+      category,
+      periodFrom,
+      periodTo,
+    });
+
+    if (result.error || !result.data) {
+      setReceivablesEntries([]);
+      setReceivablesCustomers([]);
+      setReceivablesKpis(null);
+      setReceivablesSeries([]);
+      setError(result.error?.message ?? "Erro ao carregar o relatório.");
+      setLoading(false);
+      return;
+    }
+
+    setReceivablesEntries(result.data.entries);
+    setReceivablesCustomers(result.data.customers);
+    setReceivablesKpis(result.data.kpis);
+    setReceivablesSeries(result.data.series);
+    setLoading(false);
+  }, [
+    category,
+    company?.id,
+    customerId,
+    periodFrom,
+    periodTo,
+    status,
+    validatePeriod,
+  ]);
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (isSalesReport) {
@@ -278,6 +342,8 @@ export function ReportsBoard() {
         void loadPurchasesReport();
       } else if (isFinanceReport) {
         void loadFinanceReport();
+      } else if (isReceivablesReport) {
+        void loadReceivablesReport();
       }
     }, 200);
 
@@ -285,9 +351,11 @@ export function ReportsBoard() {
   }, [
     isFinanceReport,
     isPurchasesReport,
+    isReceivablesReport,
     isSalesReport,
     loadFinanceReport,
     loadPurchasesReport,
+    loadReceivablesReport,
     loadSalesReport,
   ]);
 
@@ -301,19 +369,26 @@ export function ReportsBoard() {
   const statusLabel = useMemo(() => {
     if (status === "all") return "Todos os status";
 
-    const options = isFinanceReport
-      ? FINANCIAL_STATUS_OPTIONS
-      : isPurchasesReport
-        ? PURCHASE_STATUS_OPTIONS
-        : SALE_STATUS_OPTIONS;
+    const options =
+      isFinanceReport || isReceivablesReport
+        ? FINANCIAL_STATUS_OPTIONS
+        : isPurchasesReport
+          ? PURCHASE_STATUS_OPTIONS
+          : SALE_STATUS_OPTIONS;
 
     return options.find((item) => item.value === status)?.label ?? status;
-  }, [isFinanceReport, isPurchasesReport, status]);
+  }, [isFinanceReport, isPurchasesReport, isReceivablesReport, status]);
+
+  const activeCustomers = isReceivablesReport
+    ? receivablesCustomers
+    : customers;
 
   const customerFilterLabel =
     customerId === "all"
       ? "Todos os clientes"
-      : customerLabel(customers.find((item) => item.id === customerId) ?? null);
+      : customerLabel(
+          activeCustomers.find((item) => item.id === customerId) ?? null
+        );
 
   const supplierFilterLabel =
     supplierId === "all"
@@ -333,9 +408,11 @@ export function ReportsBoard() {
 
   const activeKpis = isFinanceReport
     ? financeKpis
-    : isPurchasesReport
-      ? purchasesKpis
-      : salesKpis;
+    : isReceivablesReport
+      ? receivablesKpis
+      : isPurchasesReport
+        ? purchasesKpis
+        : salesKpis;
   const canExport =
     !loading && !error && Boolean(activeKpis) && Boolean(company);
 
@@ -355,6 +432,18 @@ export function ReportsBoard() {
           categoryFilterLabel,
           entries,
           kpis: financeKpis,
+        });
+      } else if (isReceivablesReport) {
+        if (!receivablesKpis) return;
+        await exportReceivablesReportExcel({
+          companyName: company.name,
+          periodFrom,
+          periodTo,
+          statusLabel,
+          customerFilterLabel,
+          categoryFilterLabel,
+          entries: receivablesEntries,
+          kpis: receivablesKpis,
         });
       } else if (isPurchasesReport) {
         if (!purchasesKpis) return;
@@ -425,15 +514,19 @@ export function ReportsBoard() {
 
   const printTitle = isFinanceReport
     ? "Relatório Financeiro"
-    : isPurchasesReport
-      ? "Relatório de Compras"
-      : "Relatório de Vendas";
+    : isReceivablesReport
+      ? "Relatório de Contas a Receber"
+      : isPurchasesReport
+        ? "Relatório de Compras"
+        : "Relatório de Vendas";
 
   const printMeta = isFinanceReport
     ? `Financeiro · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${entryTypeLabel} · ${statusLabel} · ${categoryFilterLabel}`
-    : isPurchasesReport
-      ? `Compras · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel}`
-      : `Vendas · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel}`;
+    : isReceivablesReport
+      ? `Contas a receber · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel} · ${categoryFilterLabel}`
+      : isPurchasesReport
+        ? `Compras · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel}`
+        : `Vendas · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel}`;
 
   return (
     <div id="reports-print-root" className="space-y-6">
@@ -639,6 +732,24 @@ export function ReportsBoard() {
           error={error}
           onEntryTypeChange={setEntryType}
           onStatusChange={setStatus}
+          onCategoryChange={setCategory}
+        />
+      ) : isReceivablesReport ? (
+        <ReceivablesReportPanel
+          companyName={company?.name ?? ""}
+          periodFrom={periodFrom}
+          periodTo={periodTo}
+          status={status}
+          customerId={customerId}
+          category={category}
+          customers={receivablesCustomers}
+          entries={receivablesEntries}
+          kpis={receivablesKpis}
+          series={receivablesSeries}
+          loading={loading}
+          error={error}
+          onStatusChange={setStatus}
+          onCustomerChange={setCustomerId}
           onCategoryChange={setCategory}
         />
       ) : isPurchasesReport ? (

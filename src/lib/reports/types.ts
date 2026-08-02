@@ -41,7 +41,7 @@ export const REPORT_TYPE_OPTIONS: ReportTypeMeta[] = [
     id: REPORT_TYPES.receivables,
     title: "Contas a receber",
     description: "Recebíveis por status e vencimento",
-    available: false,
+    available: true,
   },
   {
     id: REPORT_TYPES.payables,

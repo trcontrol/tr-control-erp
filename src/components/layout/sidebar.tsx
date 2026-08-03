@@ -40,7 +40,7 @@ const navigation = [
   { name: "Tarefas", href: ROUTES.tasks, icon: ListTodo },
   { name: "Relatórios", href: ROUTES.reports, icon: BarChart3 },
   { name: "Usuários", href: ROUTES.users, icon: Users },
-  { name: "Configurações", href: "/settings", icon: Settings },
+  { name: "Configurações", href: ROUTES.settings, icon: Settings },
 ];
 
 type SidebarProps = {

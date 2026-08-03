@@ -89,6 +89,10 @@
   --brand-sky: #0284c7;
   --brand-surface: #f5f6f9;
   --brand-surface-soft: #eef1f6;
+  /* Typography / ink that tracks theme */
+  --brand-ink: #0b1f3a;
+  /* Solid brand fill (avatars, chips) — stays navy in both themes */
+  --brand-fill: #0b1f3a;
 
   /* Layered elevation — KPI > chart > list > soft inset */
   --shadow-kpi: 0 1px 2px rgb(17 32 59 / 4%),
@@ -116,44 +120,64 @@
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 35%);
-  --shadow-card-hover: 0 2px 6px rgb(0 0 0 / 35%), 0 14px 32px rgb(0 0 0 / 45%);
-  --shadow-elevated: 0 4px 12px rgb(0 0 0 / 40%), 0 20px 40px rgb(0 0 0 / 50%);
-  --shadow-kpi: 0 1px 2px rgb(0 0 0 / 32%), 0 12px 28px rgb(0 0 0 / 40%);
-  --shadow-kpi-hover: 0 2px 8px rgb(0 0 0 / 38%), 0 16px 36px rgb(0 0 0 / 48%);
-  --shadow-soft: 0 1px 2px rgb(0 0 0 / 25%), 0 6px 16px rgb(0 0 0 / 30%);
+  /* Navy-tinted dark surfaces — avoid pure black */
+  --background: #0a1528;
+  --foreground: #e8eef7;
+  --card: #12233d;
+  --card-foreground: #e8eef7;
+  --popover: #152a47;
+  --popover-foreground: #e8eef7;
+  --primary: #e8eef7;
+  --primary-foreground: #0b1f3a;
+  --secondary: #1a3050;
+  --secondary-foreground: #e8eef7;
+  --muted: #1a3050;
+  --muted-foreground: #9aa8bc;
+  --accent: #1e3658;
+  --accent-foreground: #e8eef7;
+  --destructive: #e0704a;
+  --destructive-foreground: #fff7f4;
+  --border: rgb(232 238 247 / 10%);
+  --input: rgb(232 238 247 / 14%);
+  --ring: #c9a227;
+  --chart-1: #7eb6e8;
+  --chart-2: #2dd4bf;
+  --chart-3: #d4a5b0;
+  --chart-4: #e0c56a;
+  --chart-5: #38bdf8;
+
+  /*
+   * --brand-navy becomes light ink in dark so existing text-[var(--brand-navy)]
+   * stays readable. Solid fills should use --brand-navy-deep / --brand-fill.
+   */
+  --brand-navy: #e8eef7;
+  --brand-navy-deep: #071526;
+  --brand-navy-mid: #1a3558;
+  --brand-fill: #0b1f3a;
+  --brand-gold: #c9a227;
+  --brand-gold-soft: #e0c56a;
+  --brand-coral: #c4939f;
+  --brand-teal: #2dd4bf;
+  --brand-sky: #38bdf8;
+  --brand-surface: #0a1528;
+  --brand-surface-soft: #152a47;
+  --brand-ink: #e8eef7;
+
+  --sidebar: var(--brand-navy-deep);
+  --sidebar-foreground: #e8eef7;
+  --sidebar-primary: var(--brand-coral);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--brand-navy-mid);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 10%);
+  --sidebar-ring: var(--brand-gold);
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 28%), 0 8px 24px rgb(5 13 24 / 40%);
+  --shadow-card-hover: 0 2px 6px rgb(0 0 0 / 32%), 0 14px 32px rgb(5 13 24 / 48%);
+  --shadow-elevated: 0 4px 12px rgb(0 0 0 / 36%), 0 20px 40px rgb(5 13 24 / 52%);
+  --shadow-kpi: 0 1px 2px rgb(0 0 0 / 30%), 0 12px 28px rgb(5 13 24 / 44%);
+  --shadow-kpi-hover: 0 2px 8px rgb(0 0 0 / 34%), 0 16px 36px rgb(5 13 24 / 50%);
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 22%), 0 6px 16px rgb(5 13 24 / 32%);
 }
 
 @layer base {
@@ -201,18 +225,18 @@
 
   .dash-surface-primary {
     box-shadow: var(--shadow-card);
-    border: 1px solid rgb(11 31 58 / 3.5%);
+    border: 1px solid var(--border);
   }
 
   .dash-surface-secondary {
     box-shadow: var(--shadow-soft);
-    border: 1px solid rgb(11 31 58 / 4%);
+    border: 1px solid var(--border);
   }
 
   .dash-surface-kpi {
     box-shadow: var(--shadow-kpi);
-    border: 1px solid rgb(17 32 59 / 8%);
-    background-color: #ffffff;
+    border: 1px solid var(--border);
+    background-color: var(--card);
   }
 
   .dash-reveal {

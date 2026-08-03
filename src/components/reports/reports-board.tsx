@@ -21,6 +21,7 @@ import { PayablesReportPanel } from "@/components/reports/payables-report-panel"
 import { PurchasesReportPanel } from "@/components/reports/purchases-report-panel";
 import { ReceivablesReportPanel } from "@/components/reports/receivables-report-panel";
 import { SalesReportPanel } from "@/components/reports/sales-report-panel";
+import { StockReportPanel } from "@/components/reports/stock-report-panel";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -43,6 +44,7 @@ import {
   getPurchasesReport,
   getReceivablesReport,
   getSalesReport,
+  getStockReport,
 } from "@/lib/reports/actions";
 import {
   exportFinanceReportExcel,
@@ -50,12 +52,15 @@ import {
   exportPurchasesReportExcel,
   exportReceivablesReportExcel,
   exportSalesReportExcel,
+  exportStockReportExcel,
 } from "@/lib/reports/export-excel";
 import {
   currentMonthPeriod,
   customerLabel,
   financeEntryTypeLabel,
   formatDateBR,
+  STOCK_REPORT_SITUATIONS,
+  stockSituationLabel,
   supplierLabel,
   type FinanceReportKpis,
   type FinanceReportSeriesPoint,
@@ -67,6 +72,10 @@ import {
   type ReceivablesReportSeriesPoint,
   type SalesReportKpis,
   type SalesReportSeriesPoint,
+  type StockLowBalancePoint,
+  type StockReportKpis,
+  type StockReportRow,
+  type StockReportSeriesPoint,
 } from "@/lib/reports/format";
 import {
   REPORT_TYPE_OPTIONS,
@@ -75,7 +84,8 @@ import {
 } from "@/lib/reports/types";
 import type { PurchaseListItem } from "@/lib/purchases/actions";
 import type { SaleListItem } from "@/lib/sales/actions";
-import type { Customer, Supplier } from "@/types/database";
+import type { StockMovementWithRelations } from "@/lib/stock/actions";
+import type { Customer, Product, Supplier } from "@/types/database";
 import { useTenant } from "@/providers/tenant-provider";
 import { cn } from "@/lib/utils";
 
@@ -111,6 +121,10 @@ export function ReportsBoard() {
   const [supplierId, setSupplierId] = useState("all");
   const [entryType, setEntryType] = useState("all");
   const [category, setCategory] = useState("all");
+  const [productId, setProductId] = useState("all");
+  const [stockSituation, setStockSituation] = useState<string>(
+    STOCK_REPORT_SITUATIONS.all
+  );
 
   const [sales, setSales] = useState<SaleListItem[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -154,6 +168,18 @@ export function ReportsBoard() {
     PayablesReportSeriesPoint[]
   >([]);
 
+  const [stockProducts, setStockProducts] = useState<Product[]>([]);
+  const [stockCategories, setStockCategories] = useState<string[]>([]);
+  const [stockRows, setStockRows] = useState<StockReportRow[]>([]);
+  const [stockMovements, setStockMovements] = useState<
+    StockMovementWithRelations[]
+  >([]);
+  const [stockKpis, setStockKpis] = useState<StockReportKpis | null>(null);
+  const [stockSeries, setStockSeries] = useState<StockReportSeriesPoint[]>([]);
+  const [stockLowBalanceSeries, setStockLowBalanceSeries] = useState<
+    StockLowBalancePoint[]
+  >([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -165,6 +191,7 @@ export function ReportsBoard() {
   const isFinanceReport = selectedReportType === REPORT_TYPES.finance;
   const isReceivablesReport = selectedReportType === REPORT_TYPES.receivables;
   const isPayablesReport = selectedReportType === REPORT_TYPES.payables;
+  const isStockReport = selectedReportType === REPORT_TYPES.stock;
 
   const validatePeriod = useCallback(() => {
     if (!company?.id) {
@@ -397,6 +424,61 @@ export function ReportsBoard() {
     validatePeriod,
   ]);
 
+  const loadStockReport = useCallback(async () => {
+    if (!validatePeriod() || !company?.id) {
+      setStockProducts([]);
+      setStockCategories([]);
+      setStockRows([]);
+      setStockMovements([]);
+      setStockKpis(null);
+      setStockSeries([]);
+      setStockLowBalanceSeries([]);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const result = await getStockReport({
+      companyId: company.id,
+      productId,
+      category,
+      situation: stockSituation,
+      periodFrom,
+      periodTo,
+    });
+
+    if (result.error || !result.data) {
+      setStockProducts([]);
+      setStockCategories([]);
+      setStockRows([]);
+      setStockMovements([]);
+      setStockKpis(null);
+      setStockSeries([]);
+      setStockLowBalanceSeries([]);
+      setError(result.error?.message ?? "Erro ao carregar o relatório.");
+      setLoading(false);
+      return;
+    }
+
+    setStockProducts(result.data.products);
+    setStockCategories(result.data.categories);
+    setStockRows(result.data.rows);
+    setStockMovements(result.data.movements);
+    setStockKpis(result.data.kpis);
+    setStockSeries(result.data.series);
+    setStockLowBalanceSeries(result.data.lowBalanceSeries);
+    setLoading(false);
+  }, [
+    category,
+    company?.id,
+    periodFrom,
+    periodTo,
+    productId,
+    stockSituation,
+    validatePeriod,
+  ]);
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (isSalesReport) {
@@ -409,6 +491,8 @@ export function ReportsBoard() {
         void loadReceivablesReport();
       } else if (isPayablesReport) {
         void loadPayablesReport();
+      } else if (isStockReport) {
+        void loadStockReport();
       }
     }, 200);
 
@@ -419,11 +503,13 @@ export function ReportsBoard() {
     isPurchasesReport,
     isReceivablesReport,
     isSalesReport,
+    isStockReport,
     loadFinanceReport,
     loadPayablesReport,
     loadPurchasesReport,
     loadReceivablesReport,
     loadSalesReport,
+    loadStockReport,
   ]);
 
   useEffect(() => {
@@ -483,15 +569,27 @@ export function ReportsBoard() {
   const categoryFilterLabel =
     category === "all" ? "Todas as categorias" : category;
 
+  const productFilterLabel =
+    productId === "all"
+      ? "Todos os produtos"
+      : stockProducts.find((item) => item.id === productId)?.name || "Produto";
+
+  const situationFilterLabel =
+    stockSituation === STOCK_REPORT_SITUATIONS.all
+      ? "Todas as situações"
+      : stockSituationLabel(stockSituation);
+
   const activeKpis = isFinanceReport
     ? financeKpis
     : isReceivablesReport
       ? receivablesKpis
       : isPayablesReport
         ? payablesKpis
-        : isPurchasesReport
-          ? purchasesKpis
-          : salesKpis;
+        : isStockReport
+          ? stockKpis
+          : isPurchasesReport
+            ? purchasesKpis
+            : salesKpis;
   const canExport =
     !loading && !error && Boolean(activeKpis) && Boolean(company);
 
@@ -535,6 +633,19 @@ export function ReportsBoard() {
           categoryFilterLabel,
           entries: payablesEntries,
           kpis: payablesKpis,
+        });
+      } else if (isStockReport) {
+        if (!stockKpis) return;
+        await exportStockReportExcel({
+          companyName: company.name,
+          periodFrom,
+          periodTo,
+          productFilterLabel,
+          categoryFilterLabel,
+          situationFilterLabel,
+          rows: stockRows,
+          movements: stockMovements,
+          kpis: stockKpis,
         });
       } else if (isPurchasesReport) {
         if (!purchasesKpis) return;
@@ -600,6 +711,8 @@ export function ReportsBoard() {
     setSupplierId("all");
     setEntryType("all");
     setCategory("all");
+    setProductId("all");
+    setStockSituation(STOCK_REPORT_SITUATIONS.all);
     setError(null);
   };
 
@@ -609,9 +722,11 @@ export function ReportsBoard() {
       ? "Relatório de Contas a Receber"
       : isPayablesReport
         ? "Relatório de Contas a Pagar"
-        : isPurchasesReport
-          ? "Relatório de Compras"
-          : "Relatório de Vendas";
+        : isStockReport
+          ? "Relatório de Estoque"
+          : isPurchasesReport
+            ? "Relatório de Compras"
+            : "Relatório de Vendas";
 
   const printMeta = isFinanceReport
     ? `Financeiro · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${entryTypeLabel} · ${statusLabel} · ${categoryFilterLabel}`
@@ -619,9 +734,11 @@ export function ReportsBoard() {
       ? `Contas a receber · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel} · ${categoryFilterLabel}`
       : isPayablesReport
         ? `Contas a pagar · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel} · ${categoryFilterLabel}`
-        : isPurchasesReport
-          ? `Compras · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel}`
-          : `Vendas · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel}`;
+        : isStockReport
+          ? `Estoque · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${productFilterLabel} · ${categoryFilterLabel} · ${situationFilterLabel}`
+          : isPurchasesReport
+            ? `Compras · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel}`
+            : `Vendas · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel}`;
 
   return (
     <div id="reports-print-root" className="space-y-6">
@@ -864,6 +981,26 @@ export function ReportsBoard() {
           onStatusChange={setStatus}
           onSupplierChange={setSupplierId}
           onCategoryChange={setCategory}
+        />
+      ) : isStockReport ? (
+        <StockReportPanel
+          companyName={company?.name ?? ""}
+          periodFrom={periodFrom}
+          periodTo={periodTo}
+          productId={productId}
+          category={category}
+          situation={stockSituation}
+          products={stockProducts}
+          categories={stockCategories}
+          rows={stockRows}
+          kpis={stockKpis}
+          series={stockSeries}
+          lowBalanceSeries={stockLowBalanceSeries}
+          loading={loading}
+          error={error}
+          onProductChange={setProductId}
+          onCategoryChange={setCategory}
+          onSituationChange={setStockSituation}
         />
       ) : isPurchasesReport ? (
         <PurchasesReportPanel

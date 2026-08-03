@@ -5,6 +5,7 @@ import {
   FINANCIAL_STATUS_OPTIONS,
   PURCHASE_STATUS,
   SALE_STATUS,
+  STOCK_MOVEMENT_TYPES,
 } from "@/lib/constants";
 import {
   currentMonthPeriod,
@@ -15,10 +16,13 @@ import {
   toNumberAmount,
 } from "@/lib/dashboard/format";
 import type { FinancialEntryWithRelations } from "@/lib/finance/actions";
+import { isLowStock } from "@/lib/products/format";
 import { purchaseStatusLabel } from "@/lib/purchases/format";
 import { saleStatusLabel } from "@/lib/sales/format";
 import type { PurchaseListItem } from "@/lib/purchases/actions";
 import type { SaleListItem } from "@/lib/sales/actions";
+import type { StockMovementWithRelations } from "@/lib/stock/actions";
+import type { Product } from "@/types/database";
 
 export {
   currentMonthPeriod,
@@ -107,6 +111,58 @@ export type PayablesReportSeriesPoint = {
   paid: number;
   pending: number;
   overdue: number;
+};
+
+export const STOCK_REPORT_SITUATIONS = {
+  all: "all",
+  available: "available",
+  below_min: "below_min",
+  out_of_stock: "out_of_stock",
+} as const;
+
+export type StockReportSituation =
+  (typeof STOCK_REPORT_SITUATIONS)[keyof typeof STOCK_REPORT_SITUATIONS];
+
+export const STOCK_REPORT_SITUATION_OPTIONS = [
+  { value: STOCK_REPORT_SITUATIONS.all, label: "Todos" },
+  { value: STOCK_REPORT_SITUATIONS.available, label: "Disponível" },
+  { value: STOCK_REPORT_SITUATIONS.below_min, label: "Abaixo do mínimo" },
+  { value: STOCK_REPORT_SITUATIONS.out_of_stock, label: "Sem estoque" },
+] as const;
+
+export type StockReportKpis = {
+  totalStockValue: number;
+  totalControlledQuantity: number;
+  availableProductsCount: number;
+  belowMinProductsCount: number;
+  outOfStockProductsCount: number;
+  entriesInPeriod: number;
+  exitsInPeriod: number;
+  trackedProductsCount: number;
+};
+
+export type StockReportSeriesPoint = {
+  bucket: string;
+  entries: number;
+  exits: number;
+  balance: number;
+};
+
+export type StockReportRow = {
+  product: Product;
+  stockValue: number;
+  situation: Exclude<StockReportSituation, "all">;
+  situationLabel: string;
+  lastMovementDate: string | null;
+  codeLabel: string;
+};
+
+export type StockLowBalancePoint = {
+  productId: string;
+  name: string;
+  currentStock: number;
+  minStock: number;
+  unit: string | null;
 };
 
 export function financeStatusLabel(status: string | null | undefined) {
@@ -580,4 +636,209 @@ export function buildPayablesReportSeries(
   return Array.from(buckets.values()).sort((a, b) =>
     a.bucket.localeCompare(b.bucket)
   );
+}
+
+export function productStockValue(product: {
+  current_stock: number | string;
+  cost_price: number | string;
+}) {
+  return toNumberAmount(product.current_stock) * toNumberAmount(product.cost_price);
+}
+
+export function productCodeLabel(product: {
+  sku?: string | null;
+  internal_code?: string | null;
+}) {
+  const sku = product.sku?.trim();
+  if (sku) return sku;
+  const code = product.internal_code?.trim();
+  if (code) return code;
+  return "—";
+}
+
+export function resolveStockSituation(product: {
+  current_stock: number | string;
+  min_stock: number | string;
+  tracks_stock?: boolean | null;
+}): Exclude<StockReportSituation, "all"> {
+  const stock = toNumberAmount(product.current_stock);
+  if (stock <= 0) return STOCK_REPORT_SITUATIONS.out_of_stock;
+  if (isLowStock(product)) return STOCK_REPORT_SITUATIONS.below_min;
+  return STOCK_REPORT_SITUATIONS.available;
+}
+
+export function stockSituationLabel(
+  situation: StockReportSituation | string | null | undefined
+) {
+  if (!situation) return "—";
+  return (
+    STOCK_REPORT_SITUATION_OPTIONS.find((item) => item.value === situation)
+      ?.label ?? situation
+  );
+}
+
+export function filterStockProducts(
+  products: Product[],
+  filters: {
+    productId?: string;
+    category?: string;
+    situation?: string;
+  }
+) {
+  const productId = filters.productId ?? "all";
+  const category = filters.category ?? "all";
+  const situation = filters.situation ?? STOCK_REPORT_SITUATIONS.all;
+
+  return products.filter((product) => {
+    if (productId !== "all" && product.id !== productId) return false;
+    if (category !== "all" && (product.category ?? "") !== category) {
+      return false;
+    }
+    if (situation === STOCK_REPORT_SITUATIONS.below_min) {
+      return isLowStock(product);
+    }
+    if (situation === STOCK_REPORT_SITUATIONS.available) {
+      return toNumberAmount(product.current_stock) > 0;
+    }
+    if (situation === STOCK_REPORT_SITUATIONS.out_of_stock) {
+      return toNumberAmount(product.current_stock) === 0;
+    }
+    return true;
+  });
+}
+
+export function filterStockMovementsByProductIds(
+  movements: StockMovementWithRelations[],
+  productIds: Set<string> | null
+) {
+  if (!productIds) return movements;
+  return movements.filter((movement) => productIds.has(movement.product_id));
+}
+
+export function buildStockReportKpis(
+  products: Product[],
+  movements: StockMovementWithRelations[]
+): StockReportKpis {
+  let totalStockValue = 0;
+  let totalControlledQuantity = 0;
+  let availableProductsCount = 0;
+  let belowMinProductsCount = 0;
+  let outOfStockProductsCount = 0;
+
+  for (const product of products) {
+    const stock = toNumberAmount(product.current_stock);
+    totalStockValue += stock * toNumberAmount(product.cost_price);
+    totalControlledQuantity += stock;
+
+    if (stock > 0) availableProductsCount += 1;
+    if (stock === 0) outOfStockProductsCount += 1;
+    if (isLowStock(product)) belowMinProductsCount += 1;
+  }
+
+  let entriesInPeriod = 0;
+  let exitsInPeriod = 0;
+
+  for (const movement of movements) {
+    const quantity = toNumberAmount(movement.quantity);
+    if (movement.movement_type === STOCK_MOVEMENT_TYPES.entry) {
+      entriesInPeriod += quantity;
+    } else if (movement.movement_type === STOCK_MOVEMENT_TYPES.exit) {
+      exitsInPeriod += quantity;
+    }
+  }
+
+  return {
+    totalStockValue,
+    totalControlledQuantity,
+    availableProductsCount,
+    belowMinProductsCount,
+    outOfStockProductsCount,
+    entriesInPeriod,
+    exitsInPeriod,
+    trackedProductsCount: products.length,
+  };
+}
+
+export function buildStockReportSeries(
+  movements: StockMovementWithRelations[],
+  periodFrom: string,
+  periodTo: string
+): StockReportSeriesPoint[] {
+  const useDaily = isDailySeries(periodFrom, periodTo);
+  const buckets = new Map<string, StockReportSeriesPoint>();
+
+  for (const movement of movements) {
+    if (
+      movement.movement_type !== STOCK_MOVEMENT_TYPES.entry &&
+      movement.movement_type !== STOCK_MOVEMENT_TYPES.exit
+    ) {
+      continue;
+    }
+
+    const bucket = useDaily
+      ? movement.movement_date
+      : monthBucketFromDate(movement.movement_date);
+
+    if (!bucket) continue;
+
+    const current = buckets.get(bucket) ?? {
+      bucket,
+      entries: 0,
+      exits: 0,
+      balance: 0,
+    };
+    const quantity = toNumberAmount(movement.quantity);
+
+    if (movement.movement_type === STOCK_MOVEMENT_TYPES.entry) {
+      current.entries += quantity;
+    } else {
+      current.exits += quantity;
+    }
+
+    current.balance = current.entries - current.exits;
+    buckets.set(bucket, current);
+  }
+
+  return Array.from(buckets.values()).sort((a, b) =>
+    a.bucket.localeCompare(b.bucket)
+  );
+}
+
+export function buildStockReportRows(
+  products: Product[],
+  lastMovementByProductId: Map<string, string>
+): StockReportRow[] {
+  return products
+    .map((product) => {
+      const situation = resolveStockSituation(product);
+      return {
+        product,
+        stockValue: productStockValue(product),
+        situation,
+        situationLabel: stockSituationLabel(situation),
+        lastMovementDate: lastMovementByProductId.get(product.id) ?? null,
+        codeLabel: productCodeLabel(product),
+      };
+    })
+    .sort((a, b) => a.product.name.localeCompare(b.product.name, "pt-BR"));
+}
+
+export function buildStockLowBalanceSeries(
+  products: Product[],
+  limit = 8
+): StockLowBalancePoint[] {
+  return [...products]
+    .sort(
+      (a, b) =>
+        toNumberAmount(a.current_stock) - toNumberAmount(b.current_stock) ||
+        a.name.localeCompare(b.name, "pt-BR")
+    )
+    .slice(0, limit)
+    .map((product) => ({
+      productId: product.id,
+      name: product.name,
+      currentStock: toNumberAmount(product.current_stock),
+      minStock: toNumberAmount(product.min_stock),
+      unit: product.unit ?? null,
+    }));
 }

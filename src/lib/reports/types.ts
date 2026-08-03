@@ -53,7 +53,7 @@ export const REPORT_TYPE_OPTIONS: ReportTypeMeta[] = [
     id: REPORT_TYPES.stock,
     title: "Estoque",
     description: "Movimentações e posição de produtos",
-    available: false,
+    available: true,
   },
   {
     id: REPORT_TYPES.customers,

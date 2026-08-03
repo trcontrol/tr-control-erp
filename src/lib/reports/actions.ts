@@ -4,10 +4,16 @@ import {
   listFinancialEntries,
   type FinancialEntryWithRelations,
 } from "@/lib/finance/actions";
+import { listProductFilterOptions } from "@/lib/products/actions";
 import { listPurchases, type PurchaseListItem } from "@/lib/purchases/actions";
 import { listSales, type SaleListItem } from "@/lib/sales/actions";
+import {
+  listStockMovements,
+  type StockMovementWithRelations,
+} from "@/lib/stock/actions";
 import { listSuppliers } from "@/lib/suppliers/actions";
-import type { Customer, Supplier } from "@/types/database";
+import { createClient } from "@/lib/supabase/client";
+import type { Customer, Product, Supplier } from "@/types/database";
 import {
   buildFinanceReportKpis,
   buildFinanceReportSeries,
@@ -19,9 +25,15 @@ import {
   buildReceivablesReportSeries,
   buildSalesReportKpis,
   buildSalesReportSeries,
+  buildStockLowBalanceSeries,
+  buildStockReportKpis,
+  buildStockReportRows,
+  buildStockReportSeries,
   filterFinanceEntriesByCategory,
   filterFinanceEntriesByCustomer,
   filterFinanceEntriesBySupplier,
+  filterStockMovementsByProductIds,
+  filterStockProducts,
   type FinanceReportKpis,
   type FinanceReportSeriesPoint,
   type PayablesReportKpis,
@@ -32,6 +44,10 @@ import {
   type ReceivablesReportSeriesPoint,
   type SalesReportKpis,
   type SalesReportSeriesPoint,
+  type StockLowBalancePoint,
+  type StockReportKpis,
+  type StockReportRow,
+  type StockReportSeriesPoint,
 } from "@/lib/reports/format";
 
 type Result<T> =
@@ -70,6 +86,16 @@ export type PayablesReportData = {
   suppliers: Supplier[];
   kpis: PayablesReportKpis;
   series: PayablesReportSeriesPoint[];
+};
+
+export type StockReportData = {
+  products: Product[];
+  rows: StockReportRow[];
+  movements: StockMovementWithRelations[];
+  categories: string[];
+  kpis: StockReportKpis;
+  series: StockReportSeriesPoint[];
+  lowBalanceSeries: StockLowBalancePoint[];
 };
 
 export async function getSalesReport(params: {
@@ -289,6 +315,113 @@ export async function getPayablesReport(params: {
         params.periodFrom,
         params.periodTo
       ),
+    },
+    error: null,
+  };
+}
+
+export async function getStockReport(params: {
+  companyId: string;
+  productId?: string;
+  category?: string;
+  situation?: string;
+  periodFrom: string;
+  periodTo: string;
+}): Promise<Result<StockReportData>> {
+  const supabase = createClient();
+  const productId =
+    params.productId && params.productId !== "all"
+      ? params.productId
+      : undefined;
+
+  const [productsResult, movementsResult, optionsResult, lastMovementsResult] =
+    await Promise.all([
+      supabase
+        .from("products")
+        .select("*")
+        .eq("company_id", params.companyId)
+        .eq("tracks_stock", true)
+        .order("name", { ascending: true }),
+      listStockMovements({
+        companyId: params.companyId,
+        productId,
+        periodFrom: params.periodFrom,
+        periodTo: params.periodTo,
+      }),
+      listProductFilterOptions(params.companyId),
+      supabase
+        .from("stock_movements")
+        .select("product_id, movement_date")
+        .eq("company_id", params.companyId)
+        .order("movement_date", { ascending: false })
+        .order("created_at", { ascending: false }),
+    ]);
+
+  if (productsResult.error) {
+    return {
+      data: null,
+      error: { message: productsResult.error.message },
+    };
+  }
+
+  if (movementsResult.error || !movementsResult.data) {
+    return {
+      data: null,
+      error:
+        movementsResult.error ?? {
+          message: "Erro ao carregar o relatório de estoque.",
+        },
+    };
+  }
+
+  if (lastMovementsResult.error) {
+    return {
+      data: null,
+      error: { message: lastMovementsResult.error.message },
+    };
+  }
+
+  const allProducts = (productsResult.data ?? []) as Product[];
+  const products = filterStockProducts(allProducts, {
+    productId: params.productId,
+    category: params.category,
+    situation: params.situation,
+  });
+
+  const productIds = new Set(products.map((product) => product.id));
+  const categoryOrSituationFiltered =
+    (params.category && params.category !== "all") ||
+    (params.situation && params.situation !== "all");
+
+  const movements = categoryOrSituationFiltered
+    ? filterStockMovementsByProductIds(movementsResult.data, productIds)
+    : movementsResult.data;
+
+  const lastMovementByProductId = new Map<string, string>();
+  for (const row of (lastMovementsResult.data ?? []) as Array<{
+    product_id: string;
+    movement_date: string;
+  }>) {
+    if (!lastMovementByProductId.has(row.product_id)) {
+      lastMovementByProductId.set(row.product_id, row.movement_date);
+    }
+  }
+
+  const rows = buildStockReportRows(products, lastMovementByProductId);
+
+  return {
+    data: {
+      products: allProducts,
+      rows,
+      movements,
+      categories: optionsResult.data?.categories ?? [],
+      kpis: buildStockReportKpis(products, movements),
+      series: buildStockReportSeries(
+        movements,
+        params.periodFrom,
+        params.periodTo
+      ),
+      lowBalanceSeries: buildStockLowBalanceSeries(products),
     },
     error: null,
   };

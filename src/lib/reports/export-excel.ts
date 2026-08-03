@@ -1,12 +1,15 @@
 import type { FinancialEntryWithRelations } from "@/lib/finance/actions";
 import type { PurchaseListItem } from "@/lib/purchases/actions";
 import type { SaleListItem } from "@/lib/sales/actions";
+import type { StockMovementWithRelations } from "@/lib/stock/actions";
+import { stockMovementTypeLabel } from "@/lib/stock/format";
 import {
   customerLabel,
   financeEntryTypeLabel,
   financeStatusLabel,
   formatDateBR,
   payablePartyLabel,
+  productStockValue,
   purchaseStatusLabel,
   receivablePartyLabel,
   saleStatusLabel,
@@ -17,6 +20,8 @@ import {
   type PurchasesReportKpis,
   type ReceivablesReportKpis,
   type SalesReportKpis,
+  type StockReportKpis,
+  type StockReportRow,
 } from "@/lib/reports/format";
 
 export type SalesExcelExportInput = {
@@ -70,6 +75,18 @@ export type PayablesExcelExportInput = {
   categoryFilterLabel: string;
   entries: FinancialEntryWithRelations[];
   kpis: PayablesReportKpis;
+};
+
+export type StockExcelExportInput = {
+  companyName: string;
+  periodFrom: string;
+  periodTo: string;
+  productFilterLabel: string;
+  categoryFilterLabel: string;
+  situationFilterLabel: string;
+  rows: StockReportRow[];
+  movements: StockMovementWithRelations[];
+  kpis: StockReportKpis;
 };
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -456,4 +473,130 @@ export async function exportPayablesReportExcel(
 
   const stamp = new Date().toISOString().slice(0, 10);
   downloadBlob(blob, `relatorio-contas-a-pagar_${stamp}.xlsx`);
+}
+
+export async function exportStockReportExcel(input: StockExcelExportInput) {
+  const ExcelJS = (await import("exceljs")).default;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "TR Control ERP";
+  workbook.created = new Date();
+
+  const summary = workbook.addWorksheet("Resumo");
+  summary.columns = [
+    { header: "Indicador", key: "label", width: 32 },
+    { header: "Valor", key: "value", width: 28 },
+  ];
+
+  summary.addRows([
+    { label: "Empresa", value: input.companyName },
+    {
+      label: "Período (movimentações)",
+      value: `${formatDateBR(input.periodFrom)} a ${formatDateBR(input.periodTo)}`,
+    },
+    { label: "Produto", value: input.productFilterLabel },
+    { label: "Categoria", value: input.categoryFilterLabel },
+    { label: "Situação", value: input.situationFilterLabel },
+    {
+      label: "Valor total em estoque",
+      value: toNumberAmount(input.kpis.totalStockValue),
+    },
+    {
+      label: "Quantidade total de itens",
+      value: toNumberAmount(input.kpis.totalControlledQuantity),
+    },
+    {
+      label: "Produtos controlados",
+      value: input.kpis.trackedProductsCount,
+    },
+    {
+      label: "Produtos com estoque disponível",
+      value: input.kpis.availableProductsCount,
+    },
+    {
+      label: "Produtos abaixo do mínimo",
+      value: input.kpis.belowMinProductsCount,
+    },
+    {
+      label: "Produtos sem estoque",
+      value: input.kpis.outOfStockProductsCount,
+    },
+    {
+      label: "Total de entradas no período",
+      value: toNumberAmount(input.kpis.entriesInPeriod),
+    },
+    {
+      label: "Total de saídas no período",
+      value: toNumberAmount(input.kpis.exitsInPeriod),
+    },
+  ]);
+
+  summary.getCell("B6").numFmt = '"R$"#,##0.00';
+  summary.getRow(1).font = { bold: true };
+
+  const stockSheet = workbook.addWorksheet("Estoque");
+  stockSheet.columns = [
+    { header: "Produto", key: "product", width: 32 },
+    { header: "Categoria", key: "category", width: 18 },
+    { header: "Código / SKU", key: "code", width: 18 },
+    { header: "Estoque atual", key: "currentStock", width: 14 },
+    { header: "Estoque mínimo", key: "minStock", width: 14 },
+    { header: "Situação", key: "situation", width: 18 },
+    { header: "Custo médio", key: "avgCost", width: 14 },
+    { header: "Valor em estoque", key: "stockValue", width: 16 },
+    { header: "Última movimentação", key: "lastMovement", width: 18 },
+  ];
+
+  for (const row of input.rows) {
+    stockSheet.addRow({
+      product: row.product.name,
+      category: row.product.category || "—",
+      code: row.codeLabel,
+      currentStock: toNumberAmount(row.product.current_stock),
+      minStock: toNumberAmount(row.product.min_stock),
+      situation: row.situationLabel,
+      avgCost: toNumberAmount(row.product.cost_price),
+      stockValue: productStockValue(row.product),
+      lastMovement: row.lastMovementDate
+        ? formatDateBR(row.lastMovementDate)
+        : "—",
+    });
+  }
+
+  for (const key of ["avgCost", "stockValue"] as const) {
+    stockSheet.getColumn(key).numFmt = '"R$"#,##0.00';
+  }
+  stockSheet.getRow(1).font = { bold: true };
+
+  const movementsSheet = workbook.addWorksheet("Movimentações");
+  movementsSheet.columns = [
+    { header: "Data", key: "date", width: 14 },
+    { header: "Produto", key: "product", width: 32 },
+    { header: "Tipo", key: "type", width: 14 },
+    { header: "Quantidade", key: "quantity", width: 14 },
+    { header: "Saldo anterior", key: "previousStock", width: 14 },
+    { header: "Novo saldo", key: "newStock", width: 14 },
+    { header: "Observações", key: "notes", width: 36 },
+  ];
+
+  for (const movement of input.movements) {
+    movementsSheet.addRow({
+      date: formatDateBR(movement.movement_date),
+      product: movement.product?.name || "—",
+      type: stockMovementTypeLabel(movement.movement_type),
+      quantity: toNumberAmount(movement.quantity),
+      previousStock: toNumberAmount(movement.previous_stock ?? 0),
+      newStock: toNumberAmount(movement.new_stock ?? 0),
+      notes: movement.notes || "—",
+    });
+  }
+
+  movementsSheet.getRow(1).font = { bold: true };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadBlob(blob, `relatorio-estoque_${stamp}.xlsx`);
 }

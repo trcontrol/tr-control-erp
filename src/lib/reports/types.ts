@@ -59,7 +59,7 @@ export const REPORT_TYPE_OPTIONS: ReportTypeMeta[] = [
     id: REPORT_TYPES.customers,
     title: "Clientes",
     description: "Base de clientes e situação cadastral",
-    available: false,
+    available: true,
   },
   {
     id: REPORT_TYPES.funnel,

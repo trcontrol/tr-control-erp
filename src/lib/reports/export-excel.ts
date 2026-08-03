@@ -4,17 +4,22 @@ import type { SaleListItem } from "@/lib/sales/actions";
 import type { StockMovementWithRelations } from "@/lib/stock/actions";
 import { stockMovementTypeLabel } from "@/lib/stock/format";
 import {
+  customerGeoLabel,
   customerLabel,
+  customerStatusLabel,
   financeEntryTypeLabel,
   financeStatusLabel,
   formatDateBR,
   payablePartyLabel,
+  personTypeLabel,
   productStockValue,
   purchaseStatusLabel,
   receivablePartyLabel,
   saleStatusLabel,
   supplierLabel,
   toNumberAmount,
+  type CustomersReportKpis,
+  type CustomersReportRow,
   type FinanceReportKpis,
   type PayablesReportKpis,
   type PurchasesReportKpis,
@@ -87,6 +92,18 @@ export type StockExcelExportInput = {
   rows: StockReportRow[];
   movements: StockMovementWithRelations[];
   kpis: StockReportKpis;
+};
+
+export type CustomersExcelExportInput = {
+  companyName: string;
+  periodFrom: string;
+  periodTo: string;
+  statusLabel: string;
+  personTypeLabel: string;
+  stateFilterLabel: string;
+  cityFilterLabel: string;
+  rows: CustomersReportRow[];
+  kpis: CustomersReportKpis;
 };
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -599,4 +616,86 @@ export async function exportStockReportExcel(input: StockExcelExportInput) {
 
   const stamp = new Date().toISOString().slice(0, 10);
   downloadBlob(blob, `relatorio-estoque_${stamp}.xlsx`);
+}
+
+export async function exportCustomersReportExcel(
+  input: CustomersExcelExportInput
+) {
+  const ExcelJS = (await import("exceljs")).default;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "TR Control ERP";
+  workbook.created = new Date();
+
+  const summary = workbook.addWorksheet("Resumo");
+  summary.columns = [
+    { header: "Indicador", key: "label", width: 32 },
+    { header: "Valor", key: "value", width: 28 },
+  ];
+
+  summary.addRows([
+    { label: "Empresa", value: input.companyName },
+    {
+      label: "Período",
+      value: `${formatDateBR(input.periodFrom)} a ${formatDateBR(input.periodTo)}`,
+    },
+    { label: "Status", value: input.statusLabel },
+    { label: "Tipo de cliente", value: input.personTypeLabel },
+    { label: "UF", value: input.stateFilterLabel },
+    { label: "Cidade", value: input.cityFilterLabel },
+    { label: "Total de clientes", value: input.kpis.totalCustomers },
+    { label: "Clientes ativos", value: input.kpis.activeCustomers },
+    { label: "Clientes inativos", value: input.kpis.inactiveCustomers },
+    { label: "Novos no período", value: input.kpis.newInPeriod },
+    { label: "Clientes com vendas", value: input.kpis.withSales },
+    { label: "Clientes sem vendas", value: input.kpis.withoutSales },
+    {
+      label: "Ticket médio por cliente",
+      value: toNumberAmount(input.kpis.averageTicketPerCustomer),
+    },
+  ]);
+
+  summary.getCell("B13").numFmt = '"R$"#,##0.00';
+  summary.getRow(1).font = { bold: true };
+
+  const details = workbook.addWorksheet("Clientes");
+  details.columns = [
+    { header: "Nome", key: "name", width: 32 },
+    { header: "Documento", key: "document", width: 18 },
+    { header: "E-mail", key: "email", width: 28 },
+    { header: "Telefone", key: "phone", width: 16 },
+    { header: "Cidade", key: "city", width: 18 },
+    { header: "UF", key: "state", width: 8 },
+    { header: "Status", key: "status", width: 12 },
+    { header: "Tipo", key: "personType", width: 16 },
+    { header: "Data de cadastro", key: "createdAt", width: 16 },
+    { header: "Qtd. vendas", key: "salesCount", width: 12 },
+    { header: "Valor total comprado", key: "totalPurchased", width: 20 },
+  ];
+
+  for (const row of input.rows) {
+    details.addRow({
+      name: customerLabel(row.customer),
+      document: row.customer.document || "—",
+      email: row.customer.email || "—",
+      phone: row.customer.phone || "—",
+      city: customerGeoLabel(row.customer.city),
+      state: customerGeoLabel(row.customer.state),
+      status: customerStatusLabel(row.customer.status),
+      personType: personTypeLabel(row.customer.person_type),
+      createdAt: formatDateBR(row.customer.created_at.slice(0, 10)),
+      salesCount: row.salesCount,
+      totalPurchased: toNumberAmount(row.totalPurchased),
+    });
+  }
+
+  details.getColumn("totalPurchased").numFmt = '"R$"#,##0.00';
+  details.getRow(1).font = { bold: true };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadBlob(blob, `relatorio-clientes_${stamp}.xlsx`);
 }

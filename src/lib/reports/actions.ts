@@ -1,4 +1,4 @@
-import { FINANCIAL_ENTRY_TYPES } from "@/lib/constants";
+import { FINANCIAL_ENTRY_TYPES, SALE_STATUS } from "@/lib/constants";
 import { listCustomers } from "@/lib/customers/actions";
 import {
   listFinancialEntries,
@@ -15,6 +15,13 @@ import { listSuppliers } from "@/lib/suppliers/actions";
 import { createClient } from "@/lib/supabase/client";
 import type { Customer, Product, Supplier } from "@/types/database";
 import {
+  buildCustomerCityOptions,
+  buildCustomerSalesAggMap,
+  buildCustomerStateOptions,
+  buildCustomersReportKpis,
+  buildCustomersReportRows,
+  buildCustomersReportSeries,
+  buildCustomersSalesDistribution,
   buildFinanceReportKpis,
   buildFinanceReportSeries,
   buildPurchasesReportKpis,
@@ -29,11 +36,16 @@ import {
   buildStockReportKpis,
   buildStockReportRows,
   buildStockReportSeries,
+  filterCustomersForReport,
   filterFinanceEntriesByCategory,
   filterFinanceEntriesByCustomer,
   filterFinanceEntriesBySupplier,
   filterStockMovementsByProductIds,
   filterStockProducts,
+  type CustomersReportKpis,
+  type CustomersReportRow,
+  type CustomersReportSeriesPoint,
+  type CustomersSalesDistributionPoint,
   type FinanceReportKpis,
   type FinanceReportSeriesPoint,
   type PayablesReportKpis,
@@ -96,6 +108,15 @@ export type StockReportData = {
   kpis: StockReportKpis;
   series: StockReportSeriesPoint[];
   lowBalanceSeries: StockLowBalancePoint[];
+};
+
+export type CustomersReportData = {
+  rows: CustomersReportRow[];
+  kpis: CustomersReportKpis;
+  series: CustomersReportSeriesPoint[];
+  salesDistribution: CustomersSalesDistributionPoint[];
+  stateOptions: Array<{ value: string; label: string }>;
+  cityOptions: Array<{ value: string; label: string }>;
 };
 
 export async function getSalesReport(params: {
@@ -422,6 +443,73 @@ export async function getStockReport(params: {
         params.periodTo
       ),
       lowBalanceSeries: buildStockLowBalanceSeries(products),
+    },
+    error: null,
+  };
+}
+
+export async function getCustomersReport(params: {
+  companyId: string;
+  status?: string;
+  personType?: string;
+  state?: string;
+  city?: string;
+  periodFrom: string;
+  periodTo: string;
+}): Promise<Result<CustomersReportData>> {
+  const [customersResult, salesResult] = await Promise.all([
+    listCustomers({
+      companyId: params.companyId,
+      status: params.status,
+      personType: params.personType,
+    }),
+    listSales({
+      companyId: params.companyId,
+      status: SALE_STATUS.confirmed,
+    }),
+  ]);
+
+  if (customersResult.error) {
+    return { data: null, error: customersResult.error };
+  }
+
+  if (salesResult.error) {
+    return { data: null, error: salesResult.error };
+  }
+
+  const customers = customersResult.data ?? [];
+  const sales = salesResult.data ?? [];
+  const salesByCustomer = buildCustomerSalesAggMap(sales);
+
+  const stateOptions = buildCustomerStateOptions(customers);
+  const cityOptions = buildCustomerCityOptions(customers, params.state);
+
+  const filtered = filterCustomersForReport(customers, {
+    status: params.status,
+    personType: params.personType,
+    state: params.state,
+    city: params.city,
+  });
+
+  const kpis = buildCustomersReportKpis(
+    filtered,
+    salesByCustomer,
+    params.periodFrom,
+    params.periodTo
+  );
+
+  return {
+    data: {
+      rows: buildCustomersReportRows(filtered, salesByCustomer),
+      kpis,
+      series: buildCustomersReportSeries(
+        filtered,
+        params.periodFrom,
+        params.periodTo
+      ),
+      salesDistribution: buildCustomersSalesDistribution(kpis),
+      stateOptions,
+      cityOptions,
     },
     error: null,
   };

@@ -1,8 +1,11 @@
 import {
+  CUSTOMER_STATUS,
+  CUSTOMER_STATUS_OPTIONS,
   FINANCIAL_ENTRY_TYPES,
   FINANCIAL_ENTRY_TYPE_OPTIONS,
   FINANCIAL_STATUS,
   FINANCIAL_STATUS_OPTIONS,
+  PERSON_TYPE_OPTIONS,
   PURCHASE_STATUS,
   SALE_STATUS,
   STOCK_MOVEMENT_TYPES,
@@ -22,7 +25,7 @@ import { saleStatusLabel } from "@/lib/sales/format";
 import type { PurchaseListItem } from "@/lib/purchases/actions";
 import type { SaleListItem } from "@/lib/sales/actions";
 import type { StockMovementWithRelations } from "@/lib/stock/actions";
-import type { Product } from "@/types/database";
+import type { Customer, Product } from "@/types/database";
 
 export {
   currentMonthPeriod,
@@ -841,4 +844,343 @@ export function buildStockLowBalanceSeries(
       minStock: toNumberAmount(product.min_stock),
       unit: product.unit ?? null,
     }));
+}
+
+/** Sentinel for customers without city/state in report filters. */
+export const CUSTOMERS_REPORT_EMPTY_GEO = "__empty__";
+
+export type CustomersReportKpis = {
+  totalCustomers: number;
+  activeCustomers: number;
+  inactiveCustomers: number;
+  newInPeriod: number;
+  withSales: number;
+  withoutSales: number;
+  averageTicketPerCustomer: number;
+};
+
+export type CustomersReportSeriesPoint = {
+  bucket: string;
+  newCustomers: number;
+  cumulativeTotal: number;
+};
+
+export type CustomersSalesDistributionPoint = {
+  key: "with_sales" | "without_sales";
+  label: string;
+  count: number;
+  percentage: number;
+};
+
+export type CustomersReportRow = {
+  customer: Customer;
+  salesCount: number;
+  totalPurchased: number;
+};
+
+export type CustomerSalesAgg = {
+  salesCount: number;
+  totalPurchased: number;
+};
+
+export function customerStatusLabel(status: string | null | undefined) {
+  if (!status) return "—";
+  return (
+    CUSTOMER_STATUS_OPTIONS.find((item) => item.value === status)?.label ??
+    status
+  );
+}
+
+export function personTypeLabel(personType: string | null | undefined) {
+  if (!personType) return "—";
+  return (
+    PERSON_TYPE_OPTIONS.find((item) => item.value === personType)?.label ??
+    personType
+  );
+}
+
+export function customerCreatedDate(customer: { created_at: string }) {
+  return customer.created_at.slice(0, 10);
+}
+
+function normalizeGeoField(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? "";
+  return trimmed || null;
+}
+
+export function customerGeoKey(value: string | null | undefined) {
+  return normalizeGeoField(value) ?? CUSTOMERS_REPORT_EMPTY_GEO;
+}
+
+export function customerGeoLabel(value: string | null | undefined) {
+  return normalizeGeoField(value) ?? "—";
+}
+
+export function buildCustomerSalesAggMap(
+  sales: SaleListItem[]
+): Map<string, CustomerSalesAgg> {
+  const map = new Map<string, CustomerSalesAgg>();
+
+  for (const sale of sales) {
+    if (sale.status !== SALE_STATUS.confirmed || !sale.customer_id) continue;
+
+    const current = map.get(sale.customer_id) ?? {
+      salesCount: 0,
+      totalPurchased: 0,
+    };
+    current.salesCount += 1;
+    current.totalPurchased += toNumberAmount(sale.total_amount);
+    map.set(sale.customer_id, current);
+  }
+
+  return map;
+}
+
+export function filterCustomersForReport(
+  customers: Customer[],
+  filters: {
+    status?: string;
+    personType?: string;
+    state?: string;
+    city?: string;
+  }
+) {
+  const status = filters.status ?? "all";
+  const personType = filters.personType ?? "all";
+  const state = filters.state ?? "all";
+  const city = filters.city ?? "all";
+
+  return customers.filter((customer) => {
+    if (status !== "all" && customer.status !== status) return false;
+    if (personType !== "all" && customer.person_type !== personType) {
+      return false;
+    }
+    if (state !== "all" && customerGeoKey(customer.state) !== state) {
+      return false;
+    }
+    if (city !== "all" && customerGeoKey(customer.city) !== city) {
+      return false;
+    }
+    return true;
+  });
+}
+
+export function buildCustomerStateOptions(customers: Customer[]) {
+  const states = new Set<string>();
+  let hasEmpty = false;
+
+  for (const customer of customers) {
+    const normalized = normalizeGeoField(customer.state);
+    if (normalized) states.add(normalized);
+    else hasEmpty = true;
+  }
+
+  const options = Array.from(states)
+    .sort((a, b) => a.localeCompare(b, "pt-BR"))
+    .map((value) => ({ value, label: value }));
+
+  if (hasEmpty) {
+    options.push({
+      value: CUSTOMERS_REPORT_EMPTY_GEO,
+      label: "Sem estado",
+    });
+  }
+
+  return options;
+}
+
+export function buildCustomerCityOptions(
+  customers: Customer[],
+  state?: string
+) {
+  const selectedState = state ?? "all";
+  const cities = new Set<string>();
+  let hasEmpty = false;
+
+  for (const customer of customers) {
+    if (
+      selectedState !== "all" &&
+      customerGeoKey(customer.state) !== selectedState
+    ) {
+      continue;
+    }
+
+    const normalized = normalizeGeoField(customer.city);
+    if (normalized) cities.add(normalized);
+    else hasEmpty = true;
+  }
+
+  const options = Array.from(cities)
+    .sort((a, b) => a.localeCompare(b, "pt-BR"))
+    .map((value) => ({ value, label: value }));
+
+  if (hasEmpty) {
+    options.push({
+      value: CUSTOMERS_REPORT_EMPTY_GEO,
+      label: "Sem cidade",
+    });
+  }
+
+  return options;
+}
+
+export function buildCustomersReportKpis(
+  customers: Customer[],
+  salesByCustomer: Map<string, CustomerSalesAgg>,
+  periodFrom: string,
+  periodTo: string
+): CustomersReportKpis {
+  let activeCustomers = 0;
+  let inactiveCustomers = 0;
+  let newInPeriod = 0;
+  let withSales = 0;
+  let withoutSales = 0;
+  let confirmedSalesAmount = 0;
+
+  for (const customer of customers) {
+    if (customer.status === CUSTOMER_STATUS.active) activeCustomers += 1;
+    else if (customer.status === CUSTOMER_STATUS.inactive) {
+      inactiveCustomers += 1;
+    }
+
+    const created = customerCreatedDate(customer);
+    if (created >= periodFrom && created <= periodTo) {
+      newInPeriod += 1;
+    }
+
+    const agg = salesByCustomer.get(customer.id);
+    if (agg && agg.salesCount > 0) {
+      withSales += 1;
+      confirmedSalesAmount += agg.totalPurchased;
+    } else {
+      withoutSales += 1;
+    }
+  }
+
+  return {
+    totalCustomers: customers.length,
+    activeCustomers,
+    inactiveCustomers,
+    newInPeriod,
+    withSales,
+    withoutSales,
+    averageTicketPerCustomer:
+      withSales > 0 ? confirmedSalesAmount / withSales : 0,
+  };
+}
+
+function formatLocalIsoDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function buildPeriodBuckets(periodFrom: string, periodTo: string) {
+  const useDaily = isDailySeries(periodFrom, periodTo);
+  const buckets: string[] = [];
+  const from = new Date(`${periodFrom}T00:00:00`);
+  const to = new Date(`${periodTo}T00:00:00`);
+
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) {
+    return { useDaily, buckets };
+  }
+
+  if (useDaily) {
+    const cursor = new Date(from);
+    while (cursor <= to) {
+      buckets.push(formatLocalIsoDate(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  } else {
+    const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
+    const end = new Date(to.getFullYear(), to.getMonth(), 1);
+    while (cursor <= end) {
+      buckets.push(formatLocalIsoDate(cursor));
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+  }
+
+  return { useDaily, buckets };
+}
+
+export function buildCustomersReportSeries(
+  customers: Customer[],
+  periodFrom: string,
+  periodTo: string
+): CustomersReportSeriesPoint[] {
+  const { useDaily, buckets } = buildPeriodBuckets(periodFrom, periodTo);
+  if (!buckets.length) return [];
+
+  let baseBeforePeriod = 0;
+  const newByBucket = new Map<string, number>();
+
+  for (const customer of customers) {
+    const created = customerCreatedDate(customer);
+    if (!created) continue;
+
+    if (created < periodFrom) {
+      baseBeforePeriod += 1;
+      continue;
+    }
+
+    if (created > periodTo) continue;
+
+    const bucket = useDaily ? created : monthBucketFromDate(created);
+    newByBucket.set(bucket, (newByBucket.get(bucket) ?? 0) + 1);
+  }
+
+  let cumulative = baseBeforePeriod;
+  return buckets.map((bucket) => {
+    const newCustomers = newByBucket.get(bucket) ?? 0;
+    cumulative += newCustomers;
+    return {
+      bucket,
+      newCustomers,
+      cumulativeTotal: cumulative,
+    };
+  });
+}
+
+export function buildCustomersSalesDistribution(
+  kpis: CustomersReportKpis
+): CustomersSalesDistributionPoint[] {
+  const total = kpis.withSales + kpis.withoutSales;
+  const withPct = total > 0 ? (kpis.withSales / total) * 100 : 0;
+  const withoutPct = total > 0 ? (kpis.withoutSales / total) * 100 : 0;
+
+  return [
+    {
+      key: "with_sales",
+      label: "Com vendas",
+      count: kpis.withSales,
+      percentage: withPct,
+    },
+    {
+      key: "without_sales",
+      label: "Sem vendas",
+      count: kpis.withoutSales,
+      percentage: withoutPct,
+    },
+  ];
+}
+
+export function buildCustomersReportRows(
+  customers: Customer[],
+  salesByCustomer: Map<string, CustomerSalesAgg>
+): CustomersReportRow[] {
+  return [...customers]
+    .map((customer) => {
+      const agg = salesByCustomer.get(customer.id);
+      return {
+        customer,
+        salesCount: agg?.salesCount ?? 0,
+        totalPurchased: agg?.totalPurchased ?? 0,
+      };
+    })
+    .sort((a, b) => {
+      const nameA = customerLabel(a.customer);
+      const nameB = customerLabel(b.customer);
+      return nameA.localeCompare(nameB, "pt-BR");
+    });
 }

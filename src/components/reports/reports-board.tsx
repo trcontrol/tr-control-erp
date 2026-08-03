@@ -16,6 +16,7 @@ import {
   CircleDollarSign,
   HandCoins,
 } from "lucide-react";
+import { CustomersReportPanel } from "@/components/reports/customers-report-panel";
 import { FinanceReportPanel } from "@/components/reports/finance-report-panel";
 import { PayablesReportPanel } from "@/components/reports/payables-report-panel";
 import { PurchasesReportPanel } from "@/components/reports/purchases-report-panel";
@@ -32,13 +33,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  CUSTOMER_STATUS_OPTIONS,
   FINANCIAL_ENTRY_TYPE_OPTIONS,
   FINANCIAL_STATUS_OPTIONS,
+  PERSON_TYPE_OPTIONS,
   PURCHASE_STATUS_OPTIONS,
   SALE_STATUS_OPTIONS,
 } from "@/lib/constants";
 import type { FinancialEntryWithRelations } from "@/lib/finance/actions";
 import {
+  getCustomersReport,
   getFinanceReport,
   getPayablesReport,
   getPurchasesReport,
@@ -47,6 +51,7 @@ import {
   getStockReport,
 } from "@/lib/reports/actions";
 import {
+  exportCustomersReportExcel,
   exportFinanceReportExcel,
   exportPayablesReportExcel,
   exportPurchasesReportExcel,
@@ -55,13 +60,19 @@ import {
   exportStockReportExcel,
 } from "@/lib/reports/export-excel";
 import {
+  CUSTOMERS_REPORT_EMPTY_GEO,
   currentMonthPeriod,
   customerLabel,
   financeEntryTypeLabel,
   formatDateBR,
+  personTypeLabel,
   STOCK_REPORT_SITUATIONS,
   stockSituationLabel,
   supplierLabel,
+  type CustomersReportKpis,
+  type CustomersReportRow,
+  type CustomersReportSeriesPoint,
+  type CustomersSalesDistributionPoint,
   type FinanceReportKpis,
   type FinanceReportSeriesPoint,
   type PayablesReportKpis,
@@ -125,6 +136,9 @@ export function ReportsBoard() {
   const [stockSituation, setStockSituation] = useState<string>(
     STOCK_REPORT_SITUATIONS.all
   );
+  const [personType, setPersonType] = useState("all");
+  const [customerState, setCustomerState] = useState("all");
+  const [customerCity, setCustomerCity] = useState("all");
 
   const [sales, setSales] = useState<SaleListItem[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -180,6 +194,22 @@ export function ReportsBoard() {
     StockLowBalancePoint[]
   >([]);
 
+  const [customersRows, setCustomersRows] = useState<CustomersReportRow[]>([]);
+  const [customersKpis, setCustomersKpis] =
+    useState<CustomersReportKpis | null>(null);
+  const [customersSeries, setCustomersSeries] = useState<
+    CustomersReportSeriesPoint[]
+  >([]);
+  const [customersSalesDistribution, setCustomersSalesDistribution] = useState<
+    CustomersSalesDistributionPoint[]
+  >([]);
+  const [customerStateOptions, setCustomerStateOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [customerCityOptions, setCustomerCityOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -192,6 +222,7 @@ export function ReportsBoard() {
   const isReceivablesReport = selectedReportType === REPORT_TYPES.receivables;
   const isPayablesReport = selectedReportType === REPORT_TYPES.payables;
   const isStockReport = selectedReportType === REPORT_TYPES.stock;
+  const isCustomersReport = selectedReportType === REPORT_TYPES.customers;
 
   const validatePeriod = useCallback(() => {
     if (!company?.id) {
@@ -479,6 +510,68 @@ export function ReportsBoard() {
     validatePeriod,
   ]);
 
+  const loadCustomersReport = useCallback(async () => {
+    if (!validatePeriod() || !company?.id) {
+      setCustomersRows([]);
+      setCustomersKpis(null);
+      setCustomersSeries([]);
+      setCustomersSalesDistribution([]);
+      setCustomerStateOptions([]);
+      setCustomerCityOptions([]);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const result = await getCustomersReport({
+      companyId: company.id,
+      status,
+      personType,
+      state: customerState,
+      city: customerCity,
+      periodFrom,
+      periodTo,
+    });
+
+    if (result.error || !result.data) {
+      setCustomersRows([]);
+      setCustomersKpis(null);
+      setCustomersSeries([]);
+      setCustomersSalesDistribution([]);
+      setCustomerStateOptions([]);
+      setCustomerCityOptions([]);
+      setError(result.error?.message ?? "Erro ao carregar o relatório.");
+      setLoading(false);
+      return;
+    }
+
+    setCustomersRows(result.data.rows);
+    setCustomersKpis(result.data.kpis);
+    setCustomersSeries(result.data.series);
+    setCustomersSalesDistribution(result.data.salesDistribution);
+    setCustomerStateOptions(result.data.stateOptions);
+    setCustomerCityOptions(result.data.cityOptions);
+
+    if (
+      customerCity !== "all" &&
+      !result.data.cityOptions.some((option) => option.value === customerCity)
+    ) {
+      setCustomerCity("all");
+    }
+
+    setLoading(false);
+  }, [
+    company?.id,
+    customerCity,
+    customerState,
+    periodFrom,
+    periodTo,
+    personType,
+    status,
+    validatePeriod,
+  ]);
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (isSalesReport) {
@@ -493,17 +586,21 @@ export function ReportsBoard() {
         void loadPayablesReport();
       } else if (isStockReport) {
         void loadStockReport();
+      } else if (isCustomersReport) {
+        void loadCustomersReport();
       }
     }, 200);
 
     return () => clearTimeout(timeout);
   }, [
+    isCustomersReport,
     isFinanceReport,
     isPayablesReport,
     isPurchasesReport,
     isReceivablesReport,
     isSalesReport,
     isStockReport,
+    loadCustomersReport,
     loadFinanceReport,
     loadPayablesReport,
     loadPurchasesReport,
@@ -527,16 +624,40 @@ export function ReportsBoard() {
         ? FINANCIAL_STATUS_OPTIONS
         : isPurchasesReport
           ? PURCHASE_STATUS_OPTIONS
-          : SALE_STATUS_OPTIONS;
+          : isCustomersReport
+            ? CUSTOMER_STATUS_OPTIONS
+            : SALE_STATUS_OPTIONS;
 
     return options.find((item) => item.value === status)?.label ?? status;
   }, [
+    isCustomersReport,
     isFinanceReport,
     isPayablesReport,
     isPurchasesReport,
     isReceivablesReport,
     status,
   ]);
+
+  const customersPersonTypeLabel =
+    personType === "all"
+      ? "Todos os tipos"
+      : personTypeLabel(personType) ||
+        PERSON_TYPE_OPTIONS.find((item) => item.value === personType)?.label ||
+        personType;
+
+  const customersStateFilterLabel =
+    customerState === "all"
+      ? "Todas as UFs"
+      : customerState === CUSTOMERS_REPORT_EMPTY_GEO
+        ? "Sem estado"
+        : customerState;
+
+  const customersCityFilterLabel =
+    customerCity === "all"
+      ? "Todas as cidades"
+      : customerCity === CUSTOMERS_REPORT_EMPTY_GEO
+        ? "Sem cidade"
+        : customerCity;
 
   const activeCustomers = isReceivablesReport
     ? receivablesCustomers
@@ -587,9 +708,11 @@ export function ReportsBoard() {
         ? payablesKpis
         : isStockReport
           ? stockKpis
-          : isPurchasesReport
-            ? purchasesKpis
-            : salesKpis;
+          : isCustomersReport
+            ? customersKpis
+            : isPurchasesReport
+              ? purchasesKpis
+              : salesKpis;
   const canExport =
     !loading && !error && Boolean(activeKpis) && Boolean(company);
 
@@ -658,6 +781,19 @@ export function ReportsBoard() {
           purchases,
           kpis: purchasesKpis,
         });
+      } else if (isCustomersReport) {
+        if (!customersKpis) return;
+        await exportCustomersReportExcel({
+          companyName: company.name,
+          periodFrom,
+          periodTo,
+          statusLabel,
+          personTypeLabel: customersPersonTypeLabel,
+          stateFilterLabel: customersStateFilterLabel,
+          cityFilterLabel: customersCityFilterLabel,
+          rows: customersRows,
+          kpis: customersKpis,
+        });
       } else if (salesKpis) {
         await exportSalesReportExcel({
           companyName: company.name,
@@ -713,7 +849,15 @@ export function ReportsBoard() {
     setCategory("all");
     setProductId("all");
     setStockSituation(STOCK_REPORT_SITUATIONS.all);
+    setPersonType("all");
+    setCustomerState("all");
+    setCustomerCity("all");
     setError(null);
+  };
+
+  const handleCustomerStateChange = (value: string) => {
+    setCustomerState(value);
+    setCustomerCity("all");
   };
 
   const printTitle = isFinanceReport
@@ -724,9 +868,11 @@ export function ReportsBoard() {
         ? "Relatório de Contas a Pagar"
         : isStockReport
           ? "Relatório de Estoque"
-          : isPurchasesReport
-            ? "Relatório de Compras"
-            : "Relatório de Vendas";
+          : isCustomersReport
+            ? "Relatório de Clientes"
+            : isPurchasesReport
+              ? "Relatório de Compras"
+              : "Relatório de Vendas";
 
   const printMeta = isFinanceReport
     ? `Financeiro · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${entryTypeLabel} · ${statusLabel} · ${categoryFilterLabel}`
@@ -736,9 +882,11 @@ export function ReportsBoard() {
         ? `Contas a pagar · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel} · ${categoryFilterLabel}`
         : isStockReport
           ? `Estoque · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${productFilterLabel} · ${categoryFilterLabel} · ${situationFilterLabel}`
-          : isPurchasesReport
-            ? `Compras · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel}`
-            : `Vendas · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel}`;
+          : isCustomersReport
+            ? `Clientes · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customersPersonTypeLabel} · ${customersStateFilterLabel} · ${customersCityFilterLabel}`
+            : isPurchasesReport
+              ? `Compras · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel}`
+              : `Vendas · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel}`;
 
   return (
     <div id="reports-print-root" className="space-y-6">
@@ -1017,6 +1165,28 @@ export function ReportsBoard() {
           error={error}
           onStatusChange={setStatus}
           onSupplierChange={setSupplierId}
+        />
+      ) : isCustomersReport ? (
+        <CustomersReportPanel
+          companyName={company?.name ?? ""}
+          periodFrom={periodFrom}
+          periodTo={periodTo}
+          status={status}
+          personType={personType}
+          state={customerState}
+          city={customerCity}
+          stateOptions={customerStateOptions}
+          cityOptions={customerCityOptions}
+          rows={customersRows}
+          kpis={customersKpis}
+          series={customersSeries}
+          salesDistribution={customersSalesDistribution}
+          loading={loading}
+          error={error}
+          onStatusChange={setStatus}
+          onPersonTypeChange={setPersonType}
+          onStateChange={handleCustomerStateChange}
+          onCityChange={setCustomerCity}
         />
       ) : (
         <SalesReportPanel

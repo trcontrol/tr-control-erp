@@ -1,4 +1,5 @@
 import type { FinancialEntryWithRelations } from "@/lib/finance/actions";
+import { opportunityStageLabel } from "@/lib/funnel/format";
 import type { PurchaseListItem } from "@/lib/purchases/actions";
 import type { SaleListItem } from "@/lib/sales/actions";
 import type { StockMovementWithRelations } from "@/lib/stock/actions";
@@ -10,6 +11,10 @@ import {
   financeEntryTypeLabel,
   financeStatusLabel,
   formatDateBR,
+  formatFunnelConversionRate,
+  funnelAssignedUserLabel,
+  funnelOpportunityCustomerLabel,
+  opportunityCreatedDate,
   payablePartyLabel,
   personTypeLabel,
   productStockValue,
@@ -21,6 +26,9 @@ import {
   type CustomersReportKpis,
   type CustomersReportRow,
   type FinanceReportKpis,
+  type FunnelReportKpis,
+  type FunnelReportRow,
+  type FunnelReportStageRow,
   type PayablesReportKpis,
   type PurchasesReportKpis,
   type ReceivablesReportKpis,
@@ -104,6 +112,19 @@ export type CustomersExcelExportInput = {
   cityFilterLabel: string;
   rows: CustomersReportRow[];
   kpis: CustomersReportKpis;
+};
+
+export type FunnelExcelExportInput = {
+  companyName: string;
+  periodFrom: string;
+  periodTo: string;
+  stageFilterLabel: string;
+  assignedFilterLabel: string;
+  customerFilterLabel: string;
+  rows: FunnelReportRow[];
+  stages: FunnelReportStageRow[];
+  lostSummary: FunnelReportStageRow;
+  kpis: FunnelReportKpis;
 };
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -698,4 +719,131 @@ export async function exportCustomersReportExcel(
 
   const stamp = new Date().toISOString().slice(0, 10);
   downloadBlob(blob, `relatorio-clientes_${stamp}.xlsx`);
+}
+
+export async function exportFunnelReportExcel(input: FunnelExcelExportInput) {
+  const ExcelJS = (await import("exceljs")).default;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "TR Control ERP";
+  workbook.created = new Date();
+
+  const summary = workbook.addWorksheet("Resumo");
+  summary.columns = [
+    { header: "Indicador", key: "label", width: 36 },
+    { header: "Valor", key: "value", width: 28 },
+  ];
+
+  summary.addRows([
+    { label: "Empresa", value: input.companyName },
+    {
+      label: "Período",
+      value: `${formatDateBR(input.periodFrom)} a ${formatDateBR(input.periodTo)}`,
+    },
+    { label: "Etapa", value: input.stageFilterLabel },
+    { label: "Responsável", value: input.assignedFilterLabel },
+    { label: "Cliente", value: input.customerFilterLabel },
+    {
+      label: "Total de oportunidades",
+      value: input.kpis.totalCount,
+    },
+    {
+      label: "Valor total estimado",
+      value: toNumberAmount(input.kpis.totalValue),
+    },
+    {
+      label: "Oportunidades em aberto",
+      value: input.kpis.openCount,
+    },
+    {
+      label: "Valor em aberto",
+      value: toNumberAmount(input.kpis.openValue),
+    },
+    {
+      label: "Contratos fechados",
+      value: input.kpis.closedCount,
+    },
+    {
+      label: "Oportunidades perdidas",
+      value: input.kpis.lostCount,
+    },
+    {
+      label: "Taxa de conversão",
+      value: formatFunnelConversionRate(input.kpis.conversionRate),
+    },
+    {
+      label: "Ticket médio fechado",
+      value: toNumberAmount(input.kpis.averageClosedTicket),
+    },
+  ]);
+
+  summary.addRow({ label: "", value: "" });
+  summary.addRow({ label: "Valores por etapa", value: "" });
+
+  const stageValueRows: number[] = [];
+
+  for (const stage of input.stages) {
+    summary.addRow({
+      label: `${stage.label} (qtd)`,
+      value: stage.count,
+    });
+    const valueRow = summary.addRow({
+      label: `${stage.label} (valor)`,
+      value: toNumberAmount(stage.totalValue),
+    });
+    stageValueRows.push(valueRow.number);
+  }
+
+  summary.addRow({
+    label: `${input.lostSummary.label} (qtd)`,
+    value: input.lostSummary.count,
+  });
+  const lostValueRow = summary.addRow({
+    label: `${input.lostSummary.label} (valor)`,
+    value: toNumberAmount(input.lostSummary.totalValue),
+  });
+
+  summary.getCell("B8").numFmt = '"R$"#,##0.00';
+  summary.getCell("B10").numFmt = '"R$"#,##0.00';
+  summary.getCell("B14").numFmt = '"R$"#,##0.00';
+  for (const rowNumber of stageValueRows) {
+    summary.getCell(`B${rowNumber}`).numFmt = '"R$"#,##0.00';
+  }
+  summary.getCell(`B${lostValueRow.number}`).numFmt = '"R$"#,##0.00';
+  summary.getRow(1).font = { bold: true };
+
+  const details = workbook.addWorksheet("Oportunidades");
+  details.columns = [
+    { header: "Data de criação", key: "createdAt", width: 16 },
+    { header: "Oportunidade", key: "title", width: 34 },
+    { header: "Cliente", key: "customer", width: 28 },
+    { header: "Responsável", key: "assigned", width: 22 },
+    { header: "Etapa", key: "stage", width: 22 },
+    { header: "Valor estimado", key: "estimatedValue", width: 16 },
+    { header: "Próxima ação", key: "nextAction", width: 14 },
+  ];
+
+  for (const row of input.rows) {
+    details.addRow({
+      createdAt: formatDateBR(opportunityCreatedDate(row)),
+      title: row.title,
+      customer: funnelOpportunityCustomerLabel(row),
+      assigned: funnelAssignedUserLabel(row),
+      stage: opportunityStageLabel(row.stage),
+      estimatedValue: toNumberAmount(row.estimated_value),
+      nextAction: row.next_action_date
+        ? formatDateBR(row.next_action_date)
+        : "—",
+    });
+  }
+
+  details.getColumn("estimatedValue").numFmt = '"R$"#,##0.00';
+  details.getRow(1).font = { bold: true };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadBlob(blob, `relatorio-funil-comercial_${stamp}.xlsx`);
 }

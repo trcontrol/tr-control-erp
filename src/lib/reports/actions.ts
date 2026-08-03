@@ -1,9 +1,14 @@
-import { FINANCIAL_ENTRY_TYPES, SALE_STATUS } from "@/lib/constants";
+import {
+  FINANCIAL_ENTRY_TYPES,
+  OPPORTUNITY_STATUS,
+  SALE_STATUS,
+} from "@/lib/constants";
 import { listCustomers } from "@/lib/customers/actions";
 import {
   listFinancialEntries,
   type FinancialEntryWithRelations,
 } from "@/lib/finance/actions";
+import type { OpportunityWithRelations } from "@/lib/funnel/actions";
 import { listProductFilterOptions } from "@/lib/products/actions";
 import { listPurchases, type PurchaseListItem } from "@/lib/purchases/actions";
 import { listSales, type SaleListItem } from "@/lib/sales/actions";
@@ -12,6 +17,10 @@ import {
   type StockMovementWithRelations,
 } from "@/lib/stock/actions";
 import { listSuppliers } from "@/lib/suppliers/actions";
+import {
+  listCompanyMemberOptions,
+  type CompanyMemberOption,
+} from "@/lib/tasks/actions";
 import { createClient } from "@/lib/supabase/client";
 import type { Customer, Product, Supplier } from "@/types/database";
 import {
@@ -24,6 +33,11 @@ import {
   buildCustomersSalesDistribution,
   buildFinanceReportKpis,
   buildFinanceReportSeries,
+  buildFunnelCreatedSeries,
+  buildFunnelLostSummary,
+  buildFunnelReportKpis,
+  buildFunnelReportRows,
+  buildFunnelReportStages,
   buildPurchasesReportKpis,
   buildPurchasesReportSeries,
   buildPayablesReportKpis,
@@ -42,12 +56,17 @@ import {
   filterFinanceEntriesBySupplier,
   filterStockMovementsByProductIds,
   filterStockProducts,
+  opportunityCreatedDate,
   type CustomersReportKpis,
   type CustomersReportRow,
   type CustomersReportSeriesPoint,
   type CustomersSalesDistributionPoint,
   type FinanceReportKpis,
   type FinanceReportSeriesPoint,
+  type FunnelReportCreatedSeriesPoint,
+  type FunnelReportKpis,
+  type FunnelReportRow,
+  type FunnelReportStageRow,
   type PayablesReportKpis,
   type PayablesReportSeriesPoint,
   type PurchasesReportKpis,
@@ -118,6 +137,33 @@ export type CustomersReportData = {
   stateOptions: Array<{ value: string; label: string }>;
   cityOptions: Array<{ value: string; label: string }>;
 };
+
+export type FunnelReportData = {
+  rows: FunnelReportRow[];
+  kpis: FunnelReportKpis;
+  stages: FunnelReportStageRow[];
+  lostSummary: FunnelReportStageRow;
+  createdSeries: FunnelReportCreatedSeriesPoint[];
+  customers: Customer[];
+  members: CompanyMemberOption[];
+};
+
+const FUNNEL_REPORT_SELECT = `
+  *,
+  customer:customers!opportunities_customer_id_fkey (
+    id,
+    full_name,
+    trade_name
+  ),
+  assigned_user:profiles!opportunities_assigned_user_id_fkey (
+    id,
+    full_name
+  ),
+  created_by_user:profiles!opportunities_created_by_fkey (
+    id,
+    full_name
+  )
+`;
 
 export async function getSalesReport(params: {
   companyId: string;
@@ -510,6 +556,87 @@ export async function getCustomersReport(params: {
       salesDistribution: buildCustomersSalesDistribution(kpis),
       stateOptions,
       cityOptions,
+    },
+    error: null,
+  };
+}
+
+export async function getFunnelReport(params: {
+  companyId: string;
+  stage?: string;
+  assignedUserId?: string;
+  customerId?: string;
+  periodFrom: string;
+  periodTo: string;
+}): Promise<Result<FunnelReportData>> {
+  const supabase = createClient();
+
+  const [opportunitiesResult, customersResult, membersResult] =
+    await Promise.all([
+      supabase
+        .from("opportunities")
+        .select(FUNNEL_REPORT_SELECT)
+        .eq("company_id", params.companyId)
+        .eq("status", OPPORTUNITY_STATUS.active)
+        .order("created_at", { ascending: false }),
+      listCustomers({ companyId: params.companyId, status: "active" }),
+      listCompanyMemberOptions(params.companyId),
+    ]);
+
+  if (opportunitiesResult.error) {
+    return {
+      data: null,
+      error: { message: opportunitiesResult.error.message },
+    };
+  }
+
+  if (customersResult.error) {
+    return { data: null, error: customersResult.error };
+  }
+
+  if (membersResult.error) {
+    return { data: null, error: membersResult.error };
+  }
+
+  const stage = params.stage ?? "all";
+  const assignedUserId = params.assignedUserId ?? "all";
+  const customerId = params.customerId ?? "all";
+
+  const opportunities = (
+    (opportunitiesResult.data ?? []) as OpportunityWithRelations[]
+  ).filter((opportunity) => {
+    const created = opportunityCreatedDate(opportunity);
+    if (created < params.periodFrom || created > params.periodTo) {
+      return false;
+    }
+    if (stage !== "all" && opportunity.stage !== stage) return false;
+    if (
+      assignedUserId !== "all" &&
+      opportunity.assigned_user_id !== assignedUserId
+    ) {
+      return false;
+    }
+    if (customerId !== "all" && opportunity.customer_id !== customerId) {
+      return false;
+    }
+    return true;
+  });
+
+  const kpis = buildFunnelReportKpis(opportunities);
+
+  return {
+    data: {
+      rows: buildFunnelReportRows(opportunities),
+      kpis,
+      stages: buildFunnelReportStages(opportunities),
+      lostSummary: buildFunnelLostSummary(opportunities),
+      createdSeries: buildFunnelCreatedSeries(
+        opportunities,
+        params.periodFrom,
+        params.periodTo
+      ),
+      customers: customersResult.data ?? [],
+      members: membersResult.data ?? [],
     },
     error: null,
   };

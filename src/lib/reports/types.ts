@@ -65,6 +65,6 @@ export const REPORT_TYPE_OPTIONS: ReportTypeMeta[] = [
     id: REPORT_TYPES.funnel,
     title: "Funil comercial",
     description: "Oportunidades, etapas e conversão",
-    available: false,
+    available: true,
   },
 ];

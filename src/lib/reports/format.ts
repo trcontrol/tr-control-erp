@@ -5,6 +5,8 @@ import {
   FINANCIAL_ENTRY_TYPE_OPTIONS,
   FINANCIAL_STATUS,
   FINANCIAL_STATUS_OPTIONS,
+  OPPORTUNITY_FUNNEL_STAGE_OPTIONS,
+  OPPORTUNITY_STAGES,
   PERSON_TYPE_OPTIONS,
   PURCHASE_STATUS,
   SALE_STATUS,
@@ -19,6 +21,11 @@ import {
   toNumberAmount,
 } from "@/lib/dashboard/format";
 import type { FinancialEntryWithRelations } from "@/lib/finance/actions";
+import type { OpportunityWithRelations } from "@/lib/funnel/actions";
+import {
+  customerDisplayName,
+  opportunityStageLabel,
+} from "@/lib/funnel/format";
 import { isLowStock } from "@/lib/products/format";
 import { purchaseStatusLabel } from "@/lib/purchases/format";
 import { saleStatusLabel } from "@/lib/sales/format";
@@ -1183,4 +1190,209 @@ export function buildCustomersReportRows(
       const nameB = customerLabel(b.customer);
       return nameA.localeCompare(nameB, "pt-BR");
     });
+}
+
+/** Mesma regra do Dashboard: valor em aberto só nas 5 etapas iniciais do pipeline. */
+const FUNNEL_OPEN_PIPELINE_STAGES = new Set<string>([
+  OPPORTUNITY_STAGES.new_lead,
+  OPPORTUNITY_STAGES.contact_made,
+  OPPORTUNITY_STAGES.briefing_sent,
+  OPPORTUNITY_STAGES.proposal_sent,
+  OPPORTUNITY_STAGES.negotiation,
+]);
+
+export const FUNNEL_REPORT_STAGE_COLORS: Record<string, string> = {
+  [OPPORTUNITY_STAGES.new_lead]: "#0a1628",
+  [OPPORTUNITY_STAGES.contact_made]: "#1e4a7a",
+  [OPPORTUNITY_STAGES.briefing_sent]: "#d9487a",
+  [OPPORTUNITY_STAGES.proposal_sent]: "#f0b8c8",
+  [OPPORTUNITY_STAGES.negotiation]: "#c89b3c",
+  [OPPORTUNITY_STAGES.contract_closed]: "#d4bc6a",
+  [OPPORTUNITY_STAGES.project_in_progress]: "#c4b8a8",
+  [OPPORTUNITY_STAGES.completed]: "#9ca3af",
+  [OPPORTUNITY_STAGES.lost]: "#94a3b8",
+};
+
+export type FunnelReportKpis = {
+  totalCount: number;
+  totalValue: number;
+  openValue: number;
+  openCount: number;
+  closedCount: number;
+  lostCount: number;
+  conversionRate: number;
+  averageClosedTicket: number;
+};
+
+export type FunnelReportStageRow = {
+  stage: string;
+  label: string;
+  count: number;
+  totalValue: number;
+  percent: number;
+  color: string;
+};
+
+export type FunnelReportCreatedSeriesPoint = {
+  bucket: string;
+  createdCount: number;
+};
+
+export type FunnelReportRow = OpportunityWithRelations;
+
+export function opportunityCreatedDate(opportunity: { created_at: string }) {
+  return opportunity.created_at.slice(0, 10);
+}
+
+export function funnelOpportunityCustomerLabel(
+  opportunity: OpportunityWithRelations
+) {
+  return customerDisplayName(opportunity.customer);
+}
+
+export function funnelAssignedUserLabel(
+  opportunity: OpportunityWithRelations
+) {
+  return opportunity.assigned_user?.full_name?.trim() || "—";
+}
+
+export function formatFunnelConversionRate(value: number) {
+  if (!Number.isFinite(value)) return "0%";
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded)
+    ? `${rounded}%`
+    : `${rounded.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+}
+
+export function buildFunnelReportKpis(
+  opportunities: OpportunityWithRelations[]
+): FunnelReportKpis {
+  let totalValue = 0;
+  let openValue = 0;
+  let openCount = 0;
+  let closedCount = 0;
+  let lostCount = 0;
+  let closedValue = 0;
+
+  for (const opportunity of opportunities) {
+    const amount = toNumberAmount(opportunity.estimated_value);
+    totalValue += amount;
+
+    if (opportunity.stage === OPPORTUNITY_STAGES.contract_closed) {
+      closedCount += 1;
+      closedValue += amount;
+    }
+
+    if (opportunity.stage === OPPORTUNITY_STAGES.lost) {
+      lostCount += 1;
+    }
+
+    if (FUNNEL_OPEN_PIPELINE_STAGES.has(opportunity.stage)) {
+      openValue += amount;
+      openCount += 1;
+    }
+  }
+
+  const totalCount = opportunities.length;
+
+  return {
+    totalCount,
+    totalValue,
+    openValue,
+    openCount,
+    closedCount,
+    lostCount,
+    conversionRate: totalCount > 0 ? (closedCount / totalCount) * 100 : 0,
+    averageClosedTicket: closedCount > 0 ? closedValue / closedCount : 0,
+  };
+}
+
+export function buildFunnelReportStages(
+  opportunities: OpportunityWithRelations[]
+): FunnelReportStageRow[] {
+  const totalCount = opportunities.length;
+  const byStage = new Map<string, { count: number; totalValue: number }>();
+
+  for (const option of OPPORTUNITY_FUNNEL_STAGE_OPTIONS) {
+    byStage.set(option.value, { count: 0, totalValue: 0 });
+  }
+
+  for (const opportunity of opportunities) {
+    const bucket = byStage.get(opportunity.stage);
+    if (!bucket) continue;
+    bucket.count += 1;
+    bucket.totalValue += toNumberAmount(opportunity.estimated_value);
+  }
+
+  return OPPORTUNITY_FUNNEL_STAGE_OPTIONS.map((option) => {
+    const bucket = byStage.get(option.value) ?? { count: 0, totalValue: 0 };
+    return {
+      stage: option.value,
+      label: option.label,
+      count: bucket.count,
+      totalValue: bucket.totalValue,
+      percent:
+        totalCount > 0 ? Math.round((bucket.count / totalCount) * 100) : 0,
+      color:
+        FUNNEL_REPORT_STAGE_COLORS[option.value] ??
+        FUNNEL_REPORT_STAGE_COLORS[OPPORTUNITY_STAGES.new_lead],
+    };
+  });
+}
+
+export function buildFunnelLostSummary(
+  opportunities: OpportunityWithRelations[]
+): FunnelReportStageRow {
+  let count = 0;
+  let totalValue = 0;
+
+  for (const opportunity of opportunities) {
+    if (opportunity.stage !== OPPORTUNITY_STAGES.lost) continue;
+    count += 1;
+    totalValue += toNumberAmount(opportunity.estimated_value);
+  }
+
+  const totalCount = opportunities.length;
+
+  return {
+    stage: OPPORTUNITY_STAGES.lost,
+    label: opportunityStageLabel(OPPORTUNITY_STAGES.lost),
+    count,
+    totalValue,
+    percent: totalCount > 0 ? Math.round((count / totalCount) * 100) : 0,
+    color: FUNNEL_REPORT_STAGE_COLORS[OPPORTUNITY_STAGES.lost],
+  };
+}
+
+export function buildFunnelCreatedSeries(
+  opportunities: OpportunityWithRelations[],
+  periodFrom: string,
+  periodTo: string
+): FunnelReportCreatedSeriesPoint[] {
+  const { useDaily, buckets } = buildPeriodBuckets(periodFrom, periodTo);
+  if (!buckets.length) return [];
+
+  const createdByBucket = new Map<string, number>();
+
+  for (const opportunity of opportunities) {
+    const created = opportunityCreatedDate(opportunity);
+    if (!created || created < periodFrom || created > periodTo) continue;
+    const bucket = useDaily ? created : monthBucketFromDate(created);
+    createdByBucket.set(bucket, (createdByBucket.get(bucket) ?? 0) + 1);
+  }
+
+  return buckets.map((bucket) => ({
+    bucket,
+    createdCount: createdByBucket.get(bucket) ?? 0,
+  }));
+}
+
+export function buildFunnelReportRows(
+  opportunities: OpportunityWithRelations[]
+): FunnelReportRow[] {
+  return [...opportunities].sort((a, b) => {
+    const createdDiff = b.created_at.localeCompare(a.created_at);
+    if (createdDiff !== 0) return createdDiff;
+    return a.title.localeCompare(b.title, "pt-BR");
+  });
 }

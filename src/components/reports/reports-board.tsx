@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { CustomersReportPanel } from "@/components/reports/customers-report-panel";
 import { FinanceReportPanel } from "@/components/reports/finance-report-panel";
+import { FunnelReportPanel } from "@/components/reports/funnel-report-panel";
 import { PayablesReportPanel } from "@/components/reports/payables-report-panel";
 import { PurchasesReportPanel } from "@/components/reports/purchases-report-panel";
 import { ReceivablesReportPanel } from "@/components/reports/receivables-report-panel";
@@ -36,14 +37,17 @@ import {
   CUSTOMER_STATUS_OPTIONS,
   FINANCIAL_ENTRY_TYPE_OPTIONS,
   FINANCIAL_STATUS_OPTIONS,
+  OPPORTUNITY_STAGE_OPTIONS,
   PERSON_TYPE_OPTIONS,
   PURCHASE_STATUS_OPTIONS,
   SALE_STATUS_OPTIONS,
 } from "@/lib/constants";
 import type { FinancialEntryWithRelations } from "@/lib/finance/actions";
+import { opportunityStageLabel } from "@/lib/funnel/format";
 import {
   getCustomersReport,
   getFinanceReport,
+  getFunnelReport,
   getPayablesReport,
   getPurchasesReport,
   getReceivablesReport,
@@ -53,6 +57,7 @@ import {
 import {
   exportCustomersReportExcel,
   exportFinanceReportExcel,
+  exportFunnelReportExcel,
   exportPayablesReportExcel,
   exportPurchasesReportExcel,
   exportReceivablesReportExcel,
@@ -75,6 +80,10 @@ import {
   type CustomersSalesDistributionPoint,
   type FinanceReportKpis,
   type FinanceReportSeriesPoint,
+  type FunnelReportCreatedSeriesPoint,
+  type FunnelReportKpis,
+  type FunnelReportRow,
+  type FunnelReportStageRow,
   type PayablesReportKpis,
   type PayablesReportSeriesPoint,
   type PurchasesReportKpis,
@@ -96,6 +105,7 @@ import {
 import type { PurchaseListItem } from "@/lib/purchases/actions";
 import type { SaleListItem } from "@/lib/sales/actions";
 import type { StockMovementWithRelations } from "@/lib/stock/actions";
+import type { CompanyMemberOption } from "@/lib/tasks/actions";
 import type { Customer, Product, Supplier } from "@/types/database";
 import { useTenant } from "@/providers/tenant-provider";
 import { cn } from "@/lib/utils";
@@ -139,6 +149,8 @@ export function ReportsBoard() {
   const [personType, setPersonType] = useState("all");
   const [customerState, setCustomerState] = useState("all");
   const [customerCity, setCustomerCity] = useState("all");
+  const [funnelStage, setFunnelStage] = useState("all");
+  const [assignedUserId, setAssignedUserId] = useState("all");
 
   const [sales, setSales] = useState<SaleListItem[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -210,6 +222,17 @@ export function ReportsBoard() {
     Array<{ value: string; label: string }>
   >([]);
 
+  const [funnelRows, setFunnelRows] = useState<FunnelReportRow[]>([]);
+  const [funnelKpis, setFunnelKpis] = useState<FunnelReportKpis | null>(null);
+  const [funnelStages, setFunnelStages] = useState<FunnelReportStageRow[]>([]);
+  const [funnelLostSummary, setFunnelLostSummary] =
+    useState<FunnelReportStageRow | null>(null);
+  const [funnelCreatedSeries, setFunnelCreatedSeries] = useState<
+    FunnelReportCreatedSeriesPoint[]
+  >([]);
+  const [funnelCustomers, setFunnelCustomers] = useState<Customer[]>([]);
+  const [funnelMembers, setFunnelMembers] = useState<CompanyMemberOption[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -223,6 +246,7 @@ export function ReportsBoard() {
   const isPayablesReport = selectedReportType === REPORT_TYPES.payables;
   const isStockReport = selectedReportType === REPORT_TYPES.stock;
   const isCustomersReport = selectedReportType === REPORT_TYPES.customers;
+  const isFunnelReport = selectedReportType === REPORT_TYPES.funnel;
 
   const validatePeriod = useCallback(() => {
     if (!company?.id) {
@@ -572,6 +596,61 @@ export function ReportsBoard() {
     validatePeriod,
   ]);
 
+  const loadFunnelReport = useCallback(async () => {
+    if (!validatePeriod() || !company?.id) {
+      setFunnelRows([]);
+      setFunnelKpis(null);
+      setFunnelStages([]);
+      setFunnelLostSummary(null);
+      setFunnelCreatedSeries([]);
+      setFunnelCustomers([]);
+      setFunnelMembers([]);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const result = await getFunnelReport({
+      companyId: company.id,
+      stage: funnelStage,
+      assignedUserId,
+      customerId,
+      periodFrom,
+      periodTo,
+    });
+
+    if (result.error || !result.data) {
+      setFunnelRows([]);
+      setFunnelKpis(null);
+      setFunnelStages([]);
+      setFunnelLostSummary(null);
+      setFunnelCreatedSeries([]);
+      setFunnelCustomers([]);
+      setFunnelMembers([]);
+      setError(result.error?.message ?? "Erro ao carregar o relatório.");
+      setLoading(false);
+      return;
+    }
+
+    setFunnelRows(result.data.rows);
+    setFunnelKpis(result.data.kpis);
+    setFunnelStages(result.data.stages);
+    setFunnelLostSummary(result.data.lostSummary);
+    setFunnelCreatedSeries(result.data.createdSeries);
+    setFunnelCustomers(result.data.customers);
+    setFunnelMembers(result.data.members);
+    setLoading(false);
+  }, [
+    assignedUserId,
+    company?.id,
+    customerId,
+    funnelStage,
+    periodFrom,
+    periodTo,
+    validatePeriod,
+  ]);
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (isSalesReport) {
@@ -588,6 +667,8 @@ export function ReportsBoard() {
         void loadStockReport();
       } else if (isCustomersReport) {
         void loadCustomersReport();
+      } else if (isFunnelReport) {
+        void loadFunnelReport();
       }
     }, 200);
 
@@ -595,6 +676,7 @@ export function ReportsBoard() {
   }, [
     isCustomersReport,
     isFinanceReport,
+    isFunnelReport,
     isPayablesReport,
     isPurchasesReport,
     isReceivablesReport,
@@ -602,6 +684,7 @@ export function ReportsBoard() {
     isStockReport,
     loadCustomersReport,
     loadFinanceReport,
+    loadFunnelReport,
     loadPayablesReport,
     loadPurchasesReport,
     loadReceivablesReport,
@@ -661,7 +744,9 @@ export function ReportsBoard() {
 
   const activeCustomers = isReceivablesReport
     ? receivablesCustomers
-    : customers;
+    : isFunnelReport
+      ? funnelCustomers
+      : customers;
 
   const activeSuppliers = isPayablesReport ? payablesSuppliers : suppliers;
 
@@ -671,6 +756,20 @@ export function ReportsBoard() {
       : customerLabel(
           activeCustomers.find((item) => item.id === customerId) ?? null
         );
+
+  const funnelStageFilterLabel =
+    funnelStage === "all"
+      ? "Todas as etapas"
+      : OPPORTUNITY_STAGE_OPTIONS.find((item) => item.value === funnelStage)
+          ?.label ||
+        opportunityStageLabel(funnelStage) ||
+        funnelStage;
+
+  const assignedFilterLabel =
+    assignedUserId === "all"
+      ? "Todos os responsáveis"
+      : funnelMembers.find((item) => item.user_id === assignedUserId)
+          ?.full_name || "Responsável";
 
   const supplierFilterLabel =
     supplierId === "all"
@@ -710,9 +809,11 @@ export function ReportsBoard() {
           ? stockKpis
           : isCustomersReport
             ? customersKpis
-            : isPurchasesReport
-              ? purchasesKpis
-              : salesKpis;
+            : isFunnelReport
+              ? funnelKpis
+              : isPurchasesReport
+                ? purchasesKpis
+                : salesKpis;
   const canExport =
     !loading && !error && Boolean(activeKpis) && Boolean(company);
 
@@ -794,6 +895,20 @@ export function ReportsBoard() {
           rows: customersRows,
           kpis: customersKpis,
         });
+      } else if (isFunnelReport) {
+        if (!funnelKpis || !funnelLostSummary) return;
+        await exportFunnelReportExcel({
+          companyName: company.name,
+          periodFrom,
+          periodTo,
+          stageFilterLabel: funnelStageFilterLabel,
+          assignedFilterLabel,
+          customerFilterLabel,
+          rows: funnelRows,
+          stages: funnelStages,
+          lostSummary: funnelLostSummary,
+          kpis: funnelKpis,
+        });
       } else if (salesKpis) {
         await exportSalesReportExcel({
           companyName: company.name,
@@ -852,6 +967,8 @@ export function ReportsBoard() {
     setPersonType("all");
     setCustomerState("all");
     setCustomerCity("all");
+    setFunnelStage("all");
+    setAssignedUserId("all");
     setError(null);
   };
 
@@ -870,9 +987,11 @@ export function ReportsBoard() {
           ? "Relatório de Estoque"
           : isCustomersReport
             ? "Relatório de Clientes"
-            : isPurchasesReport
-              ? "Relatório de Compras"
-              : "Relatório de Vendas";
+            : isFunnelReport
+              ? "Relatório do Funil Comercial"
+              : isPurchasesReport
+                ? "Relatório de Compras"
+                : "Relatório de Vendas";
 
   const printMeta = isFinanceReport
     ? `Financeiro · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${entryTypeLabel} · ${statusLabel} · ${categoryFilterLabel}`
@@ -884,9 +1003,11 @@ export function ReportsBoard() {
           ? `Estoque · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${productFilterLabel} · ${categoryFilterLabel} · ${situationFilterLabel}`
           : isCustomersReport
             ? `Clientes · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customersPersonTypeLabel} · ${customersStateFilterLabel} · ${customersCityFilterLabel}`
-            : isPurchasesReport
-              ? `Compras · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel}`
-              : `Vendas · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel}`;
+            : isFunnelReport
+              ? `Funil comercial · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${funnelStageFilterLabel} · ${assignedFilterLabel} · ${customerFilterLabel}`
+              : isPurchasesReport
+                ? `Compras · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${supplierFilterLabel}`
+                : `Vendas · ${formatDateBR(periodFrom)} a ${formatDateBR(periodTo)} · ${statusLabel} · ${customerFilterLabel}`;
 
   return (
     <div id="reports-print-root" className="space-y-6">
@@ -1187,6 +1308,27 @@ export function ReportsBoard() {
           onPersonTypeChange={setPersonType}
           onStateChange={handleCustomerStateChange}
           onCityChange={setCustomerCity}
+        />
+      ) : isFunnelReport ? (
+        <FunnelReportPanel
+          companyName={company?.name ?? ""}
+          periodFrom={periodFrom}
+          periodTo={periodTo}
+          stage={funnelStage}
+          assignedUserId={assignedUserId}
+          customerId={customerId}
+          customers={funnelCustomers}
+          members={funnelMembers}
+          rows={funnelRows}
+          kpis={funnelKpis}
+          stages={funnelStages}
+          lostSummary={funnelLostSummary}
+          createdSeries={funnelCreatedSeries}
+          loading={loading}
+          error={error}
+          onStageChange={setFunnelStage}
+          onAssignedUserChange={setAssignedUserId}
+          onCustomerChange={setCustomerId}
         />
       ) : (
         <SalesReportPanel

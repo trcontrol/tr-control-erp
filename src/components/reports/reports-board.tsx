@@ -1130,11 +1130,11 @@ export function ReportsBoard() {
                 }
                 onClick={() => handleReportTypeClick(option)}
                 className={cn(
-                  "cursor-pointer rounded-2xl border p-4 text-left transition duration-200 ease-out",
+                  "relative cursor-pointer overflow-hidden rounded-2xl border-2 p-4 text-left transition duration-200 ease-out",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-gold)]/50",
                   "active:scale-[0.985]",
                   selected &&
-                    "border-[var(--brand-coral)]/55 bg-white shadow-[0_2px_10px_rgb(17_32_59/0.08)] ring-1 ring-[var(--brand-coral)]/30",
+                    "z-[1] -translate-y-px border-[var(--brand-coral)] bg-gradient-to-br from-[var(--brand-coral)]/[0.09] via-white to-white shadow-[0_6px_18px_rgb(196_147_159/0.22),0_2px_6px_rgb(17_32_59/0.06)] before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:bg-[var(--brand-coral)]",
                   !selected &&
                     !unavailable &&
                     "border-[var(--brand-navy)]/10 bg-white shadow-[0_1px_6px_rgb(17_32_59/0.04)] hover:border-[var(--brand-navy)]/18 hover:shadow-[0_2px_10px_rgb(17_32_59/0.06)]",
@@ -1149,7 +1149,7 @@ export function ReportsBoard() {
                     className={cn(
                       "flex h-10 w-10 items-center justify-center rounded-xl ring-1 ring-inset",
                       selected
-                        ? "bg-[var(--brand-coral)]/14 text-[var(--brand-coral)] ring-[var(--brand-coral)]/20"
+                        ? "bg-[var(--brand-coral)]/22 text-[var(--brand-coral)] ring-[var(--brand-coral)]/35"
                         : "bg-[var(--brand-navy)]/6 text-[var(--brand-navy)]/55 ring-[var(--brand-navy)]/8"
                     )}
                   >
@@ -1164,10 +1164,10 @@ export function ReportsBoard() {
                 </div>
                 <p
                   className={cn(
-                    "mt-3 text-sm font-semibold",
+                    "mt-3 text-sm",
                     selected
-                      ? "text-[var(--brand-navy)]"
-                      : "text-[var(--brand-navy)]/70"
+                      ? "font-bold text-[var(--brand-navy)]"
+                      : "font-semibold text-[var(--brand-navy)]/70"
                   )}
                 >
                   {option.title}

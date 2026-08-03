@@ -35,6 +35,7 @@ export const ROUTES = {
   tasks: "/tasks",
   tasksNew: "/tasks/new",
   reports: "/reports",
+  users: "/users",
   authCallback: "/api/auth/callback",
 } as const;
 

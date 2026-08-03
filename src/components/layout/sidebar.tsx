@@ -39,7 +39,7 @@ const navigation = [
   { name: "Fluxo de Caixa", href: ROUTES.cashFlow, icon: ArrowLeftRight },
   { name: "Tarefas", href: ROUTES.tasks, icon: ListTodo },
   { name: "Relatórios", href: ROUTES.reports, icon: BarChart3 },
-  { name: "Usuários", href: "/users", icon: Users },
+  { name: "Usuários", href: ROUTES.users, icon: Users },
   { name: "Configurações", href: "/settings", icon: Settings },
 ];
 

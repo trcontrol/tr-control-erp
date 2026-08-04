@@ -745,6 +745,54 @@ export type TaskUpdate = Partial<Omit<TaskInsert, "company_id">> & {
   company_id?: string;
 };
 
+export type AgendaEventStatus =
+  | "scheduled"
+  | "completed"
+  | "cancelled"
+  | string;
+
+export type AgendaEventRow = {
+  id: string;
+  company_id: string;
+  title: string;
+  description: string | null;
+  start_date: string;
+  start_time: string | null;
+  end_date: string;
+  end_time: string | null;
+  all_day: boolean;
+  status: AgendaEventStatus;
+  location: string | null;
+  assigned_user_id: string | null;
+  related_customer_id: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgendaEventInsert = {
+  id?: string;
+  company_id: string;
+  title: string;
+  description?: string | null;
+  start_date: string;
+  start_time?: string | null;
+  end_date: string;
+  end_time?: string | null;
+  all_day?: boolean;
+  status?: string;
+  location?: string | null;
+  assigned_user_id?: string | null;
+  related_customer_id?: string | null;
+  created_by: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type AgendaEventUpdate = Partial<Omit<AgendaEventInsert, "company_id">> & {
+  company_id?: string;
+};
+
 export type OpportunityStage =
   | "new_lead"
   | "contact_made"
@@ -1049,6 +1097,41 @@ export type Database = {
           },
         ];
       };
+      agenda_events: {
+        Row: AgendaEventRow;
+        Insert: AgendaEventInsert;
+        Update: AgendaEventUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "agenda_events_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agenda_events_assigned_user_id_fkey";
+            columns: ["assigned_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agenda_events_related_customer_id_fkey";
+            columns: ["related_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agenda_events_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       opportunities: {
         Row: OpportunityRow;
         Insert: OpportunityInsert;
@@ -1269,6 +1352,7 @@ export type PurchaseItem = Tables<"purchase_items">;
 export type Sale = Tables<"sales">;
 export type SaleItem = Tables<"sale_items">;
 export type Task = Tables<"tasks">;
+export type AgendaEvent = Tables<"agenda_events">;
 export type Opportunity = Tables<"opportunities">;
 export type Profile = Tables<"profiles">;
 export type CompanyMember = Tables<"company_members">;

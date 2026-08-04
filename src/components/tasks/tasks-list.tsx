@@ -11,7 +11,7 @@ import {
   Plus,
   RotateCcw,
   Search,
-  XCircle,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
 import {
   ROUTES,
   TASK_PRIORITY_OPTIONS,
@@ -32,8 +33,8 @@ import {
   taskEditPath,
 } from "@/lib/constants";
 import {
-  cancelTask,
   completeTask,
+  deleteTask,
   listTasks,
   reopenTask,
   type TaskWithRelations,
@@ -51,6 +52,147 @@ import { createClient } from "@/lib/supabase/client";
 import { useTenant } from "@/providers/tenant-provider";
 import { cn } from "@/lib/utils";
 
+function isTaskFinalized(status: string) {
+  return (
+    status === TASK_STATUS.completed || status === TASK_STATUS.cancelled
+  );
+}
+
+function DeleteTaskDialogContent({
+  task,
+  deleting,
+  onCancel,
+  onConfirm,
+}: {
+  task: TaskWithRelations;
+  deleting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const dueTime = formatTaskTime(task.due_time);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Tem certeza de que deseja excluir esta tarefa?
+      </p>
+      <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+        <p className="font-medium text-[var(--brand-navy)]">{task.title}</p>
+        <p className="mt-0.5 text-muted-foreground">
+          {formatTaskDate(task.due_date)}
+          {dueTime ? ` · ${dueTime}` : ""}
+        </p>
+      </div>
+
+      <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={deleting}
+          onClick={onCancel}
+        >
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          variant="destructive"
+          disabled={deleting}
+          onClick={onConfirm}
+        >
+          {deleting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Trash2 className="h-4 w-4" />
+          )}
+          Excluir tarefa
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function TaskRowActions({
+  task,
+  busy,
+  deleting,
+  onComplete,
+  onReopen,
+  onDelete,
+}: {
+  task: TaskWithRelations;
+  busy: boolean;
+  deleting: boolean;
+  onComplete: () => void;
+  onReopen: () => void;
+  onDelete: () => void;
+}) {
+  const finalized = isTaskFinalized(task.status);
+
+  return (
+    <div className="flex shrink-0 items-center justify-end gap-1">
+      <Button asChild variant="ghost" size="icon" className="shrink-0">
+        <Link href={taskDetailPath(task.id)} title="Visualizar">
+          <Eye className="h-4 w-4" />
+          <span className="sr-only">Visualizar</span>
+        </Link>
+      </Button>
+      <Button asChild variant="ghost" size="icon" className="shrink-0">
+        <Link href={taskEditPath(task.id)} title="Editar">
+          <Pencil className="h-4 w-4" />
+          <span className="sr-only">Editar</span>
+        </Link>
+      </Button>
+      {finalized ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          disabled={busy}
+          onClick={onReopen}
+          title="Reabrir"
+          aria-label="Reabrir"
+        >
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RotateCcw className="h-4 w-4" />
+          )}
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-emerald-600 hover:bg-emerald-100/80 hover:text-emerald-700"
+          disabled={busy}
+          onClick={onComplete}
+          title="Concluir"
+          aria-label="Concluir"
+        >
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4" />
+          )}
+        </Button>
+      )}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="shrink-0 text-muted-foreground hover:bg-rose-100/80 hover:text-rose-700"
+        disabled={busy || deleting}
+        onClick={onDelete}
+        title="Excluir"
+        aria-label="Excluir"
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
 export function TasksList() {
   const { company } = useTenant();
   const [tasks, setTasks] = useState<TaskWithRelations[]>([]);
@@ -64,6 +206,9 @@ export function TasksList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [taskPendingDelete, setTaskPendingDelete] =
+    useState<TaskWithRelations | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -135,10 +280,7 @@ export function TasksList() {
     return () => clearTimeout(timeout);
   }, [loadTasks]);
 
-  async function runAction(
-    taskId: string,
-    action: "complete" | "reopen" | "cancel"
-  ) {
+  async function runAction(taskId: string, action: "complete" | "reopen") {
     if (!company?.id) return;
 
     setActionLoadingId(taskId);
@@ -147,9 +289,7 @@ export function TasksList() {
     const result =
       action === "complete"
         ? await completeTask(company.id, taskId)
-        : action === "reopen"
-          ? await reopenTask(company.id, taskId)
-          : await cancelTask(company.id, taskId);
+        : await reopenTask(company.id, taskId);
 
     if (result.error || !result.data) {
       setError(result.error?.message ?? "Não foi possível atualizar a tarefa.");
@@ -161,6 +301,27 @@ export function TasksList() {
       current.map((task) => (task.id === taskId ? result.data! : task))
     );
     setActionLoadingId(null);
+  }
+
+  async function handleConfirmDelete() {
+    if (!company?.id || !taskPendingDelete) return;
+
+    setDeleting(true);
+    setError(null);
+
+    const result = await deleteTask(company.id, taskPendingDelete.id);
+
+    if (result.error) {
+      setError(result.error.message);
+      setDeleting(false);
+      return;
+    }
+
+    setTasks((current) =>
+      current.filter((task) => task.id !== taskPendingDelete.id)
+    );
+    setTaskPendingDelete(null);
+    setDeleting(false);
   }
 
   if (!company) {
@@ -272,8 +433,8 @@ export function TasksList() {
         </Card>
       ) : (
         <>
-          <div className="hidden overflow-hidden rounded-xl border md:block">
-            <table className="w-full text-sm">
+          <div className="hidden overflow-x-auto rounded-xl border md:block">
+            <table className="w-full min-w-[960px] text-sm">
               <thead className="bg-muted/50 text-left">
                 <tr>
                   <th className="px-4 py-3 font-medium">Tarefa</th>
@@ -282,7 +443,9 @@ export function TasksList() {
                   <th className="px-4 py-3 font-medium">Prioridade</th>
                   <th className="px-4 py-3 font-medium">Responsável</th>
                   <th className="px-4 py-3 font-medium">Cliente</th>
-                  <th className="px-4 py-3 font-medium text-right">Ações</th>
+                  <th className="px-4 py-3 font-medium text-right whitespace-nowrap">
+                    Ações
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -341,70 +504,15 @@ export function TasksList() {
                           task.related_customer?.full_name ||
                           "—"}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-1">
-                          <Button asChild variant="ghost" size="icon">
-                            <Link href={taskDetailPath(task.id)}>
-                              <Eye className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          <Button asChild variant="ghost" size="icon">
-                            <Link href={taskEditPath(task.id)}>
-                              <Pencil className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          {task.status !== TASK_STATUS.completed &&
-                          task.status !== TASK_STATUS.cancelled ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              disabled={busy}
-                              onClick={() => void runAction(task.id, "complete")}
-                              title="Concluir"
-                            >
-                              {busy ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                              )}
-                            </Button>
-                          ) : null}
-                          {task.status === TASK_STATUS.completed ||
-                          task.status === TASK_STATUS.cancelled ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              disabled={busy}
-                              onClick={() => void runAction(task.id, "reopen")}
-                              title="Reabrir"
-                            >
-                              {busy ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <RotateCcw className="h-4 w-4" />
-                              )}
-                            </Button>
-                          ) : null}
-                          {task.status !== TASK_STATUS.cancelled &&
-                          task.status !== TASK_STATUS.completed ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              disabled={busy}
-                              onClick={() => void runAction(task.id, "cancel")}
-                              title="Cancelar"
-                            >
-                              {busy ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <XCircle className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </Button>
-                          ) : null}
-                        </div>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <TaskRowActions
+                          task={task}
+                          busy={busy}
+                          deleting={deleting}
+                          onComplete={() => void runAction(task.id, "complete")}
+                          onReopen={() => void runAction(task.id, "reopen")}
+                          onDelete={() => setTaskPendingDelete(task)}
+                        />
                       </td>
                     </tr>
                   );
@@ -471,23 +579,18 @@ export function TasksList() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button asChild variant="outline" className="flex-1">
-                        <Link href={taskDetailPath(task.id)}>Ver</Link>
+                        <Link href={taskDetailPath(task.id)}>
+                          <Eye className="h-4 w-4" />
+                          Visualizar
+                        </Link>
                       </Button>
                       <Button asChild className="flex-1">
-                        <Link href={taskEditPath(task.id)}>Editar</Link>
+                        <Link href={taskEditPath(task.id)}>
+                          <Pencil className="h-4 w-4" />
+                          Editar
+                        </Link>
                       </Button>
-                      {task.status !== TASK_STATUS.completed &&
-                      task.status !== TASK_STATUS.cancelled ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="flex-1"
-                          disabled={busy}
-                          onClick={() => void runAction(task.id, "complete")}
-                        >
-                          Concluir
-                        </Button>
-                      ) : (
+                      {isTaskFinalized(task.status) ? (
                         <Button
                           type="button"
                           variant="outline"
@@ -495,21 +598,31 @@ export function TasksList() {
                           disabled={busy}
                           onClick={() => void runAction(task.id, "reopen")}
                         >
+                          <RotateCcw className="h-4 w-4" />
                           Reabrir
                         </Button>
-                      )}
-                      {task.status !== TASK_STATUS.cancelled &&
-                      task.status !== TASK_STATUS.completed ? (
+                      ) : (
                         <Button
                           type="button"
-                          variant="ghost"
-                          className="flex-1"
+                          variant="outline"
+                          className="flex-1 text-emerald-700"
                           disabled={busy}
-                          onClick={() => void runAction(task.id, "cancel")}
+                          onClick={() => void runAction(task.id, "complete")}
                         >
-                          Cancelar
+                          <CheckCircle2 className="h-4 w-4" />
+                          Concluir
                         </Button>
-                      ) : null}
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="flex-1 text-rose-700 hover:bg-rose-100/80 hover:text-rose-700"
+                        disabled={busy || deleting}
+                        onClick={() => setTaskPendingDelete(task)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Excluir
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -518,6 +631,25 @@ export function TasksList() {
           </div>
         </>
       )}
+
+      <Dialog
+        open={Boolean(taskPendingDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setTaskPendingDelete(null);
+        }}
+        title="Excluir tarefa"
+        description="Esta ação não pode ser desfeita"
+        className="max-w-md"
+      >
+        {taskPendingDelete ? (
+          <DeleteTaskDialogContent
+            task={taskPendingDelete}
+            deleting={deleting}
+            onCancel={() => setTaskPendingDelete(null)}
+            onConfirm={() => void handleConfirmDelete()}
+          />
+        ) : null}
+      </Dialog>
     </div>
   );
 }

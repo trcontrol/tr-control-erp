@@ -83,9 +83,14 @@ export function OpportunityCard({
           aria-label="Alterar etapa"
           value={opportunity.stage}
           disabled={stageLoading}
-          onChange={(event) =>
-            onStageChange(opportunity.id, event.target.value)
-          }
+          onChange={(event) => {
+            const nextStage = event.target.value;
+            // Adia a atualização para o select nativo concluir o evento
+            // antes do React desmontar o card ao trocar de coluna.
+            window.setTimeout(() => {
+              onStageChange(opportunity.id, nextStage);
+            }, 0);
+          }}
           className="h-8 text-xs"
         >
           {OPPORTUNITY_STAGE_OPTIONS.map((option) => (

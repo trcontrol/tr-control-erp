@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Filter, Loader2, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,9 +53,7 @@ export function FunnelBoard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stageLoadingId, setStageLoadingId] = useState<string | null>(null);
-  const [mobileStage, setMobileStage] = useState<string>(
-    OPPORTUNITY_STAGE_OPTIONS[0].value
-  );
+  const hasLoadedOnceRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -84,11 +82,15 @@ export function FunnelBoard() {
     if (!company?.id) {
       setOpportunities([]);
       setLoading(false);
+      hasLoadedOnceRef.current = false;
       setError("Selecione uma empresa ativa para gerenciar o funil.");
       return;
     }
 
-    setLoading(true);
+    // Evita desmontar o board (e os <select> dos cards) a cada refetch.
+    if (!hasLoadedOnceRef.current) {
+      setLoading(true);
+    }
     setError(null);
 
     const result = await listOpportunities({
@@ -109,6 +111,7 @@ export function FunnelBoard() {
     }
 
     setOpportunities(result.data);
+    hasLoadedOnceRef.current = true;
     setLoading(false);
   }, [company?.id, filters]);
 
@@ -119,15 +122,6 @@ export function FunnelBoard() {
 
     return () => clearTimeout(timeout);
   }, [loadOpportunities]);
-
-  useEffect(() => {
-    if (
-      filters.stage !== "all" &&
-      OPPORTUNITY_STAGE_OPTIONS.some((item) => item.value === filters.stage)
-    ) {
-      setMobileStage(filters.stage);
-    }
-  }, [filters.stage]);
 
   const summaries = useMemo(
     () => summarizeOpportunitiesByStage(opportunities),
@@ -211,11 +205,6 @@ export function FunnelBoard() {
           (option) => option.value === filters.stage
         );
 
-  const mobileOpportunities = opportunities.filter(
-    (item) => item.stage === mobileStage
-  );
-  const mobileSummary = summaryMap.get(mobileStage);
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -275,60 +264,24 @@ export function FunnelBoard() {
           </CardContent>
         </Card>
       ) : (
-        <>
-          <div className="lg:hidden space-y-3">
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {visibleStages.map((option) => {
-                const summary = summaryMap.get(option.value);
-                const active = mobileStage === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setMobileStage(option.value)}
-                    className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                      active
-                        ? "bg-[var(--brand-navy)] text-white"
-                        : "bg-white text-[var(--brand-navy)] ring-1 ring-[var(--brand-navy)]/10"
-                    }`}
-                  >
-                    {option.label}
-                    <span className="ml-1 opacity-80">
-                      ({summary?.count ?? 0})
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <FunnelColumn
-              stage={mobileStage}
-              opportunities={mobileOpportunities}
-              totalValue={mobileSummary?.totalValue ?? 0}
-              onStageChange={handleStageChange}
-              stageLoadingId={stageLoadingId}
-            />
-          </div>
-
-          <div className="hidden gap-3 overflow-x-auto pb-2 lg:flex lg:items-stretch">
-            {visibleStages.map((option) => {
-              const stageItems = opportunities.filter(
-                (item) => item.stage === option.value
-              );
-              const summary = summaryMap.get(option.value);
-              return (
-                <FunnelColumn
-                  key={option.value}
-                  stage={option.value}
-                  opportunities={stageItems}
-                  totalValue={summary?.totalValue ?? 0}
-                  onStageChange={handleStageChange}
-                  stageLoadingId={stageLoadingId}
-                />
-              );
-            })}
-          </div>
-        </>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {visibleStages.map((option) => {
+            const stageItems = opportunities.filter(
+              (item) => item.stage === option.value
+            );
+            const summary = summaryMap.get(option.value);
+            return (
+              <FunnelColumn
+                key={option.value}
+                stage={option.value}
+                opportunities={stageItems}
+                totalValue={summary?.totalValue ?? 0}
+                onStageChange={handleStageChange}
+                stageLoadingId={stageLoadingId}
+              />
+            );
+          })}
+        </div>
       )}
     </div>
   );

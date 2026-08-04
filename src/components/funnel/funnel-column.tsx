@@ -27,18 +27,18 @@ export function FunnelColumn({
   const accent = opportunityStageAccent(stage);
 
   return (
-    <section className="flex min-w-[260px] max-w-full flex-1 flex-col rounded-2xl bg-[var(--brand-surface-soft)]/70 ring-1 ring-[var(--brand-navy)]/6">
+    <section className="flex min-h-[280px] min-w-0 flex-col rounded-2xl bg-[var(--brand-surface-soft)]/70 ring-1 ring-[var(--brand-navy)]/6">
       <header className="space-y-1 border-b border-[var(--brand-navy)]/6 px-3.5 py-3">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className={cn("h-2.5 w-2.5 rounded-full", accent.bar)} />
-            <h2 className="text-sm font-semibold text-[var(--brand-navy)]">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", accent.bar)} />
+            <h2 className="truncate text-sm font-semibold text-[var(--brand-navy)]">
               {opportunityStageLabel(stage)}
             </h2>
           </div>
           <span
             className={cn(
-              "rounded-full px-2 py-0.5 text-[11px] font-medium",
+              "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
               accent.soft,
               accent.text
             )}
@@ -51,7 +51,7 @@ export function FunnelColumn({
         </p>
       </header>
 
-      <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-2.5">
+      <div className="flex max-h-[min(70vh,560px)] flex-1 flex-col gap-2.5 overflow-y-auto p-2.5">
         {opportunities.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[var(--brand-navy)]/12 bg-white/50 px-3 py-6 text-center text-xs text-muted-foreground">
             Nenhuma oportunidade

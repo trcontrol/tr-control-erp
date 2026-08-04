@@ -1,31 +1,45 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/middleware";
-import { ROUTES } from "@/lib/constants";
+
+/** Rotas usadas só pelo edge middleware — locais para evitar recompilação Edge ao editar constants.ts */
+const ROUTES = {
+  home: "/",
+  login: "/login",
+  register: "/register",
+  forgotPassword: "/forgot-password",
+  resetPassword: "/reset-password",
+  dashboard: "/dashboard",
+  authCallback: "/api/auth/callback",
+} as const;
 
 const PUBLIC_ROUTES = [
   ROUTES.home,
   ROUTES.login,
-  ROUTES.register,
   ROUTES.forgotPassword,
   ROUTES.resetPassword,
   ROUTES.authCallback,
 ] as const;
 
 /** Rotas de auth onde usuário logado deve ir para o dashboard */
-const AUTH_ROUTES = [
-  ROUTES.login,
-  ROUTES.register,
-  ROUTES.forgotPassword,
-] as const;
+const AUTH_ROUTES = [ROUTES.login, ROUTES.forgotPassword] as const;
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Cadastro público bloqueado: qualquer acesso a /register vai para o login.
+  if (pathname === ROUTES.register) {
+    const url = request.nextUrl.clone();
+    url.pathname = ROUTES.login;
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   const { supabase, supabaseResponse } = createClient(request);
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
   const isPublicRoute = PUBLIC_ROUTES.includes(
     pathname as (typeof PUBLIC_ROUTES)[number]
   );

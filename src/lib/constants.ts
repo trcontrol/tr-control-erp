@@ -3,6 +3,21 @@ export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "TR Control ERP";
 export const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
+/** Número WhatsApp da TR Soluções (apenas dígitos, com DDI). Ex.: 5511999999999 */
+export const TR_WHATSAPP_NUMBER =
+  process.env.NEXT_PUBLIC_TR_WHATSAPP_NUMBER ?? "";
+
+export const ACCESS_REQUEST_MESSAGE =
+  "Olá! Tenho interesse em contratar o TR Control ERP e gostaria de solicitar acesso.";
+
+/** Link wa.me para solicitar acesso comercial. Vazio se o número não estiver configurado. */
+export function getAccessRequestWhatsAppUrl() {
+  const digits = TR_WHATSAPP_NUMBER.replace(/\D/g, "");
+  if (!digits) return null;
+
+  return `https://wa.me/${digits}?text=${encodeURIComponent(ACCESS_REQUEST_MESSAGE)}`;
+}
+
 export const ROUTES = {
   home: "/",
   login: "/login",

@@ -2,9 +2,15 @@
 import Link from "next/link";
 import { Building2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { APP_NAME, ROUTES } from "@/lib/constants";
+import {
+  APP_NAME,
+  getAccessRequestWhatsAppUrl,
+  ROUTES,
+} from "@/lib/constants";
 
 export default function HomePage() {
+  const accessRequestUrl = getAccessRequestWhatsAppUrl();
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b">
@@ -17,12 +23,25 @@ export default function HomePage() {
             <Button variant="ghost" asChild>
               <Link href={ROUTES.login}>Entrar</Link>
             </Button>
-            <Button asChild>
-              <Link href={ROUTES.register}>
-                Começar grátis
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+            {accessRequestUrl ? (
+              <Button asChild>
+                <a
+                  href={accessRequestUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Solicitar acesso
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+            ) : (
+              <Button asChild>
+                <Link href={ROUTES.login}>
+                  Solicitar acesso
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            )}
           </nav>
         </div>
       </header>
@@ -37,12 +56,27 @@ export default function HomePage() {
             O {APP_NAME} centraliza finanças, estoque, vendas e equipes em uma
             plataforma SaaS segura e escalável para múltiplas empresas.
           </p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            O acesso ao TR Control ERP é liberado após a contratação.
+          </p>
           <div className="mt-10 flex items-center justify-center gap-4">
-            <Button size="lg" asChild>
-              <Link href={ROUTES.register}>Criar conta gratuita</Link>
-            </Button>
+            {accessRequestUrl ? (
+              <Button size="lg" asChild>
+                <a
+                  href={accessRequestUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Solicitar acesso
+                </a>
+              </Button>
+            ) : (
+              <Button size="lg" asChild>
+                <Link href={ROUTES.login}>Solicitar acesso</Link>
+              </Button>
+            )}
             <Button size="lg" variant="outline" asChild>
-              <Link href={ROUTES.login}>Já tenho conta</Link>
+              <Link href={ROUTES.login}>Entrar</Link>
             </Button>
           </div>
         </div>

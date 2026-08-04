@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
-import { ROUTES } from "@/lib/constants";
+import { getAccessRequestWhatsAppUrl, ROUTES } from "@/lib/constants";
 
 function getSafeRedirect(redirectTo: string | null) {
   if (!redirectTo || !redirectTo.startsWith("/") || redirectTo.startsWith("//")) {
@@ -32,6 +32,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const accessRequestUrl = getAccessRequestWhatsAppUrl();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -113,12 +114,23 @@ export function LoginForm() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Entrando..." : "Entrar"}
           </Button>
-          <p className="text-center text-sm text-muted-foreground">
-            Não tem conta?{" "}
-            <Link href={ROUTES.register} className="text-primary hover:underline">
-              Cadastre-se
-            </Link>
-          </p>
+          <div className="space-y-1 text-center text-sm text-muted-foreground">
+            {accessRequestUrl ? (
+              <a
+                href={accessRequestUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Solicitar acesso
+              </a>
+            ) : (
+              <span className="text-primary">Solicitar acesso</span>
+            )}
+            <p className="text-xs">
+              O acesso ao TR Control ERP é liberado após a contratação.
+            </p>
+          </div>
         </CardFooter>
       </form>
     </Card>

@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Search } from "lucide-react";
+import { CnpjLookupMetaInfo } from "@/components/cnpj/cnpj-lookup-meta";
+import { CnpjStateRegistrationHint } from "@/components/cnpj/cnpj-state-registration-hint";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useCnpjLookup } from "@/hooks/use-cnpj-lookup";
 import {
   BRAZILIAN_STATES,
   PERSON_TYPES,
@@ -106,6 +109,8 @@ export function SupplierForm({ mode, supplier }: SupplierFormProps) {
   const router = useRouter();
   const { company } = useTenant();
   const [form, setForm] = useState<SupplierFormState>(() => toFormState(supplier));
+  const formRef = useRef(form);
+  formRef.current = form;
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof SupplierFormState, string>>
   >({});
@@ -113,6 +118,26 @@ export function SupplierForm({ mode, supplier }: SupplierFormProps) {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [lookingUpCep, setLookingUpCep] = useState(false);
+
+  const {
+    lookingUp: lookingUpCnpj,
+    meta: cnpjMeta,
+    clearMeta: clearCnpjMeta,
+    notifyDocumentChange,
+    lookup: lookupCnpj,
+  } = useCnpjLookup({
+    getForm: () => formRef.current,
+    setForm,
+    onMessage: (message, tone) => {
+      if (tone === "success") {
+        setError(null);
+        setSuccess(message);
+      } else {
+        setSuccess(null);
+        setError(message);
+      }
+    },
+  });
 
   const isCompany = form.person_type === PERSON_TYPES.company;
 
@@ -295,6 +320,9 @@ export function SupplierForm({ mode, supplier }: SupplierFormProps) {
                       ? formatDocument(form.document, nextType)
                       : ""
                   );
+                  if (nextType !== PERSON_TYPES.company) {
+                    clearCnpjMeta();
+                  }
                 }}
               >
                 {PERSON_TYPE_OPTIONS.map((option) => (
@@ -340,20 +368,50 @@ export function SupplierForm({ mode, supplier }: SupplierFormProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="document">{isCompany ? "CNPJ" : "CPF"}</Label>
-              <Input
-                id="document"
-                value={form.document}
-                onChange={(e) =>
-                  updateField(
-                    "document",
-                    formatDocument(e.target.value, form.person_type)
-                  )
-                }
-                placeholder={
-                  isCompany ? "00.000.000/0000-00" : "000.000.000-00"
-                }
-              />
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  id="document"
+                  value={form.document}
+                  onChange={(e) => {
+                    const next = formatDocument(
+                      e.target.value,
+                      form.person_type
+                    );
+                    updateField("document", next);
+                    notifyDocumentChange(next);
+                  }}
+                  onBlur={(e) => {
+                    if (isCompany) {
+                      void lookupCnpj(e.currentTarget.value);
+                    }
+                  }}
+                  placeholder={
+                    isCompany ? "00.000.000/0000-00" : "000.000.000-00"
+                  }
+                />
+                {isCompany ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    disabled={lookingUpCnpj}
+                    onClick={() => void lookupCnpj(form.document, { force: true })}
+                  >
+                    {lookingUpCnpj ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4" />
+                    )}
+                    {lookingUpCnpj
+                      ? "Consultando..."
+                      : "Buscar dados do CNPJ"}
+                  </Button>
+                ) : null}
+              </div>
               <FieldError message={fieldErrors.document} />
+              {isCompany && cnpjMeta ? (
+                <CnpjLookupMetaInfo meta={cnpjMeta} />
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="secondary_document">
@@ -366,6 +424,9 @@ export function SupplierForm({ mode, supplier }: SupplierFormProps) {
                   updateField("secondary_document", e.target.value)
                 }
               />
+              {isCompany && cnpjMeta?.missingStateRegistration ? (
+                <CnpjStateRegistrationHint />
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="contact_name">Contato responsável</Label>

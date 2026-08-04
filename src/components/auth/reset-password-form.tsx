@@ -17,6 +17,8 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/constants";
 
+const MIN_PASSWORD_LENGTH = 8;
+
 export function ResetPasswordForm() {
   const router = useRouter();
   const [password, setPassword] = useState("");
@@ -24,29 +26,84 @@ export function ResetPasswordForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
-  const [hasSession, setHasSession] = useState(false);
+  const [hasRecoverySession, setHasRecoverySession] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
+    let cancelled = false;
 
-    async function verifySession() {
+    function markReady(hasSession: boolean) {
+      if (cancelled) return;
+      setHasRecoverySession(hasSession);
+      setCheckingSession(false);
+    }
+
+    async function establishRecoverySession() {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+      const oauthError =
+        url.searchParams.get("error_description") ??
+        url.searchParams.get("error");
+
+      if (oauthError) {
+        window.history.replaceState({}, "", ROUTES.resetPassword);
+        if (!cancelled) {
+          setError(
+            "O link de recuperação é inválido ou expirou. Solicite um novo link."
+          );
+        }
+        markReady(false);
+        return;
+      }
+
+      if (code) {
+        const { error: exchangeError } =
+          await supabase.auth.exchangeCodeForSession(code);
+        window.history.replaceState({}, "", ROUTES.resetPassword);
+
+        if (exchangeError) {
+          markReady(false);
+          return;
+        }
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      setHasSession(!!user);
-      setCheckingSession(false);
+      markReady(!!user);
     }
 
-    void verifySession();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        markReady(!!session);
+        return;
+      }
+
+      if (event === "SIGNED_IN" && session) {
+        markReady(true);
+      }
+    });
+
+    void establishRecoverySession();
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres.");
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(
+        `A senha deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`
+      );
       return;
     }
 
@@ -68,8 +125,14 @@ export function ResetPasswordForm() {
       return;
     }
 
-    router.push(ROUTES.dashboard);
-    router.refresh();
+    await supabase.auth.signOut();
+    setSuccess(true);
+    setLoading(false);
+
+    window.setTimeout(() => {
+      router.push(ROUTES.login);
+      router.refresh();
+    }, 2000);
   }
 
   if (checkingSession) {
@@ -84,7 +147,30 @@ export function ResetPasswordForm() {
     );
   }
 
-  if (!hasSession) {
+  if (success) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Senha atualizada</CardTitle>
+          <CardDescription>
+            Sua nova senha foi salva com sucesso
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md bg-primary/10 p-3 text-sm text-foreground">
+            Redirecionando para o login...
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button asChild className="w-full">
+            <Link href={ROUTES.login}>Ir para o login</Link>
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+
+  if (!hasRecoverySession) {
     return (
       <Card className="w-full max-w-md">
         <CardHeader>
@@ -93,6 +179,13 @@ export function ResetPasswordForm() {
             Solicite um novo link para redefinir sua senha
           </CardDescription>
         </CardHeader>
+        {error ? (
+          <CardContent>
+            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              {error}
+            </div>
+          </CardContent>
+        ) : null}
         <CardFooter className="flex flex-col gap-4">
           <Button asChild className="w-full">
             <Link href={ROUTES.forgotPassword}>Solicitar novo link</Link>
@@ -127,25 +220,25 @@ export function ResetPasswordForm() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              minLength={6}
+              minLength={MIN_PASSWORD_LENGTH}
               required
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirmar senha</Label>
+            <Label htmlFor="confirmPassword">Confirmar nova senha</Label>
             <Input
               id="confirmPassword"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              minLength={6}
+              minLength={MIN_PASSWORD_LENGTH}
               required
             />
           </div>
         </CardContent>
         <CardFooter>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Salvando..." : "Redefinir senha"}
+            {loading ? "Salvando..." : "Salvar nova senha"}
           </Button>
         </CardFooter>
       </form>

@@ -2,6 +2,25 @@
 
 import { cn } from "@/lib/utils";
 
+export type DashboardCardAccent =
+  | "blue"
+  | "green"
+  | "rose"
+  | "purple"
+  | "gold"
+  | "navy"
+  | "coral";
+
+const accentBarClass: Record<DashboardCardAccent, string> = {
+  blue: "bg-[#1e4a7a]",
+  green: "bg-[#6a9e88]",
+  rose: "bg-[#c05c7d]",
+  purple: "bg-[#7b6aae]",
+  gold: "bg-[var(--brand-gold)]",
+  navy: "bg-[var(--brand-navy)]",
+  coral: "bg-[var(--brand-coral)]",
+};
+
 type DashboardSectionCardProps = {
   title: string;
   description?: string;
@@ -14,6 +33,8 @@ type DashboardSectionCardProps = {
   titleClassName?: string;
   style?: React.CSSProperties;
   elevation?: "primary" | "secondary";
+  /** Barra colorida no topo do cartão (somente visual). */
+  accent?: DashboardCardAccent;
 };
 
 export function DashboardSectionCard({
@@ -28,22 +49,36 @@ export function DashboardSectionCard({
   titleClassName,
   style,
   elevation = "primary",
+  accent,
 }: DashboardSectionCardProps) {
   return (
     <section
       style={style}
       className={cn(
-        "flex h-full min-w-0 flex-col rounded-[18px] bg-card",
+        "relative flex h-full min-w-0 flex-col overflow-hidden rounded-[18px] border border-[var(--brand-navy)]/[0.06] bg-card",
         elevation === "primary"
           ? "dash-surface-primary"
           : "dash-surface-secondary",
-        "transition-shadow duration-300 ease-out hover:shadow-card-hover",
+        "shadow-[0_2px_10px_rgb(17_32_59/0.04)]",
+        "transition-[transform,box-shadow,border-color] duration-300 ease-out",
+        "hover:z-[1] hover:scale-[1.01] hover:border-[var(--brand-gold)]/35",
+        "hover:shadow-[0_8px_24px_rgb(17_32_59/0.1),0_2px_8px_rgb(200_155_60/0.08)]",
+        "motion-reduce:transition-none motion-reduce:hover:scale-100",
         className
       )}
     >
+      {accent ? (
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-x-0 top-0 z-[2] h-[3px]",
+            accentBarClass[accent]
+          )}
+        />
+      ) : null}
       <header
         className={cn(
-          "flex flex-wrap items-center justify-between gap-x-2.5 gap-y-2 px-4 pb-2.5 pt-4 sm:gap-x-3 sm:px-6 sm:pb-3 sm:pt-6",
+          "flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-3.5 pb-2 pt-3.5 sm:gap-x-3 sm:px-5 sm:pb-2.5 sm:pt-4",
           headerClassName
         )}
       >
@@ -56,7 +91,7 @@ export function DashboardSectionCard({
             ) : null}
             <h2
               className={cn(
-                "truncate text-left text-[14.5px] font-semibold tracking-tight text-[var(--brand-navy)] sm:text-[15px]",
+                "truncate text-left text-[15px] font-bold tracking-[-0.02em] text-[#0f1b33] sm:text-[16px]",
                 titleClassName
               )}
             >
@@ -64,7 +99,7 @@ export function DashboardSectionCard({
             </h2>
           </div>
           {description ? (
-            <p className="mt-1 text-left text-[12px] leading-relaxed text-muted-foreground">
+            <p className="mt-1 text-left text-[12px] leading-relaxed text-[var(--brand-navy)]/60">
               {description}
             </p>
           ) : null}
@@ -77,7 +112,7 @@ export function DashboardSectionCard({
       </header>
       <div
         className={cn(
-          "min-w-0 flex-1 px-4 pb-4 sm:px-6 sm:pb-6",
+          "min-w-0 flex-1 px-3.5 pb-3.5 sm:px-5 sm:pb-4",
           contentClassName
         )}
       >

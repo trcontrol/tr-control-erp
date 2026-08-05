@@ -7,6 +7,7 @@ import {
 import {
   compareAgendaEventsByStart,
   normalizeAgendaTime,
+  todayDateString,
 } from "@/lib/agenda/format";
 import type {
   AgendaEvent,
@@ -119,6 +120,36 @@ export async function listAgendaEvents(params: {
   events.sort(compareAgendaEventsByStart);
 
   return { data: events, error: null };
+}
+
+export async function listUpcomingAgendaEvents(
+  companyId: string,
+  limit = 5
+): Promise<Result<AgendaEventWithRelations[]>> {
+  const supabase = createClient();
+  const today = todayDateString();
+
+  const { data, error } = await supabase
+    .from("agenda_events")
+    .select(AGENDA_SELECT)
+    .eq("company_id", companyId)
+    .gte("start_date", today)
+    .order("start_date", { ascending: true })
+    .order("start_time", { ascending: true, nullsFirst: false })
+    .limit(40);
+
+  if (error) {
+    return { data: null, error: { message: mapAgendaError(error.message) } };
+  }
+
+  const events = ((data ?? []) as AgendaEventWithRelations[])
+    .filter(
+      (event) =>
+        event.status !== AGENDA_STATUS.canceled && event.status !== "cancelled"
+    )
+    .sort(compareAgendaEventsByStart);
+
+  return { data: events.slice(0, limit), error: null };
 }
 
 export async function getAgendaEvent(

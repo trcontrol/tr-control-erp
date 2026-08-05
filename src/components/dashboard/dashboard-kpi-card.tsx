@@ -82,11 +82,18 @@ export function DashboardKpiCard({
     <article
       style={style}
       className={cn(
-        "group relative flex min-h-[188px] min-w-0 flex-col overflow-hidden rounded-[20px] bg-card px-4 py-4 dash-surface-kpi sm:min-h-[236px] sm:px-7 sm:py-7",
-        "transition-shadow duration-300 ease-out hover:shadow-kpi-hover",
+        "group relative flex min-h-[188px] min-w-0 flex-col overflow-hidden rounded-[20px] border border-[var(--brand-navy)]/[0.06] bg-card px-3.5 py-3.5 dash-surface-kpi sm:min-h-[210px] sm:px-5 sm:py-5",
+        "transition-[transform,box-shadow,border-color] duration-300 ease-out",
+        "hover:z-[1] hover:scale-[1.01] hover:border-[var(--brand-gold)]/35 hover:shadow-kpi-hover",
+        "motion-reduce:hover:scale-100",
         className
       )}
     >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 z-[2] h-[3px]"
+        style={{ backgroundColor: palette.stroke }}
+      />
       <div className="relative z-[1] flex min-w-0 items-start justify-between gap-2.5 sm:gap-3">
         <span
           className={cn(

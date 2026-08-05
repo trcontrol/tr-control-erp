@@ -134,17 +134,17 @@ export function ExecutiveUpcomingTasks({
   return (
     <DashboardSectionCard
       title="Próximas tarefas"
+      accent="purple"
       elevation="secondary"
       className={cn(
         "relative h-full w-full min-w-0 overflow-hidden",
-        "border border-[var(--brand-gold)]/28 bg-[var(--brand-coral)]/[0.045]",
-        "border-l-2 border-l-[var(--brand-gold)] sm:border-l-[3px]",
-        "shadow-[0_6px_16px_rgb(11_31_58/0.08),0_20px_44px_rgb(11_31_58/0.1)]",
-        "before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-[1] before:h-0.5 before:bg-[var(--brand-coral)] sm:before:h-[3px]"
+        "border border-[#7b6aae]/28 bg-[linear-gradient(180deg,#ffffff_0%,#f8f6fc_100%)]",
+        "shadow-[0_4px_14px_rgb(123_106_174/0.08),0_14px_30px_rgb(17_32_59/0.05)]",
+        "hover:border-[#7b6aae]/45"
       )}
-      headerClassName="items-start gap-2.5 px-3.5 pb-2.5 pt-3.5 sm:items-center sm:gap-3 sm:px-5 sm:pb-3 sm:pt-4"
-      titleClassName="text-[15px] font-semibold tracking-[-0.01em] text-[var(--brand-navy)] sm:text-[16px]"
-      contentClassName="flex-none px-3.5 pb-3.5 pt-0.5 sm:px-5 sm:pb-4"
+      headerClassName="items-start gap-2 px-3.5 pb-2 pt-3 sm:items-center sm:gap-3 sm:px-5 sm:pb-2.5 sm:pt-3.5"
+      titleClassName="text-[15px] font-bold tracking-[-0.02em] text-[#0f1b33] sm:text-[16px]"
+      contentClassName="flex-none px-3.5 pb-3 pt-0.5 sm:px-5 sm:pb-3.5"
       action={
         <div className="flex max-w-full flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
           <DashboardSectionLink

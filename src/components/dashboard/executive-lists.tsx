@@ -126,7 +126,10 @@ export function ExecutiveLists({
   return (
     <DashboardSectionCard
       title="Pendências e operações"
+      accent="coral"
       elevation="secondary"
+      className="border border-[var(--brand-coral)]/20 bg-white shadow-[0_2px_12px_rgb(17_32_59/0.045)] hover:border-[var(--brand-coral)]/35"
+      titleClassName="text-[15px] font-bold tracking-[-0.02em] text-[#0f1b33]"
       action={
         <DashboardSectionLink href={ROUTES.finance}>
           Ver todas

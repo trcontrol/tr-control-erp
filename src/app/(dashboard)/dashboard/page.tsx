@@ -7,10 +7,7 @@ export const metadata = {
 
 export default function DashboardPage() {
   return (
-    <ExecutivePageShell
-      title="Dashboard Executivo"
-      description="Indicadores estratégicos para acompanhar o desempenho da sua empresa."
-    >
+    <ExecutivePageShell>
       <ExecutiveDashboardBoard />
     </ExecutivePageShell>
   );

@@ -35,6 +35,9 @@ export function ExecutiveStockSummary({
   return (
     <DashboardSectionCard
       title="Estoque"
+      accent="navy"
+      className="border border-[var(--brand-navy)]/[0.08] bg-white shadow-[0_2px_12px_rgb(17_32_59/0.045)] hover:border-[var(--brand-navy)]/20"
+      titleClassName="text-[15px] font-bold tracking-[-0.02em] text-[#0f1b33] sm:text-[16px]"
       action={
         <DashboardSectionLink href={ROUTES.stock}>
           Ver estoque

@@ -11,6 +11,7 @@ export const DASHBOARD_SECTIONS = {
   shortcuts: "shortcuts",
   tasks: "tasks",
   funnel: "funnel",
+  agenda: "agenda",
 } as const;
 
 export type DashboardSection =

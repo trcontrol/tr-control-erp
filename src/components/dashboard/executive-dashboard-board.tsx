@@ -23,6 +23,7 @@ import { ExecutiveRecentActivities } from "@/components/dashboard/executive-rece
 import { ExecutiveSalesChart } from "@/components/dashboard/executive-sales-chart";
 import { ExecutiveStockSummary } from "@/components/dashboard/executive-stock-summary";
 import { ExecutiveFunnelSummary } from "@/components/dashboard/executive-funnel-summary";
+import { ExecutiveUpcomingAgenda } from "@/components/dashboard/executive-upcoming-agenda";
 import { ExecutiveUpcomingTasks } from "@/components/dashboard/executive-upcoming-tasks";
 import { getExecutiveDashboard } from "@/lib/dashboard/actions";
 import {
@@ -81,6 +82,7 @@ export function ExecutiveDashboardBoard() {
       }),
       tasks: canViewDashboardSection(DASHBOARD_SECTIONS.tasks, { role }),
       funnel: canViewDashboardSection(DASHBOARD_SECTIONS.funnel, { role }),
+      agenda: canViewDashboardSection(DASHBOARD_SECTIONS.agenda, { role }),
     }),
     [role]
   );
@@ -122,36 +124,54 @@ export function ExecutiveDashboardBoard() {
     void loadDashboard();
   }, [loadDashboard]);
 
+  const agendaSection =
+    capabilities.agenda && company?.id ? (
+      <section className="min-w-0">
+        <div
+          className="dash-reveal w-full min-w-0"
+          style={{ animationDelay: "30ms" }}
+        >
+          <ExecutiveUpcomingAgenda companyId={company.id} />
+        </div>
+      </section>
+    ) : null;
+
   if (loading) {
     return (
-      <Card className="rounded-[16px] border-0 shadow-card">
-        <CardContent className="flex flex-col items-center justify-center gap-3 py-20 text-sm text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin text-[var(--brand-coral)]" />
-          <span>Preparando sua visão executiva...</span>
-        </CardContent>
-      </Card>
+      <div className="min-w-0 space-y-3 sm:space-y-3.5 md:space-y-4">
+        {agendaSection}
+        <Card className="rounded-[16px] border-0 shadow-card">
+          <CardContent className="flex flex-col items-center justify-center gap-3 py-20 text-sm text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin text-[var(--brand-coral)]" />
+            <span>Preparando sua visão executiva...</span>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (error || !dashboard) {
     return (
-      <Card className="rounded-[16px] border-0 shadow-card">
-        <CardHeader>
-          <CardTitle>Não foi possível carregar o dashboard</CardTitle>
-          <CardDescription>
-            {error ?? "Tente novamente em instantes."}
-          </CardDescription>
-        </CardHeader>
-        <div className="px-6 pb-6">
-          <Button
-            type="button"
-            onClick={() => void loadDashboard()}
-            className="rounded-full bg-[var(--brand-coral)] px-5 hover:bg-[var(--brand-coral)]/90"
-          >
-            Tentar novamente
-          </Button>
-        </div>
-      </Card>
+      <div className="min-w-0 space-y-3 sm:space-y-3.5 md:space-y-4">
+        {agendaSection}
+        <Card className="rounded-[16px] border-0 shadow-card">
+          <CardHeader>
+            <CardTitle>Não foi possível carregar o dashboard</CardTitle>
+            <CardDescription>
+              {error ?? "Tente novamente em instantes."}
+            </CardDescription>
+          </CardHeader>
+          <div className="px-6 pb-6">
+            <Button
+              type="button"
+              onClick={() => void loadDashboard()}
+              className="rounded-full bg-[var(--brand-coral)] px-5 hover:bg-[var(--brand-coral)]/90"
+            >
+              Tentar novamente
+            </Button>
+          </div>
+        </Card>
+      </div>
     );
   }
 
@@ -165,17 +185,19 @@ export function ExecutiveDashboardBoard() {
 
   const topGridClass =
     topVisibleCount >= 3
-      ? "grid min-w-0 grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 md:gap-5 xl:auto-rows-fr xl:grid-cols-3 xl:gap-6"
+      ? "grid min-w-0 grid-cols-1 gap-3 sm:gap-3.5 md:grid-cols-2 md:gap-3.5 xl:auto-rows-fr xl:grid-cols-3 xl:gap-4"
       : topVisibleCount === 2
-        ? "grid min-w-0 grid-cols-1 gap-4 sm:gap-5 lg:auto-rows-fr lg:grid-cols-2 lg:gap-6"
-        : "grid min-w-0 grid-cols-1 gap-4 sm:gap-5";
+        ? "grid min-w-0 grid-cols-1 gap-3 sm:gap-3.5 lg:auto-rows-fr lg:grid-cols-2 lg:gap-4"
+        : "grid min-w-0 grid-cols-1 gap-3 sm:gap-3.5";
 
   const middleCount = [capabilities.sales, capabilities.stock].filter(
     Boolean
   ).length;
 
   return (
-    <div className="min-w-0 space-y-5 md:space-y-6 xl:space-y-7">
+    <div className="min-w-0 space-y-3 sm:space-y-3.5 md:space-y-4">
+      {agendaSection}
+
       {capabilities.shortcuts ? (
         <div className="dash-reveal w-full min-w-0" style={{ animationDelay: "40ms" }}>
           <ExecutiveQuickActions />
@@ -205,7 +227,9 @@ export function ExecutiveDashboardBoard() {
               >
                 <DashboardSectionCard
                   title="Resumo financeiro"
-                  className="h-full w-full min-w-0"
+                  accent="green"
+                  className="h-full w-full min-w-0 border border-[#6a9e88]/25 bg-white shadow-[0_2px_12px_rgb(106_158_136/0.08)] hover:border-[#6a9e88]/45"
+                  titleClassName="text-[15px] font-bold tracking-[-0.02em] text-[#0f1b33] sm:text-[16px]"
                   contentClassName="min-w-0"
                 >
                   <ExecutiveFinancialDonut kpis={dashboard.kpis} />
@@ -229,9 +253,9 @@ export function ExecutiveDashboardBoard() {
         </section>
       ) : null}
 
-      <section className="min-w-0 space-y-2">
+      <section className="min-w-0 space-y-1.5">
         <div className="dash-reveal" style={{ animationDelay: "90ms" }}>
-          <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
+          <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-[var(--brand-navy)]/50 sm:text-[12px]">
             Indicadores principais
           </p>
         </div>
@@ -246,25 +270,27 @@ export function ExecutiveDashboardBoard() {
       </section>
 
       {(capabilities.sales || capabilities.stock) && (
-        <section className="mb-2 min-w-0 space-y-2.5 md:mb-4 xl:mb-5">
+        <section className="min-w-0 space-y-1.5">
           <div className="dash-reveal" style={{ animationDelay: "100ms" }}>
-            <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
+            <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-[var(--brand-navy)]/50 sm:text-[12px]">
               Resumo operacional
             </p>
           </div>
           <div
             className={
               middleCount === 2
-                ? "grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-2 xl:gap-6"
-                : "grid min-w-0 gap-4 sm:gap-5"
+                ? "grid min-w-0 gap-3 sm:gap-3.5 xl:grid-cols-2 xl:gap-4"
+                : "grid min-w-0 gap-3 sm:gap-3.5"
             }
           >
             {capabilities.sales ? (
               <div className="dash-reveal min-w-0" style={{ animationDelay: "120ms" }}>
                 <DashboardSectionCard
                   title="Evolução das vendas"
-                  titleClassName="text-[16px] font-bold tracking-[-0.02em] text-[#11203b]"
-                  className="border border-[#11203b]/[0.075] bg-white shadow-[0_1px_2px_rgb(17_32_59/0.035),0_8px_22px_rgb(17_32_59/0.055)] hover:shadow-[0_2px_6px_rgb(17_32_59/0.045),0_12px_28px_rgb(17_32_59/0.075)]"
+                  accent="gold"
+                  titleClassName="text-[16px] font-bold tracking-[-0.02em] text-[#0f1b33]"
+                  className="border border-[var(--brand-gold)]/35 bg-white shadow-[0_2px_12px_rgb(200_155_60/0.08),0_10px_24px_rgb(17_32_59/0.04)] hover:border-[var(--brand-gold)]/55"
+                  contentClassName="pt-0.5"
                 >
                   <ExecutiveSalesChart
                     series={dashboard.sales_series}
@@ -292,13 +318,13 @@ export function ExecutiveDashboardBoard() {
       )}
 
       {(capabilities.finance || capabilities.sales) && (
-        <section className="min-w-0 space-y-2.5">
+        <section className="min-w-0 space-y-1.5">
           <div className="dash-reveal" style={{ animationDelay: "260ms" }}>
-            <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
+            <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-[var(--brand-navy)]/50 sm:text-[12px]">
               Fluxo e vendas recentes
             </p>
           </div>
-          <div className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-12 xl:gap-6">
+          <div className="grid min-w-0 gap-3 sm:gap-3.5 xl:grid-cols-12 xl:gap-4">
             {capabilities.finance ? (
               <div
                 className={
@@ -310,9 +336,10 @@ export function ExecutiveDashboardBoard() {
               >
                 <DashboardSectionCard
                   title="Entradas e saídas"
-                  titleClassName="text-[16px] font-bold tracking-[-0.02em] text-[#11203b]"
-                  className="border border-[#11203b]/[0.06] bg-[#fffdfd] shadow-[0_1px_2px_rgb(17_32_59/0.03),0_8px_20px_rgb(17_32_59/0.045)] hover:shadow-[0_2px_6px_rgb(17_32_59/0.04),0_12px_26px_rgb(17_32_59/0.065)]"
-                  contentClassName="min-w-0"
+                  accent="green"
+                  titleClassName="text-[16px] font-bold tracking-[-0.02em] text-[#0f1b33]"
+                  className="border border-[#6a9e88]/25 bg-[#fffdfd] shadow-[0_2px_12px_rgb(106_158_136/0.08),0_10px_22px_rgb(17_32_59/0.04)] hover:border-[#6a9e88]/45"
+                  contentClassName="min-w-0 pt-0.5"
                 >
                   <ExecutiveCashFlowChart series={dashboard.cash_flow_series} />
                 </DashboardSectionCard>
@@ -330,8 +357,9 @@ export function ExecutiveDashboardBoard() {
               >
                 <DashboardSectionCard
                   title="Últimas vendas"
-                  titleClassName="text-[16px] font-bold tracking-[-0.02em] text-[#11203b]"
-                  className="border border-[#11203b]/[0.06] bg-[#fffdfd] shadow-[0_1px_2px_rgb(17_32_59/0.03),0_8px_20px_rgb(17_32_59/0.045)] hover:shadow-[0_2px_6px_rgb(17_32_59/0.04),0_12px_26px_rgb(17_32_59/0.065)]"
+                  accent="gold"
+                  titleClassName="text-[16px] font-bold tracking-[-0.02em] text-[#0f1b33]"
+                  className="border border-[var(--brand-gold)]/30 bg-[#fffdfd] shadow-[0_2px_12px_rgb(200_155_60/0.07),0_10px_22px_rgb(17_32_59/0.04)] hover:border-[var(--brand-gold)]/50"
                   headerClassName="items-center"
                   action={
                     <DashboardSectionLink
@@ -383,13 +411,13 @@ export function ExecutiveDashboardBoard() {
       )}
 
       {(capabilities.finance || capabilities.purchases) && (
-        <section className="min-w-0 space-y-2.5">
+        <section className="min-w-0 space-y-1.5">
           <div className="dash-reveal" style={{ animationDelay: "340ms" }}>
-            <p className="text-[13px] font-semibold text-[var(--brand-navy)]/55">
+            <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-[var(--brand-navy)]/50 sm:text-[12px]">
               Pendências e atividades
             </p>
           </div>
-          <div className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-12 xl:gap-6">
+          <div className="grid min-w-0 gap-3 sm:gap-3.5 xl:grid-cols-12 xl:gap-4">
             <div
               className={
                 capabilities.finance

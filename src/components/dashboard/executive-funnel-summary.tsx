@@ -276,6 +276,7 @@ export function ExecutiveFunnelSummary({
   return (
     <DashboardSectionCard
       title="Funil comercial"
+      accent="rose"
       elevation="primary"
       titleIcon={
         <Funnel
@@ -286,13 +287,13 @@ export function ExecutiveFunnelSummary({
       }
       className={cn(
         "relative h-full w-full min-w-0 overflow-hidden rounded-[18px]",
-        "border border-[var(--brand-navy)]/[0.05] bg-white",
-        "shadow-[0_1px_3px_rgb(17_32_59/0.03),0_6px_16px_rgb(17_32_59/0.04)]",
-        "hover:shadow-[0_1px_4px_rgb(17_32_59/0.035),0_8px_18px_rgb(17_32_59/0.05)]"
+        "border border-[#c05c7d]/18 bg-white",
+        "shadow-[0_2px_10px_rgb(17_32_59/0.04),0_8px_20px_rgb(192_92_125/0.07)]",
+        "hover:border-[#c05c7d]/35"
       )}
       headerClassName="items-center gap-2 border-b border-[var(--brand-navy)]/[0.06] px-3.5 pb-1.5 pt-3 sm:px-4 sm:pb-1.5 sm:pt-3"
-      titleClassName="text-[14.5px] font-bold tracking-[-0.015em] text-[var(--brand-navy)] sm:text-[15.5px]"
-      contentClassName="flex min-h-0 flex-1 flex-col px-3.5 pb-2.5 pt-1 sm:px-4 sm:pb-3 sm:pt-1"
+      titleClassName="text-[15px] font-bold tracking-[-0.02em] text-[#0f1b33] sm:text-[16px]"
+      contentClassName="flex min-h-0 flex-1 flex-col px-3.5 pb-2.5 pt-1 sm:px-4 sm:pb-2.5 sm:pt-1"
       action={
         <DashboardSectionLink
           href={ROUTES.funnel}

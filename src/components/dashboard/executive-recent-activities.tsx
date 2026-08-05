@@ -26,7 +26,10 @@ export function ExecutiveRecentActivities({
   return (
     <DashboardSectionCard
       title="Atividades recentes"
+      accent="green"
       elevation="secondary"
+      className="border border-[#6a9e88]/20 bg-white shadow-[0_2px_12px_rgb(17_32_59/0.045)] hover:border-[#6a9e88]/40"
+      titleClassName="text-[15px] font-bold tracking-[-0.02em] text-[#0f1b33]"
       action={
         <DashboardSectionLink href={ROUTES.cashFlow}>
           Ver todas

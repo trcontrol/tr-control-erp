@@ -1,19 +1,16 @@
-import { UsersBoard } from "@/components/users/users-board";
+import { UsersPageClient } from "@/components/users/users-page-client";
 
 export const metadata = {
   title: "Usuários",
 };
 
+/**
+ * Rota do menu lateral: ROUTES.users → "/users"
+ * Arquivo efetivo: src/app/(dashboard)/users/page.tsx
+ *
+ * O conteúdo interativo fica em UsersPageClient para não passar
+ * funções (render props) de Server Component para Client Component.
+ */
 export default function UsersPage() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Usuários</h1>
-        <p className="text-muted-foreground">
-          Gerencie os usuários e permissões da empresa ativa
-        </p>
-      </div>
-      <UsersBoard />
-    </div>
-  );
+  return <UsersPageClient />;
 }

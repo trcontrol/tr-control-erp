@@ -1,430 +1,296 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  Clock3,
-  Shield,
-  UserX,
-  Users,
-  Plus,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2, Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
-import { Dialog } from "@/components/ui/dialog";
+import { UserCard } from "@/components/users/user-card";
+import { UserEditDialog } from "@/components/users/user-edit-dialog";
+import { UserInviteDialog } from "@/components/users/user-invite-dialog";
+import { UserPermissionsDialog } from "@/components/users/user-permissions-dialog";
+import { UserStatusConfirmDialog } from "@/components/users/user-status-confirm-dialog";
+import { UserViewDialog } from "@/components/users/user-view-dialog";
+import { UsersFilters } from "@/components/users/users-filters";
+import { UsersKpiCards } from "@/components/users/users-kpi-cards";
+import { UsersPagination } from "@/components/users/users-pagination";
+import { UsersTable } from "@/components/users/users-table";
+import type { CompanyRole } from "@/lib/constants";
 import {
   computeUserKpis,
-  createMockUserId,
-  INITIAL_MOCK_USERS,
-  isEmailTaken,
-  nextStatusAfterToggle,
-  roleLabel,
-  statusLabel,
-  toggleActionLabel,
-  type MockUser,
-  type MockUserInput,
-} from "@/components/users/mock-users";
-import { UserFormDialog } from "@/components/users/user-form-dialog";
-import { UsersList } from "@/components/users/users-list";
-import { cn } from "@/lib/utils";
+  filterAndSortUsers,
+  listCompanyUsers,
+  type CompanyUser,
+} from "@/lib/users/actions";
+import {
+  USERS_PAGE_SIZE,
+  type UserSortOption,
+  type UserStatus,
+} from "@/lib/users/format";
+import type { AccessProfileId } from "@/lib/users/permissions";
 
-const KPI_META = [
-  {
-    key: "active" as const,
-    title: "Usuários ativos",
-    hint: "Com acesso liberado na empresa",
-    icon: Users,
-    tone: "positive" as const,
-  },
-  {
-    key: "administrators" as const,
-    title: "Administradores",
-    hint: "Com permissões de gestão",
-    icon: Shield,
-    tone: "default" as const,
-  },
-  {
-    key: "pending" as const,
-    title: "Usuários pendentes",
-    hint: "Aguardando confirmação de acesso",
-    icon: Clock3,
-    tone: "neutral" as const,
-  },
-  {
-    key: "inactive" as const,
-    title: "Usuários inativos",
-    hint: "Acesso temporariamente suspenso",
-    icon: UserX,
-    tone: "negative" as const,
-  },
-];
+type UsersBoardProps = {
+  companyId: string;
+  companyName: string;
+};
 
-const KPI_CARD_STYLES = {
-  positive:
-    "border-emerald-100/80 bg-gradient-to-br from-emerald-50/90 to-emerald-50/40",
-  default:
-    "border-[var(--brand-navy)]/10 bg-gradient-to-br from-[var(--brand-navy)]/[0.06] to-[var(--brand-navy)]/[0.02]",
-  neutral:
-    "border-amber-100/80 bg-gradient-to-br from-amber-50/90 to-amber-50/40",
-  negative:
-    "border-[var(--brand-coral)]/15 bg-gradient-to-br from-[var(--brand-coral)]/[0.08] to-[var(--brand-coral)]/[0.03]",
-} as const;
+export function UsersBoard({ companyId, companyName }: UsersBoardProps) {
+  const [users, setUsers] = useState<CompanyUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-const KPI_ICON_STYLES = {
-  positive:
-    "bg-emerald-100/80 text-emerald-700 ring-1 ring-inset ring-emerald-600/20",
-  default:
-    "bg-[var(--brand-navy)]/10 text-[var(--brand-navy)] ring-1 ring-inset ring-[var(--brand-navy)]/15",
-  neutral:
-    "bg-amber-100/80 text-amber-800 ring-1 ring-inset ring-amber-600/20",
-  negative:
-    "bg-[var(--brand-coral)]/15 text-[var(--brand-coral)] ring-1 ring-inset ring-[var(--brand-coral)]/20",
-} as const;
+  const [search, setSearch] = useState("");
+  const [role, setRole] = useState<CompanyRole | "all">("all");
+  const [status, setStatus] = useState<UserStatus | "all">("all");
+  const [sort, setSort] = useState<UserSortOption>("name_asc");
+  const [page, setPage] = useState(1);
 
-const KPI_VALUE_STYLES = {
-  positive: "text-emerald-800",
-  default: "text-[var(--brand-navy)]",
-  neutral: "text-amber-900",
-  negative: "text-[var(--brand-coral)]",
-} as const;
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [viewUser, setViewUser] = useState<CompanyUser | null>(null);
+  const [editUser, setEditUser] = useState<CompanyUser | null>(null);
+  const [accessUser, setAccessUser] = useState<CompanyUser | null>(null);
+  const [accessInitialProfile, setAccessInitialProfile] =
+    useState<AccessProfileId | null>(null);
+  const [statusUser, setStatusUser] = useState<CompanyUser | null>(null);
 
-export function UsersBoard() {
-  const [users, setUsers] = useState<MockUser[]>(INITIAL_MOCK_USERS);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editUser, setEditUser] = useState<MockUser | null>(null);
-  const [viewUser, setViewUser] = useState<MockUser | null>(null);
-  const [toggleUser, setToggleUser] = useState<MockUser | null>(null);
-  const [deleteUser, setDeleteUser] = useState<MockUser | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const loadUsers = useCallback(async () => {
+    if (!companyId) {
+      setUsers([]);
+      setLoading(false);
+      setError("Selecione uma empresa ativa para gerenciar usuários.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const result = await listCompanyUsers({
+      companyId,
+      companyName,
+    });
+
+    if (result.error) {
+      setUsers([]);
+      setError(result.error.message);
+      setLoading(false);
+      return;
+    }
+
+    setUsers(result.data);
+    setLoading(false);
+  }, [companyId, companyName]);
+
+  useEffect(() => {
+    void loadUsers();
+  }, [loadUsers]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, role, status, sort, companyId]);
 
   const kpis = useMemo(() => computeUserKpis(users), [users]);
-  const highlightedUserId = viewUser?.id ?? editUser?.id ?? null;
 
-  function handleCreate(values: MockUserInput) {
-    if (isEmailTaken(users, values.email)) {
-      setFormError("Já existe um usuário com este e-mail.");
-      return false;
+  const filteredUsers = useMemo(
+    () =>
+      filterAndSortUsers(users, {
+        search,
+        role,
+        status,
+        sort,
+      }),
+    [users, search, role, status, sort]
+  );
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredUsers.length / USERS_PAGE_SIZE)
+  );
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
     }
+  }, [page, totalPages]);
 
-    setUsers((current) => [
-      {
-        id: createMockUserId(),
-        name: values.name,
-        email: values.email,
-        role: values.role,
-        status: values.status,
-        lastAccess: "Nunca acessou",
-      },
-      ...current,
-    ]);
-    setFormError(null);
-    return true;
+  const pageStart = (page - 1) * USERS_PAGE_SIZE;
+  const paginatedUsers = filteredUsers.slice(
+    pageStart,
+    pageStart + USERS_PAGE_SIZE
+  );
+
+  const highlightedUserId =
+    viewUser?.id ?? editUser?.id ?? accessUser?.id ?? statusUser?.id ?? null;
+
+  function openConfigureAccess(
+    user: CompanyUser,
+    profile?: AccessProfileId
+  ) {
+    setAccessInitialProfile(profile ?? null);
+    setAccessUser(user);
   }
-
-  function handleEdit(values: MockUserInput) {
-    if (!editUser) return false;
-
-    if (isEmailTaken(users, values.email, editUser.id)) {
-      setFormError("Já existe um usuário com este e-mail.");
-      return false;
-    }
-
-    setUsers((current) =>
-      current.map((user) =>
-        user.id === editUser.id
-          ? {
-              ...user,
-              name: values.name,
-              email: values.email,
-              role: values.role,
-              status: values.status,
-            }
-          : user
-      )
-    );
-    setFormError(null);
-    setEditUser(null);
-    return true;
-  }
-
-  function handleConfirmToggle() {
-    if (!toggleUser) return;
-
-    const nextStatus = nextStatusAfterToggle(toggleUser.status);
-
-    setUsers((current) =>
-      current.map((user) =>
-        user.id === toggleUser.id ? { ...user, status: nextStatus } : user
-      )
-    );
-    setToggleUser(null);
-  }
-
-  function handleRequestDelete(user: MockUser) {
-    if (user.role === "owner") return;
-    setDeleteUser(user);
-  }
-
-  function handleConfirmDelete() {
-    if (!deleteUser || deleteUser.role === "owner") return;
-
-    setUsers((current) =>
-      current.filter((user) => user.id !== deleteUser.id)
-    );
-    setDeleteUser(null);
-
-    if (viewUser?.id === deleteUser.id) setViewUser(null);
-    if (editUser?.id === deleteUser.id) setEditUser(null);
-    if (toggleUser?.id === deleteUser.id) setToggleUser(null);
-  }
-
-  const toggleNextStatus = toggleUser
-    ? nextStatusAfterToggle(toggleUser.status)
-    : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="users-board">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
         <Button
           type="button"
           className="bg-[var(--brand-coral)] text-white shadow-sm hover:bg-[var(--brand-coral)]/90"
-          onClick={() => {
-            setFormError(null);
-            setCreateOpen(true);
-          }}
+          onClick={() => setInviteOpen(true)}
         >
           <Plus className="h-4 w-4" />
           Novo usuário
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {KPI_META.map((kpi) => {
-          const Icon = kpi.icon;
+      <UsersKpiCards kpis={kpis} loading={loading} />
 
-          return (
-            <Card
-              key={kpi.title}
-              className={cn("shadow-sm", KPI_CARD_STYLES[kpi.tone])}
+      <UsersFilters
+        search={search}
+        role={role}
+        status={status}
+        sort={sort}
+        totalFiltered={filteredUsers.length}
+        totalUsers={users.length}
+        onSearchChange={setSearch}
+        onRoleChange={setRole}
+        onStatusChange={setStatus}
+        onSortChange={setSort}
+      />
+
+      {loading ? (
+        <Card className="rounded-2xl border-[var(--brand-navy)]/10 shadow-sm">
+          <CardHeader className="items-center text-center">
+            <Loader2 className="mb-2 h-8 w-8 animate-spin text-[var(--brand-coral)]" />
+            <CardTitle>Carregando usuários</CardTitle>
+            <CardDescription>
+              Buscando os membros vinculados a {companyName}.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : error ? (
+        <Card className="rounded-2xl border-destructive/20 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-destructive">
+              Não foi possível carregar os usuários
+            </CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+          <div className="px-6 pb-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void loadUsers()}
             >
-              <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
-                <CardDescription className="text-[13px] font-medium text-[var(--brand-navy)]/65">
-                  {kpi.title}
-                </CardDescription>
-                <span
-                  className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
-                    KPI_ICON_STYLES[kpi.tone]
-                  )}
-                >
-                  <Icon className="h-[18px] w-[18px]" strokeWidth={2.15} />
-                </span>
-              </CardHeader>
-              <CardContent className="space-y-1.5">
-                <p
-                  className={cn(
-                    "text-[2rem] font-bold leading-none tracking-tight tabular-nums",
-                    KPI_VALUE_STYLES[kpi.tone]
-                  )}
-                >
-                  {kpis[kpi.key]}
-                </p>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  {kpi.hint}
-                </p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+              Tentar novamente
+            </Button>
+          </div>
+        </Card>
+      ) : filteredUsers.length === 0 ? (
+        <Card className="rounded-2xl border-[var(--brand-navy)]/10 shadow-sm">
+          <CardHeader className="items-center text-center">
+            <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand-navy)]/8">
+              <Users className="h-6 w-6 text-[var(--brand-navy)]" />
+            </div>
+            <CardTitle>
+              {users.length === 0
+                ? "Nenhum usuário vinculado"
+                : "Nenhum usuário encontrado"}
+            </CardTitle>
+            <CardDescription>
+              {users.length === 0
+                ? "Use Novo usuário para convidar o primeiro membro quando a migration estiver autorizada."
+                : "Ajuste a busca ou os filtros para visualizar outros usuários."}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : (
+        <>
+          <UsersTable
+            users={paginatedUsers}
+            highlightedUserId={highlightedUserId}
+            onView={setViewUser}
+            onEdit={setEditUser}
+            onConfigureAccess={(user) => openConfigureAccess(user)}
+            onToggleStatus={setStatusUser}
+          />
 
-      <UsersList
-        users={users}
-        highlightedUserId={highlightedUserId}
-        onView={setViewUser}
-        onEdit={(user) => {
-          setFormError(null);
-          setEditUser(user);
-        }}
-        onToggleStatus={setToggleUser}
-        onDelete={handleRequestDelete}
+          <div className="grid gap-3 md:hidden">
+            {paginatedUsers.map((user) => (
+              <UserCard
+                key={user.id}
+                user={user}
+                onView={setViewUser}
+                onEdit={setEditUser}
+                onConfigureAccess={(item) => openConfigureAccess(item)}
+                onToggleStatus={setStatusUser}
+              />
+            ))}
+          </div>
+
+          <UsersPagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={filteredUsers.length}
+            pageSize={USERS_PAGE_SIZE}
+            onPageChange={setPage}
+          />
+        </>
+      )}
+
+      <UserInviteDialog
+        companyId={companyId}
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
       />
 
-      <UserFormDialog
-        open={createOpen}
-        mode="create"
-        error={formError}
-        onOpenChange={(open) => {
-          setCreateOpen(open);
-          if (!open) setFormError(null);
-        }}
-        onSubmit={handleCreate}
-      />
-
-      <UserFormDialog
-        open={Boolean(editUser)}
-        mode="edit"
-        user={editUser}
-        error={formError}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditUser(null);
-            setFormError(null);
-          }
-        }}
-        onSubmit={handleEdit}
-      />
-
-      <Dialog
+      <UserViewDialog
+        user={viewUser}
         open={Boolean(viewUser)}
         onOpenChange={(open) => {
           if (!open) setViewUser(null);
         }}
-        title="Detalhes do usuário"
-        description="Visualização somente leitura dos dados locais"
-        className="max-w-lg"
-      >
-        {viewUser ? (
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Nome completo
-                </p>
-                <p className="text-sm font-medium text-[var(--brand-navy)]">
-                  {viewUser.name}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">
-                  E-mail
-                </p>
-                <p className="text-sm">{viewUser.email}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Perfil
-                </p>
-                <p className="text-sm">{roleLabel(viewUser.role)}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Status
-                </p>
-                <p className="text-sm">{statusLabel(viewUser.status)}</p>
-              </div>
-              <div className="space-y-1 sm:col-span-2">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Último acesso
-                </p>
-                <p className="text-sm">{viewUser.lastAccess}</p>
-              </div>
-            </div>
+        onEdit={setEditUser}
+        onConfigureAccess={(user) => openConfigureAccess(user)}
+      />
 
-            <div className="flex justify-end border-t pt-4">
-              <Button type="button" onClick={() => setViewUser(null)}>
-                Fechar
-              </Button>
-            </div>
-          </div>
-        ) : null}
-      </Dialog>
-
-      <Dialog
-        open={Boolean(toggleUser)}
+      <UserEditDialog
+        user={editUser}
+        open={Boolean(editUser)}
         onOpenChange={(open) => {
-          if (!open) setToggleUser(null);
+          if (!open) setEditUser(null);
         }}
-        title={
-          toggleUser
-            ? `${toggleActionLabel(toggleUser.status)} usuário`
-            : "Alterar status"
-        }
-        description="Confirme a alteração de status na lista local"
-        className="max-w-md"
-      >
-        {toggleUser && toggleNextStatus ? (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Deseja{" "}
-              <span className="font-medium text-foreground">
-                {toggleActionLabel(toggleUser.status).toLowerCase()}
-              </span>{" "}
-              o usuário{" "}
-              <span className="font-medium text-[var(--brand-navy)]">
-                {toggleUser.name}
-              </span>
-              ? O status passará de{" "}
-              <span className="font-medium text-foreground">
-                {statusLabel(toggleUser.status)}
-              </span>{" "}
-              para{" "}
-              <span className="font-medium text-foreground">
-                {statusLabel(toggleNextStatus)}
-              </span>
-              .
-            </p>
+        onSaved={() => {
+          void loadUsers();
+        }}
+        onConfigureAccess={(user, profile) => {
+          setEditUser(null);
+          openConfigureAccess(user, profile);
+        }}
+      />
 
-            <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setToggleUser(null)}
-              >
-                Cancelar
-              </Button>
-              <Button type="button" onClick={handleConfirmToggle}>
-                Confirmar
-              </Button>
-            </div>
-          </div>
-        ) : null}
-      </Dialog>
-
-      <Dialog
-        open={Boolean(deleteUser)}
+      <UserPermissionsDialog
+        user={accessUser}
+        open={Boolean(accessUser)}
+        initialProfile={accessInitialProfile}
         onOpenChange={(open) => {
-          if (!open) setDeleteUser(null);
+          if (!open) {
+            setAccessUser(null);
+            setAccessInitialProfile(null);
+          }
         }}
-        title="Excluir usuário"
-        description="Esta ação remove o usuário apenas da lista local"
-        className="max-w-md"
-      >
-        {deleteUser ? (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Tem certeza de que deseja excluir este usuário?
-            </p>
-            <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
-              <p className="font-medium text-[var(--brand-navy)]">
-                {deleteUser.name}
-              </p>
-              <p className="mt-0.5 text-muted-foreground">{deleteUser.email}</p>
-            </div>
+      />
 
-            <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDeleteUser(null)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleConfirmDelete}
-              >
-                Excluir usuário
-              </Button>
-            </div>
-          </div>
-        ) : null}
-      </Dialog>
+      <UserStatusConfirmDialog
+        user={statusUser}
+        open={Boolean(statusUser)}
+        onOpenChange={(open) => {
+          if (!open) setStatusUser(null);
+        }}
+      />
     </div>
   );
 }

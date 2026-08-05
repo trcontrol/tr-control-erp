@@ -747,8 +747,11 @@ export type TaskUpdate = Partial<Omit<TaskInsert, "company_id">> & {
 
 export type AgendaEventStatus =
   | "scheduled"
+  | "confirmed"
+  | "in_progress"
   | "completed"
-  | "cancelled"
+  | "canceled"
+  | "rescheduled"
   | string;
 
 export type AgendaEventRow = {

@@ -49,6 +49,8 @@ export const ROUTES = {
   cashFlow: "/cash-flow",
   tasks: "/tasks",
   tasksNew: "/tasks/new",
+  agenda: "/agenda",
+  agendaNew: "/agenda/new",
   reports: "/reports",
   users: "/users",
   settings: "/settings",
@@ -125,6 +127,14 @@ export function taskDetailPath(id: string) {
 
 export function taskEditPath(id: string) {
   return `/tasks/${id}/edit`;
+}
+
+export function agendaDetailPath(id: string) {
+  return `/agenda/${id}`;
+}
+
+export function agendaEditPath(id: string) {
+  return `/agenda/${id}/edit`;
 }
 
 /** Etapas do funil comercial + Perdido (preservado, fora da sequência principal). */
@@ -212,6 +222,27 @@ export const TASK_PRIORITY_OPTIONS = [
   { value: TASK_PRIORITY.medium, label: "Média" },
   { value: TASK_PRIORITY.high, label: "Alta" },
   { value: TASK_PRIORITY.urgent, label: "Urgente" },
+] as const;
+
+export const AGENDA_STATUS = {
+  scheduled: "scheduled",
+  confirmed: "confirmed",
+  in_progress: "in_progress",
+  completed: "completed",
+  canceled: "canceled",
+  rescheduled: "rescheduled",
+} as const;
+
+export type AgendaStatusValue =
+  (typeof AGENDA_STATUS)[keyof typeof AGENDA_STATUS];
+
+export const AGENDA_STATUS_OPTIONS = [
+  { value: AGENDA_STATUS.scheduled, label: "Agendado" },
+  { value: AGENDA_STATUS.confirmed, label: "Confirmado" },
+  { value: AGENDA_STATUS.in_progress, label: "Em andamento" },
+  { value: AGENDA_STATUS.completed, label: "Concluído" },
+  { value: AGENDA_STATUS.canceled, label: "Cancelado" },
+  { value: AGENDA_STATUS.rescheduled, label: "Reagendado" },
 ] as const;
 
 export const PRODUCT_IMAGES_BUCKET = "product-images";

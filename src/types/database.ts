@@ -6,11 +6,15 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+export type CompanyPlanId = "essential" | "professional" | "premium";
+export type CompanyStatusId = "active" | "suspended";
+
 export type CompanyRow = {
   id: string;
   name: string;
   slug: string;
-  plan: string;
+  plan: CompanyPlanId | string;
+  status: CompanyStatusId | string;
   logo_url: string | null;
   legal_name: string | null;
   cnpj: string | null;
@@ -39,7 +43,8 @@ export type CompanyInsert = {
   id?: string;
   name: string;
   slug: string;
-  plan?: string;
+  plan?: CompanyPlanId | string;
+  status?: CompanyStatusId | string;
   logo_url?: string | null;
   legal_name?: string | null;
   cnpj?: string | null;
@@ -68,7 +73,8 @@ export type CompanyUpdate = {
   id?: string;
   name?: string;
   slug?: string;
-  plan?: string;
+  plan?: CompanyPlanId | string;
+  status?: CompanyStatusId | string;
   logo_url?: string | null;
   legal_name?: string | null;
   cnpj?: string | null;
@@ -855,6 +861,38 @@ export type Database = {
         Update: CompanyUpdate;
         Relationships: [];
       };
+      platform_admins: {
+        Row: {
+          user_id: string;
+          is_active: boolean;
+          notes: string | null;
+          created_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          user_id: string;
+          is_active?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          user_id?: string;
+          is_active?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "platform_admins_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       customers: {
         Row: CustomerRow;
         Insert: CustomerInsert;
@@ -1200,6 +1238,8 @@ export type Database = {
           company_id: string;
           user_id: string;
           role: string;
+          status: string;
+          access_profile: string;
           created_at: string;
         };
         Insert: {
@@ -1207,6 +1247,8 @@ export type Database = {
           company_id: string;
           user_id: string;
           role?: string;
+          status?: string;
+          access_profile?: string;
           created_at?: string;
         };
         Update: {
@@ -1214,6 +1256,8 @@ export type Database = {
           company_id?: string;
           user_id?: string;
           role?: string;
+          status?: string;
+          access_profile?: string;
           created_at?: string;
         };
         Relationships: [
@@ -1229,6 +1273,132 @@ export type Database = {
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      company_invites: {
+        Row: {
+          id: string;
+          company_id: string;
+          email: string;
+          full_name: string | null;
+          role: string;
+          access_profile: string;
+          invited_by: string | null;
+          token: string;
+          status: string;
+          expires_at: string;
+          permissions: Json;
+          is_initial_owner: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          email: string;
+          full_name?: string | null;
+          role?: string;
+          access_profile?: string;
+          invited_by?: string | null;
+          token: string;
+          status?: string;
+          expires_at: string;
+          permissions?: Json;
+          is_initial_owner?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          company_id?: string;
+          email?: string;
+          full_name?: string | null;
+          role?: string;
+          access_profile?: string;
+          invited_by?: string | null;
+          token?: string;
+          status?: string;
+          expires_at?: string;
+          permissions?: Json;
+          is_initial_owner?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "company_invites_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "company_invites_invited_by_fkey";
+            columns: ["invited_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      member_permissions: {
+        Row: {
+          id: string;
+          company_id: string;
+          membership_id: string;
+          module: string;
+          can_view: boolean;
+          can_create: boolean;
+          can_edit: boolean;
+          can_delete: boolean;
+          can_export: boolean;
+          scope: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          membership_id: string;
+          module: string;
+          can_view?: boolean;
+          can_create?: boolean;
+          can_edit?: boolean;
+          can_delete?: boolean;
+          can_export?: boolean;
+          scope?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          company_id?: string;
+          membership_id?: string;
+          module?: string;
+          can_view?: boolean;
+          can_create?: boolean;
+          can_edit?: boolean;
+          can_delete?: boolean;
+          can_export?: boolean;
+          scope?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "member_permissions_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "member_permissions_membership_id_fkey";
+            columns: ["membership_id"];
+            isOneToOne: false;
+            referencedRelation: "company_members";
             referencedColumns: ["id"];
           },
         ];
@@ -1331,6 +1501,41 @@ export type Database = {
         };
         Returns: string;
       };
+      is_platform_admin: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      create_company_with_owner_invite: {
+        Args: {
+          p_name: string;
+          p_legal_name: string | null;
+          p_slug: string;
+          p_cnpj: string | null;
+          p_email: string | null;
+          p_phone: string | null;
+          p_plan: string;
+          p_status: string;
+          p_owner_full_name: string | null;
+          p_owner_email: string;
+          p_permissions: Json;
+        };
+        Returns: {
+          company_id: string;
+          invite_id: string;
+        };
+      };
+      update_company_plan_status: {
+        Args: {
+          p_company_id: string;
+          p_plan: string;
+          p_status: string;
+        };
+        Returns: {
+          company_id: string;
+          plan: string;
+          status: string;
+        };
+      };
     };
     Enums: {
       [_ in never]: never;
@@ -1359,3 +1564,5 @@ export type AgendaEvent = Tables<"agenda_events">;
 export type Opportunity = Tables<"opportunities">;
 export type Profile = Tables<"profiles">;
 export type CompanyMember = Tables<"company_members">;
+export type CompanyInvite = Tables<"company_invites">;
+export type MemberPermission = Tables<"member_permissions">;

@@ -29,7 +29,7 @@ const KPI_META = [
   {
     key: "pending" as const,
     title: "Convites pendentes",
-    hint: "Aguardando confirmação",
+    hint: "Aguardando confirmação (reservam vaga)",
     icon: Clock3,
     tone: "soft" as const,
   },

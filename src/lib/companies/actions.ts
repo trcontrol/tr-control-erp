@@ -1,32 +1,9 @@
 import { createClient } from "@/lib/supabase/client";
-import type { Company, CompanyUpdate } from "@/types/database";
 
-type UpdateCompanyResult =
-  | { data: Company; error: null }
-  | { data: null; error: { message: string } };
-
-export async function updateCompanyRecord(
-  companyId: string,
-  payload: CompanyUpdate
-): Promise<UpdateCompanyResult> {
-  const supabase = createClient();
-
-  // Cast necessário: tipagem do cliente Supabase pode inferir Update como never
-  // quando o schema local cresce além do gerado automaticamente.
-  const { data, error } = await supabase
-    .from("companies")
-    .update(payload as never)
-    .eq("id", companyId)
-    .select("*")
-    .single();
-
-  if (error) {
-    return { data: null, error: { message: error.message } };
-  }
-
-  return { data: data as Company, error: null };
-}
-
+/**
+ * Upload de logo (Storage). A gravação de logo_url em companies
+ * deve passar por updateCompanySettingsAction (settings.edit).
+ */
 export async function uploadCompanyLogo(
   companyId: string,
   file: File,

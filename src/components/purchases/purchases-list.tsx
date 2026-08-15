@@ -30,11 +30,14 @@ import {
   purchaseStatusLabel,
 } from "@/lib/purchases/format";
 import { listSuppliers } from "@/lib/suppliers/actions";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
 import { useTenant } from "@/providers/tenant-provider";
 import type { Supplier } from "@/types/database";
 
 export function PurchasesList() {
-  const { company } = useTenant();
+  const { company, creatableModules, editableModules } = useTenant();
+  const canCreate = creatableModules.includes(PERMISSION_MODULES.purchases);
+  const canEdit = editableModules.includes(PERMISSION_MODULES.purchases);
   const [purchases, setPurchases] = useState<PurchaseListItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [search, setSearch] = useState("");
@@ -113,12 +116,14 @@ export function PurchasesList() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button asChild>
-          <Link href={ROUTES.purchasesNew}>
-            <Plus className="h-4 w-4" />
-            Nova compra
-          </Link>
-        </Button>
+        {canCreate ? (
+          <Button asChild>
+            <Link href={ROUTES.purchasesNew}>
+              <Plus className="h-4 w-4" />
+              Nova compra
+            </Link>
+          </Button>
+        ) : null}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -179,14 +184,16 @@ export function PurchasesList() {
               Cadastre a primeira compra da empresa {company.name}.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-center pb-6">
-            <Button asChild>
-              <Link href={ROUTES.purchasesNew}>
-                <Plus className="h-4 w-4" />
-                Nova compra
-              </Link>
-            </Button>
-          </CardContent>
+          {canCreate ? (
+            <CardContent className="flex justify-center pb-6">
+              <Button asChild>
+                <Link href={ROUTES.purchasesNew}>
+                  <Plus className="h-4 w-4" />
+                  Nova compra
+                </Link>
+              </Button>
+            </CardContent>
+          ) : null}
         </Card>
       ) : (
         <>
@@ -229,7 +236,8 @@ export function PurchasesList() {
                             <Eye className="h-4 w-4" />
                           </Link>
                         </Button>
-                        {purchase.status === PURCHASE_STATUS.draft ? (
+                        {canEdit &&
+                        purchase.status === PURCHASE_STATUS.draft ? (
                           <Button asChild variant="ghost" size="icon">
                             <Link href={purchaseEditPath(purchase.id)}>
                               <Pencil className="h-4 w-4" />

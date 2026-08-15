@@ -30,7 +30,7 @@ import {
   ROUTES,
   financeDetailPath,
 } from "@/lib/constants";
-import type { FinancialEntryWithRelations } from "@/lib/finance/actions";
+import type { FinancialEntryWithRelations } from "@/lib/finance/entry-query";
 import {
   financeEntryTypeLabel,
   financeStatusLabel,

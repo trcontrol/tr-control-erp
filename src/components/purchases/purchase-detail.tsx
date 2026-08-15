@@ -39,6 +39,8 @@ import {
   purchaseStatusLabel,
 } from "@/lib/purchases/format";
 import { formatStockQuantity } from "@/lib/products/format";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
+import { useTenant } from "@/providers/tenant-provider";
 
 type PurchaseDetailProps = {
   purchase: PurchaseWithRelations;
@@ -62,6 +64,9 @@ function InfoItem({
 
 export function PurchaseDetail({ purchase, companyId }: PurchaseDetailProps) {
   const router = useRouter();
+  const { editableModules, deletableModules } = useTenant();
+  const canEdit = editableModules.includes(PERMISSION_MODULES.purchases);
+  const canDelete = deletableModules.includes(PERMISSION_MODULES.purchases);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -157,57 +162,63 @@ export function PurchaseDetail({ purchase, companyId }: PurchaseDetailProps) {
           <div className="flex flex-wrap gap-2">
             {isDraft ? (
               <>
-                <Button asChild variant="outline">
-                  <Link href={purchaseEditPath(current.id)}>
-                    <Pencil className="h-4 w-4" />
-                    Editar
-                  </Link>
-                </Button>
-                <Button
-                  onClick={() => void handleConfirm()}
-                  disabled={loadingAction !== null}
-                >
-                  {loadingAction === "confirm" ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
-                  )}
-                  Confirmar compra
-                </Button>
-                {!confirmingDelete ? (
-                  <Button
-                    variant="destructive"
-                    onClick={() => setConfirmingDelete(true)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Excluir
+                {canEdit ? (
+                  <Button asChild variant="outline">
+                    <Link href={purchaseEditPath(current.id)}>
+                      <Pencil className="h-4 w-4" />
+                      Editar
+                    </Link>
                   </Button>
-                ) : (
-                  <>
+                ) : null}
+                {canEdit ? (
+                  <Button
+                    onClick={() => void handleConfirm()}
+                    disabled={loadingAction !== null}
+                  >
+                    {loadingAction === "confirm" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
+                    Confirmar compra
+                  </Button>
+                ) : null}
+                {canDelete ? (
+                  !confirmingDelete ? (
                     <Button
                       variant="destructive"
-                      disabled={loadingAction !== null}
-                      onClick={() => void handleDelete()}
+                      onClick={() => setConfirmingDelete(true)}
                     >
-                      {loadingAction === "delete" ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                      Confirmar exclusão
+                      <Trash2 className="h-4 w-4" />
+                      Excluir
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setConfirmingDelete(false)}
-                    >
-                      Voltar
-                    </Button>
-                  </>
-                )}
+                  ) : (
+                    <>
+                      <Button
+                        variant="destructive"
+                        disabled={loadingAction !== null}
+                        onClick={() => void handleDelete()}
+                      >
+                        {loadingAction === "delete" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                        Confirmar exclusão
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setConfirmingDelete(false)}
+                      >
+                        Voltar
+                      </Button>
+                    </>
+                  )
+                ) : null}
               </>
             ) : null}
 
-            {isConfirmed ? (
+            {isConfirmed && canEdit ? (
               !confirmingCancel ? (
                 <Button
                   variant="destructive"

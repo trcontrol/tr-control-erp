@@ -18,6 +18,8 @@ import {
   todayDateString,
 } from "@/lib/agenda/format";
 import { cn } from "@/lib/utils";
+import { useTenant } from "@/providers/tenant-provider";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
 
 type ExecutiveUpcomingAgendaProps = {
   companyId: string;
@@ -44,6 +46,8 @@ const eventCardClass = cn(
 export function ExecutiveUpcomingAgenda({
   companyId,
 }: ExecutiveUpcomingAgendaProps) {
+  const { creatableModules } = useTenant();
+  const canCreate = creatableModules.includes(PERMISSION_MODULES.agenda);
   const [events, setEvents] = useState<AgendaEventWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,12 +102,14 @@ export function ExecutiveUpcomingAgenda({
       contentClassName="flex-none px-3.5 pb-3 pt-0.5 sm:px-5 sm:pb-3.5"
       action={
         <div className="flex max-w-full flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
-          <DashboardSectionLink
-            href={ROUTES.agendaNew}
-            className="rounded-full bg-[var(--brand-coral)] px-3 py-1.5 text-[12px] font-semibold text-white shadow-[0_2px_8px_rgb(196_147_159/0.35)] transition-all duration-200 hover:bg-[var(--brand-coral)]/90 hover:text-white hover:shadow-[0_4px_12px_rgb(196_147_159/0.4)] sm:px-3.5 sm:text-[12.5px]"
-          >
-            Novo compromisso
-          </DashboardSectionLink>
+          {canCreate ? (
+            <DashboardSectionLink
+              href={ROUTES.agendaNew}
+              className="rounded-full bg-[var(--brand-coral)] px-3 py-1.5 text-[12px] font-semibold text-white shadow-[0_2px_8px_rgb(196_147_159/0.35)] transition-all duration-200 hover:bg-[var(--brand-coral)]/90 hover:text-white hover:shadow-[0_4px_12px_rgb(196_147_159/0.4)] sm:px-3.5 sm:text-[12.5px]"
+            >
+              Novo compromisso
+            </DashboardSectionLink>
+          ) : null}
           <DashboardSectionLink
             href={ROUTES.agenda}
             className="rounded-full border border-[var(--brand-gold)]/55 bg-white px-3 py-1.5 text-[12px] font-semibold text-[var(--brand-navy)]/80 shadow-[0_1px_3px_rgb(11_31_58/0.04)] transition-all duration-200 hover:border-[var(--brand-gold)] hover:bg-[var(--brand-gold)]/[0.06] hover:text-[var(--brand-navy)] sm:px-3.5 sm:text-[12.5px]"
@@ -151,13 +157,15 @@ export function ExecutiveUpcomingAgenda({
               Organize a agenda da empresa criando um novo compromisso.
             </p>
           </div>
-          <DashboardSectionLink
-            href={ROUTES.agendaNew}
-            className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-coral)] px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors duration-200 hover:bg-[var(--brand-coral)]/90 hover:text-white"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Adicionar compromisso
-          </DashboardSectionLink>
+          {canCreate ? (
+            <DashboardSectionLink
+              href={ROUTES.agendaNew}
+              className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-coral)] px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors duration-200 hover:bg-[var(--brand-coral)]/90 hover:text-white"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Adicionar compromisso
+            </DashboardSectionLink>
+          ) : null}
         </div>
       ) : (
         <div className="flex min-w-0 flex-col gap-2.5 md:flex-row md:overflow-x-auto md:pb-1">

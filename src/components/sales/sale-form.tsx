@@ -38,6 +38,7 @@ import {
   todayISODate,
   toNumberAmount,
 } from "@/lib/sales/format";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
 import { useTenant } from "@/providers/tenant-provider";
 import type { Customer, Product } from "@/types/database";
 
@@ -71,7 +72,10 @@ function createEmptyItem(): DraftItem {
 
 export function SaleForm({ mode, sale }: SaleFormProps) {
   const router = useRouter();
-  const { company } = useTenant();
+  const { company, creatableModules, editableModules } = useTenant();
+  const canCreate = creatableModules.includes(PERMISSION_MODULES.sales);
+  const canEdit = editableModules.includes(PERMISSION_MODULES.sales);
+  const actionAllowed = mode === "create" ? canCreate : canEdit;
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [customerId, setCustomerId] = useState(sale?.customer_id ?? "");
@@ -213,6 +217,15 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
       return;
     }
 
+    if (!actionAllowed) {
+      setError(
+        mode === "create"
+          ? "Você não tem permissão para criar vendas."
+          : "Você não tem permissão para editar vendas."
+      );
+      return;
+    }
+
     const nextErrors: Record<string, string> = {};
     if (!saleDate) nextErrors.saleDate = "Campo obrigatório";
 
@@ -296,6 +309,13 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
   return (
     <>
       <form className="space-y-6" onSubmit={(e) => void handleSubmit(e)}>
+        {!actionAllowed ? (
+          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            {mode === "create"
+              ? "Você não tem permissão para criar vendas."
+              : "Você não tem permissão para editar vendas."}
+          </div>
+        ) : null}
         {error ? (
           <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
             {error}
@@ -561,7 +581,7 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading || loadingOptions}>
+            <Button type="submit" disabled={loading || loadingOptions || !actionAllowed}>
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (

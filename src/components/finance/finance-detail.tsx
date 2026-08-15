@@ -26,7 +26,10 @@ import {
   markFinancialEntrySettled,
   type FinancialEntryWithRelations,
 } from "@/lib/finance/actions";
+import { canHardDeleteFinancialEntry } from "@/lib/finance/delete-guard";
 import { formatCurrency, formatDateBR } from "@/lib/finance/format";
+import { useTenant } from "@/providers/tenant-provider";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
 
 type FinanceDetailProps = {
   entry: FinancialEntryWithRelations;
@@ -57,6 +60,11 @@ function InfoItem({
 
 export function FinanceDetail({ entry, companyId }: FinanceDetailProps) {
   const router = useRouter();
+  const { editableModules, deletableModules } = useTenant();
+  const canEdit = editableModules.includes(PERMISSION_MODULES.finance);
+  const canDelete =
+    deletableModules.includes(PERMISSION_MODULES.finance) &&
+    canHardDeleteFinancialEntry(entry);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [loading, setLoading] = useState(false);
   const [settling, setSettling] = useState(false);
@@ -65,8 +73,9 @@ export function FinanceDetail({ entry, companyId }: FinanceDetailProps) {
 
   const isPayable = entry.entry_type === "payable";
   const canSettle =
-    entry.status === FINANCIAL_STATUS.pending ||
-    entry.status === FINANCIAL_STATUS.overdue;
+    canEdit &&
+    (entry.status === FINANCIAL_STATUS.pending ||
+      entry.status === FINANCIAL_STATUS.overdue);
 
   async function handleDelete() {
     setLoading(true);
@@ -143,43 +152,47 @@ export function FinanceDetail({ entry, companyId }: FinanceDetailProps) {
                 {isPayable ? "Marcar como pago" : "Marcar como recebido"}
               </Button>
             ) : null}
-            <Button asChild variant="outline">
-              <Link href={financeEditPath(entry.id)}>
-                <Pencil className="h-4 w-4" />
-                Editar
-              </Link>
-            </Button>
-            {!confirmingDelete ? (
-              <Button
-                variant="destructive"
-                onClick={() => setConfirmingDelete(true)}
-              >
-                <Trash2 className="h-4 w-4" />
-                Excluir
+            {canEdit ? (
+              <Button asChild variant="outline">
+                <Link href={financeEditPath(entry.id)}>
+                  <Pencil className="h-4 w-4" />
+                  Editar
+                </Link>
               </Button>
-            ) : (
-              <>
+            ) : null}
+            {canDelete ? (
+              !confirmingDelete ? (
                 <Button
                   variant="destructive"
-                  disabled={loading}
-                  onClick={() => void handleDelete()}
+                  onClick={() => setConfirmingDelete(true)}
                 >
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  Confirmar exclusão
+                  <Trash2 className="h-4 w-4" />
+                  Excluir
                 </Button>
-                <Button
-                  variant="outline"
-                  disabled={loading}
-                  onClick={() => setConfirmingDelete(false)}
-                >
-                  Cancelar
-                </Button>
-              </>
-            )}
+              ) : (
+                <>
+                  <Button
+                    variant="destructive"
+                    disabled={loading}
+                    onClick={() => void handleDelete()}
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    Confirmar exclusão
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={loading}
+                    onClick={() => setConfirmingDelete(false)}
+                  >
+                    Cancelar
+                  </Button>
+                </>
+              )
+            ) : null}
           </div>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

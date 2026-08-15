@@ -38,6 +38,7 @@ import {
 } from "@/lib/dashboard/format";
 import { ROUTES, saleDetailPath } from "@/lib/constants";
 import { useTenant } from "@/providers/tenant-provider";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
 import type { ExecutiveDashboard } from "@/types/database";
 
 const RECENT_SALE_AVATAR_TONES = [
@@ -62,7 +63,7 @@ function saleAvatarTone(name: string) {
 }
 
 export function ExecutiveDashboardBoard() {
-  const { company, role } = useTenant();
+  const { company, allowedModules, creatableModules } = useTenant();
   const period = useMemo(() => currentMonthPeriod(), []);
   const [dashboard, setDashboard] = useState<ExecutiveDashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,20 +72,38 @@ export function ExecutiveDashboardBoard() {
 
   const capabilities = useMemo(
     () => ({
-      finance: canViewDashboardSection(DASHBOARD_SECTIONS.finance, { role }),
-      sales: canViewDashboardSection(DASHBOARD_SECTIONS.sales, { role }),
+      finance: canViewDashboardSection(DASHBOARD_SECTIONS.finance, {
+        allowedModules,
+      }),
+      sales: canViewDashboardSection(DASHBOARD_SECTIONS.sales, {
+        allowedModules,
+      }),
       purchases: canViewDashboardSection(DASHBOARD_SECTIONS.purchases, {
-        role,
+        allowedModules,
       }),
-      stock: canViewDashboardSection(DASHBOARD_SECTIONS.stock, { role }),
+      stock: canViewDashboardSection(DASHBOARD_SECTIONS.stock, {
+        allowedModules,
+      }),
+      cashFlow: canViewDashboardSection(DASHBOARD_SECTIONS.cashFlow, {
+        allowedModules,
+      }),
       shortcuts: canViewDashboardSection(DASHBOARD_SECTIONS.shortcuts, {
-        role,
+        allowedModules,
       }),
-      tasks: canViewDashboardSection(DASHBOARD_SECTIONS.tasks, { role }),
-      funnel: canViewDashboardSection(DASHBOARD_SECTIONS.funnel, { role }),
-      agenda: canViewDashboardSection(DASHBOARD_SECTIONS.agenda, { role }),
+      tasks: canViewDashboardSection(DASHBOARD_SECTIONS.tasks, {
+        allowedModules,
+      }),
+      funnel: canViewDashboardSection(DASHBOARD_SECTIONS.funnel, {
+        allowedModules,
+      }),
+      agenda: canViewDashboardSection(DASHBOARD_SECTIONS.agenda, {
+        allowedModules,
+      }),
+      canCreateSales: creatableModules.includes(
+        PERMISSION_MODULES.sales
+      ),
     }),
-    [role]
+    [allowedModules, creatableModules]
   );
 
   const loadDashboard = useCallback(async () => {
@@ -253,21 +272,25 @@ export function ExecutiveDashboardBoard() {
         </section>
       ) : null}
 
-      <section className="min-w-0 space-y-1.5">
-        <div className="dash-reveal" style={{ animationDelay: "90ms" }}>
-          <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-[var(--brand-navy)]/50 sm:text-[12px]">
-            Indicadores principais
-          </p>
-        </div>
-        <ExecutiveKpiGrid
-          kpis={dashboard.kpis}
-          cashFlowSeries={dashboard.cash_flow_series}
-          salesSeries={dashboard.sales_series}
-          showFinance={capabilities.finance}
-          showSales={capabilities.sales}
-          showPurchases={capabilities.purchases}
-        />
-      </section>
+      {(capabilities.finance ||
+        capabilities.sales ||
+        capabilities.purchases) && (
+        <section className="min-w-0 space-y-1.5">
+          <div className="dash-reveal" style={{ animationDelay: "90ms" }}>
+            <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-[var(--brand-navy)]/50 sm:text-[12px]">
+              Indicadores principais
+            </p>
+          </div>
+          <ExecutiveKpiGrid
+            kpis={dashboard.kpis}
+            cashFlowSeries={dashboard.cash_flow_series}
+            salesSeries={dashboard.sales_series}
+            showFinance={capabilities.finance}
+            showSales={capabilities.sales}
+            showPurchases={capabilities.purchases}
+          />
+        </section>
+      )}
 
       {(capabilities.sales || capabilities.stock) && (
         <section className="min-w-0 space-y-1.5">
@@ -317,7 +340,7 @@ export function ExecutiveDashboardBoard() {
         </section>
       )}
 
-      {(capabilities.finance || capabilities.sales) && (
+      {(capabilities.cashFlow || capabilities.sales) && (
         <section className="min-w-0 space-y-1.5">
           <div className="dash-reveal" style={{ animationDelay: "260ms" }}>
             <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-[var(--brand-navy)]/50 sm:text-[12px]">
@@ -325,7 +348,7 @@ export function ExecutiveDashboardBoard() {
             </p>
           </div>
           <div className="grid min-w-0 gap-3 sm:gap-3.5 xl:grid-cols-12 xl:gap-4">
-            {capabilities.finance ? (
+            {capabilities.cashFlow ? (
               <div
                 className={
                   capabilities.sales
@@ -349,7 +372,7 @@ export function ExecutiveDashboardBoard() {
             {capabilities.sales ? (
               <div
                 className={
-                  capabilities.finance
+                  capabilities.cashFlow
                     ? "dash-reveal min-w-0 xl:col-span-5"
                     : "dash-reveal min-w-0 xl:col-span-12"
                 }
@@ -375,12 +398,14 @@ export function ExecutiveDashboardBoard() {
                       <p className="text-sm font-medium text-[#11203b]/55">
                         Nenhuma venda registrada no período.
                       </p>
-                      <Link
-                        href={ROUTES.salesNew}
-                        className="rounded-full px-3 py-1 text-[12px] font-semibold text-[#c05c7d] transition-colors duration-200 hover:bg-[#e8c9d1]/40 hover:text-[#c89b3c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b3c]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdfd]"
-                      >
-                        Nova venda
-                      </Link>
+                      {capabilities.canCreateSales ? (
+                        <Link
+                          href={ROUTES.salesNew}
+                          className="rounded-full px-3 py-1 text-[12px] font-semibold text-[#c05c7d] transition-colors duration-200 hover:bg-[#e8c9d1]/40 hover:text-[#c89b3c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b3c]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdfd]"
+                        >
+                          Nova venda
+                        </Link>
+                      ) : null}
                     </div>
                   ) : (
                     <div className="divide-y divide-[#11203b]/[0.045]">

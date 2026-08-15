@@ -24,6 +24,8 @@ import {
   taskStatusLabel,
 } from "@/lib/tasks/format";
 import { cn } from "@/lib/utils";
+import { useTenant } from "@/providers/tenant-provider";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
 
 type ExecutiveUpcomingTasksProps = {
   companyId: string;
@@ -83,6 +85,8 @@ const miniCardClass = cn(
 export function ExecutiveUpcomingTasks({
   companyId,
 }: ExecutiveUpcomingTasksProps) {
+  const { creatableModules } = useTenant();
+  const canCreate = creatableModules.includes(PERMISSION_MODULES.tasks);
   const [tasks, setTasks] = useState<TaskWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -147,12 +151,14 @@ export function ExecutiveUpcomingTasks({
       contentClassName="flex-none px-3.5 pb-3 pt-0.5 sm:px-5 sm:pb-3.5"
       action={
         <div className="flex max-w-full flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
-          <DashboardSectionLink
-            href={ROUTES.tasksNew}
-            className="rounded-full bg-[var(--brand-coral)] px-3 py-1.5 text-[12px] font-semibold text-white shadow-[0_2px_8px_rgb(196_147_159/0.35)] transition-all duration-200 hover:bg-[var(--brand-coral)]/90 hover:text-white hover:shadow-[0_4px_12px_rgb(196_147_159/0.4)] sm:px-3.5 sm:text-[12.5px]"
-          >
-            Nova tarefa
-          </DashboardSectionLink>
+          {canCreate ? (
+            <DashboardSectionLink
+              href={ROUTES.tasksNew}
+              className="rounded-full bg-[var(--brand-coral)] px-3 py-1.5 text-[12px] font-semibold text-white shadow-[0_2px_8px_rgb(196_147_159/0.35)] transition-all duration-200 hover:bg-[var(--brand-coral)]/90 hover:text-white hover:shadow-[0_4px_12px_rgb(196_147_159/0.4)] sm:px-3.5 sm:text-[12.5px]"
+            >
+              Nova tarefa
+            </DashboardSectionLink>
+          ) : null}
           <DashboardSectionLink
             href={ROUTES.tasks}
             className="rounded-full border border-[var(--brand-gold)]/55 bg-white px-3 py-1.5 text-[12px] font-semibold text-[var(--brand-navy)]/75 shadow-[0_1px_3px_rgb(11_31_58/0.04)] transition-all duration-200 hover:border-[var(--brand-gold)] hover:bg-[var(--brand-gold)]/[0.06] hover:text-[var(--brand-navy)] sm:px-3.5 sm:text-[12.5px]"
@@ -196,13 +202,15 @@ export function ExecutiveUpcomingTasks({
               Organize sua rotina criando uma nova tarefa.
             </p>
           </div>
-          <DashboardSectionLink
-            href={ROUTES.tasksNew}
-            className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-coral)] px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors duration-200 hover:bg-[var(--brand-coral)]/90 hover:text-white"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Criar tarefa
-          </DashboardSectionLink>
+          {canCreate ? (
+            <DashboardSectionLink
+              href={ROUTES.tasksNew}
+              className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-coral)] px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors duration-200 hover:bg-[var(--brand-coral)]/90 hover:text-white"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Criar tarefa
+            </DashboardSectionLink>
+          ) : null}
         </div>
       ) : (
         <div

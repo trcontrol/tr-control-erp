@@ -8,7 +8,6 @@ import {
   ACCESS_PROFILE_OPTIONS,
   ACCESS_PROFILES,
   PERMISSION_ACTIONS,
-  PERMISSION_MODULE_CATALOG,
   PERMISSION_SCOPE_OPTIONS,
   type AccessProfileId,
   type ModulePermissionState,
@@ -16,15 +15,21 @@ import {
   applyFullAccess,
   applyReadOnlyAccess,
   isCriticalOwnerModule,
-  permissionsForProfile,
   protectPrimaryOwnerPermissions,
   setPermissionAction,
 } from "@/lib/users/permissions";
+import {
+  catalogModulesForPlan,
+  intersectPermissionsWithPlan,
+  permissionsForProfileInPlan,
+} from "@/lib/plans/access";
 import { cn } from "@/lib/utils";
 
 type UserAccessPermissionsFormProps = {
   accessProfile: AccessProfileId;
   permissions: ModulePermissionState[];
+  /** Plano da empresa ativa — limita módulos exibidos/editáveis */
+  plan: string;
   onAccessProfileChange: (profile: AccessProfileId) => void;
   onPermissionsChange: (permissions: ModulePermissionState[]) => void;
   protectPrimaryOwner?: boolean;
@@ -67,6 +72,7 @@ function ActionCheckbox({
 export function UserAccessPermissionsForm({
   accessProfile,
   permissions,
+  plan,
   onAccessProfileChange,
   onPermissionsChange,
   protectPrimaryOwner = false,
@@ -75,9 +81,17 @@ export function UserAccessPermissionsForm({
   onError,
   idPrefix = "access",
 }: UserAccessPermissionsFormProps) {
+  const moduleCatalog = useMemo(() => catalogModulesForPlan(plan), [plan]);
+
   const moduleById = useMemo(
-    () => new Map(PERMISSION_MODULE_CATALOG.map((item) => [item.id, item])),
-    []
+    () => new Map(moduleCatalog.map((item) => [item.id, item])),
+    [moduleCatalog]
+  );
+
+  const visiblePermissions = useMemo(
+    () =>
+      permissions.filter((item) => moduleById.has(item.module)),
+    [permissions, moduleById]
   );
 
   function withOwnerProtection(next: ModulePermissionState[]) {
@@ -97,7 +111,7 @@ export function UserAccessPermissionsForm({
   function handleProfileChange(profile: AccessProfileId) {
     onAccessProfileChange(profile);
     onPermissionsChange(
-      withOwnerProtection(permissionsForProfile(profile))
+      withOwnerProtection(permissionsForProfileInPlan(profile, plan))
     );
     onError?.(null);
   }
@@ -177,7 +191,10 @@ export function UserAccessPermissionsForm({
             variant="outline"
             size="sm"
             onClick={() => {
-              updatePermissions(applyFullAccess(), false);
+              updatePermissions(
+                intersectPermissionsWithPlan(applyFullAccess(), plan),
+                false
+              );
               onAccessProfileChange(ACCESS_PROFILES.administrator);
               onError?.(null);
             }}
@@ -189,7 +206,9 @@ export function UserAccessPermissionsForm({
             variant="outline"
             size="sm"
             onClick={() => {
-              updatePermissions(applyReadOnlyAccess());
+              updatePermissions(
+                intersectPermissionsWithPlan(applyReadOnlyAccess(), plan)
+              );
               onError?.(null);
             }}
           >
@@ -245,7 +264,7 @@ export function UserAccessPermissionsForm({
               </tr>
             </thead>
             <tbody>
-              {permissions.map((permission) => {
+              {visiblePermissions.map((permission) => {
                 const moduleConfig = moduleById.get(permission.module);
                 if (!moduleConfig) return null;
 
@@ -277,18 +296,22 @@ export function UserAccessPermissionsForm({
                       />
                     </td>
                     <td className="px-3 py-3">
-                      <ActionCheckbox
-                        label="Criar"
-                        checked={permission.create}
-                        disabled={writeDisabled}
-                        onChange={(value) =>
-                          handleActionChange(
-                            permission.module,
-                            PERMISSION_ACTIONS.create,
-                            value
-                          )
-                        }
-                      />
+                      {moduleConfig.supportsCreateDelete === false ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        <ActionCheckbox
+                          label="Criar"
+                          checked={permission.create}
+                          disabled={writeDisabled}
+                          onChange={(value) =>
+                            handleActionChange(
+                              permission.module,
+                              PERMISSION_ACTIONS.create,
+                              value
+                            )
+                          }
+                        />
+                      )}
                     </td>
                     <td className="px-3 py-3">
                       <ActionCheckbox
@@ -305,18 +328,22 @@ export function UserAccessPermissionsForm({
                       />
                     </td>
                     <td className="px-3 py-3">
-                      <ActionCheckbox
-                        label="Excluir"
-                        checked={permission.delete}
-                        disabled={writeDisabled}
-                        onChange={(value) =>
-                          handleActionChange(
-                            permission.module,
-                            PERMISSION_ACTIONS.delete,
-                            value
-                          )
-                        }
-                      />
+                      {moduleConfig.supportsCreateDelete === false ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        <ActionCheckbox
+                          label="Excluir"
+                          checked={permission.delete}
+                          disabled={writeDisabled}
+                          onChange={(value) =>
+                            handleActionChange(
+                              permission.module,
+                              PERMISSION_ACTIONS.delete,
+                              value
+                            )
+                          }
+                        />
+                      )}
                     </td>
                     <td className="px-3 py-3">
                       {moduleConfig.supportsExport ? (

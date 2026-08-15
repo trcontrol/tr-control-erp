@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PendingInvitesPanel } from "@/components/users/pending-invites-panel";
 import { UserCard } from "@/components/users/user-card";
 import { UserEditDialog } from "@/components/users/user-edit-dialog";
 import { UserInviteDialog } from "@/components/users/user-invite-dialog";
@@ -20,6 +21,11 @@ import { UsersKpiCards } from "@/components/users/users-kpi-cards";
 import { UsersPagination } from "@/components/users/users-pagination";
 import { UsersTable } from "@/components/users/users-table";
 import type { CompanyRole } from "@/lib/constants";
+import { getCompanySeatUsageAction } from "@/lib/plans/seat-actions";
+import {
+  seatLimitReachedMessage,
+  type SeatUsageSnapshot,
+} from "@/lib/plans/limits";
 import {
   computeUserKpis,
   filterAndSortUsers,
@@ -50,12 +56,32 @@ export function UsersBoard({ companyId, companyName }: UsersBoardProps) {
   const [page, setPage] = useState(1);
 
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [invitesRefreshKey, setInvitesRefreshKey] = useState(0);
   const [viewUser, setViewUser] = useState<CompanyUser | null>(null);
   const [editUser, setEditUser] = useState<CompanyUser | null>(null);
   const [accessUser, setAccessUser] = useState<CompanyUser | null>(null);
   const [accessInitialProfile, setAccessInitialProfile] =
     useState<AccessProfileId | null>(null);
   const [statusUser, setStatusUser] = useState<CompanyUser | null>(null);
+  const [seats, setSeats] = useState<SeatUsageSnapshot | null>(null);
+  const [seatsLoading, setSeatsLoading] = useState(true);
+
+  const loadSeats = useCallback(async () => {
+    if (!companyId) {
+      setSeats(null);
+      setSeatsLoading(false);
+      return;
+    }
+    setSeatsLoading(true);
+    const result = await getCompanySeatUsageAction(companyId);
+    if (result.error) {
+      setSeats(null);
+      setSeatsLoading(false);
+      return;
+    }
+    setSeats(result.data);
+    setSeatsLoading(false);
+  }, [companyId]);
 
   const loadUsers = useCallback(async () => {
     if (!companyId) {
@@ -82,7 +108,8 @@ export function UsersBoard({ companyId, companyName }: UsersBoardProps) {
 
     setUsers(result.data);
     setLoading(false);
-  }, [companyId, companyName]);
+    void loadSeats();
+  }, [companyId, companyName, loadSeats]);
 
   useEffect(() => {
     void loadUsers();
@@ -92,7 +119,12 @@ export function UsersBoard({ companyId, companyName }: UsersBoardProps) {
     setPage(1);
   }, [search, role, status, sort, companyId]);
 
-  const kpis = useMemo(() => computeUserKpis(users), [users]);
+  const kpis = useMemo(
+    () => computeUserKpis(users, seats?.pendingValidInvites ?? 0),
+    [users, seats?.pendingValidInvites]
+  );
+
+  const atSeatLimit = Boolean(seats?.isAtLimit);
 
   const filteredUsers = useMemo(
     () =>
@@ -135,18 +167,51 @@ export function UsersBoard({ companyId, companyName }: UsersBoardProps) {
 
   return (
     <div className="space-y-6" data-testid="users-board">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-        <Button
-          type="button"
-          className="bg-[var(--brand-coral)] text-white shadow-sm hover:bg-[var(--brand-coral)]/90"
-          onClick={() => setInviteOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Novo usuário
-        </Button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <p className="text-sm font-medium text-[var(--brand-navy)]">
+            Usuários do plano
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {seatsLoading || !seats
+              ? "Calculando vagas..."
+              : `${seats.usedSeats} de ${seats.maxUsers} vagas utilizadas` +
+                (seats.pendingValidInvites > 0
+                  ? ` (${seats.activeMembers} ativos + ${seats.pendingValidInvites} convite${seats.pendingValidInvites === 1 ? "" : "s"} pendente${seats.pendingValidInvites === 1 ? "" : "s"})`
+                  : ` (${seats.activeMembers} ativos)`)}
+          </p>
+        </div>
+        <div className="flex flex-col items-stretch gap-2 sm:items-end">
+          <Button
+            type="button"
+            className="bg-[var(--brand-coral)] text-white shadow-sm hover:bg-[var(--brand-coral)]/90"
+            disabled={atSeatLimit}
+            title={
+              atSeatLimit && seats ? seatLimitReachedMessage(seats) : undefined
+            }
+            onClick={() => setInviteOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Novo usuário
+          </Button>
+          {atSeatLimit && seats ? (
+            <p className="max-w-md text-xs text-amber-900 sm:text-right">
+              {seatLimitReachedMessage(seats)}
+            </p>
+          ) : null}
+        </div>
       </div>
 
-      <UsersKpiCards kpis={kpis} loading={loading} />
+      <UsersKpiCards kpis={kpis} loading={loading || seatsLoading} />
+
+      <PendingInvitesPanel
+        companyId={companyId}
+        refreshKey={invitesRefreshKey}
+        onInvitesChanged={() => {
+          void loadSeats();
+          void loadUsers();
+        }}
+      />
 
       <UsersFilters
         search={search}
@@ -245,6 +310,11 @@ export function UsersBoard({ companyId, companyName }: UsersBoardProps) {
         companyId={companyId}
         open={inviteOpen}
         onOpenChange={setInviteOpen}
+        onInvited={() => {
+          setInvitesRefreshKey((value) => value + 1);
+          void loadUsers();
+          void loadSeats();
+        }}
       />
 
       <UserViewDialog
@@ -265,6 +335,7 @@ export function UsersBoard({ companyId, companyName }: UsersBoardProps) {
         }}
         onSaved={() => {
           void loadUsers();
+          void loadSeats();
         }}
         onConfigureAccess={(user, profile) => {
           setEditUser(null);
@@ -282,6 +353,9 @@ export function UsersBoard({ companyId, companyName }: UsersBoardProps) {
             setAccessInitialProfile(null);
           }
         }}
+        onSaved={() => {
+          void loadUsers();
+        }}
       />
 
       <UserStatusConfirmDialog
@@ -289,6 +363,10 @@ export function UsersBoard({ companyId, companyName }: UsersBoardProps) {
         open={Boolean(statusUser)}
         onOpenChange={(open) => {
           if (!open) setStatusUser(null);
+        }}
+        onSaved={() => {
+          void loadUsers();
+          void loadSeats();
         }}
       />
     </div>

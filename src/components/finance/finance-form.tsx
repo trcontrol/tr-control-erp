@@ -39,6 +39,7 @@ import {
 import { listCustomers } from "@/lib/customers/actions";
 import { listSuppliers } from "@/lib/suppliers/actions";
 import { useTenant } from "@/providers/tenant-provider";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
 import type {
   Customer,
   FinancialEntry,
@@ -106,7 +107,10 @@ function FieldError({ message }: { message?: string }) {
 
 export function FinanceForm({ mode, entry, defaultType }: FinanceFormProps) {
   const router = useRouter();
-  const { company } = useTenant();
+  const { company, creatableModules, editableModules } = useTenant();
+  const canCreate = creatableModules.includes(PERMISSION_MODULES.finance);
+  const canEdit = editableModules.includes(PERMISSION_MODULES.finance);
+  const actionAllowed = mode === "create" ? canCreate : canEdit;
   const [form, setForm] = useState<FinanceFormState>(() =>
     toFormState(entry, defaultType)
   );
@@ -166,6 +170,15 @@ export function FinanceForm({ mode, entry, defaultType }: FinanceFormProps) {
 
     if (!company?.id) {
       setError("Selecione uma empresa ativa.");
+      return;
+    }
+
+    if (!actionAllowed) {
+      setError(
+        mode === "create"
+          ? "Você não tem permissão para criar lançamentos."
+          : "Você não tem permissão para editar lançamentos."
+      );
       return;
     }
 
@@ -243,6 +256,13 @@ export function FinanceForm({ mode, entry, defaultType }: FinanceFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {!actionAllowed ? (
+        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          {mode === "create"
+            ? "Você não tem permissão para criar lançamentos financeiros."
+            : "Você não tem permissão para editar lançamentos financeiros."}
+        </div>
+      ) : null}
       {error && (
         <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           {error}
@@ -493,7 +513,7 @@ export function FinanceForm({ mode, entry, defaultType }: FinanceFormProps) {
           >
             Cancelar
           </Button>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading || !actionAllowed}>
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (

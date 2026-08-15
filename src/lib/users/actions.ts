@@ -7,19 +7,18 @@ import {
   type UserSortOption,
 } from "@/lib/users/format";
 import {
-  ACCESS_PROFILES,
   type AccessProfileId,
+  companyRoleForAccessProfile,
   deriveAccessProfileFromRole,
-  type ModulePermissionState,
+  isAccessProfileId,
 } from "@/lib/users/permissions";
 import type { Profile } from "@/types/database";
+
+export { companyRoleForAccessProfile };
 
 type Result<T> =
   | { data: T; error: null }
   | { data: null; error: { message: string } };
-
-export const USERS_SCHEMA_REQUIRED =
-  "Esta ação depende da migration de status, perfis e permissões. A interface já está pronta — autorize a migration para persistir.";
 
 export type CompanyUser = {
   id: string;
@@ -55,6 +54,8 @@ type MemberRow = {
   company_id: string;
   user_id: string;
   role: string;
+  status: string | null;
+  access_profile: string | null;
   created_at: string;
   profile: ProfilePreview | ProfilePreview[] | null;
 };
@@ -74,12 +75,12 @@ function isCompanyRole(value: string): value is CompanyRole {
   );
 }
 
-/**
- * Etapa 2 (sem migration): membros vinculados = ativos.
- * Status real virá com coluna dedicada.
- */
-function deriveUserStatus(): UserStatus {
-  return USER_STATUS.active;
+function isUserStatus(value: string): value is UserStatus {
+  return (
+    value === USER_STATUS.active ||
+    value === USER_STATUS.inactive ||
+    value === USER_STATUS.pending
+  );
 }
 
 function mapMemberToCompanyUser(
@@ -94,6 +95,12 @@ function mapMemberToCompanyUser(
     profile?.full_name?.trim() ||
     currentUserEmailById.get(row.user_id) ||
     "Usuário sem nome";
+  const status =
+    row.status && isUserStatus(row.status) ? row.status : USER_STATUS.active;
+  const accessProfile =
+    row.access_profile && isAccessProfileId(row.access_profile)
+      ? row.access_profile
+      : deriveAccessProfileFromRole(role);
 
   return {
     id: row.id,
@@ -103,24 +110,26 @@ function mapMemberToCompanyUser(
     email: currentUserEmailById.get(row.user_id) ?? null,
     avatarUrl: profile?.avatar_url ?? null,
     role,
-    accessProfile: deriveAccessProfileFromRole(role),
+    accessProfile,
     companyId: row.company_id,
     companyName,
-    status: deriveUserStatus(),
+    status,
     createdAt: row.created_at,
     isPrimaryOwner: role === COMPANY_ROLES.owner,
     isCurrentUser: row.user_id === currentUserId,
   };
 }
 
-export function computeUserKpis(users: CompanyUser[]): CompanyUserKpis {
+export function computeUserKpis(
+  users: CompanyUser[],
+  pendingValidInvites = 0
+): CompanyUserKpis {
   return {
     total: users.length,
     active: users.filter((user) => user.status === USER_STATUS.active).length,
     inactive: users.filter((user) => user.status === USER_STATUS.inactive)
       .length,
-    pending: users.filter((user) => user.status === USER_STATUS.pending)
-      .length,
+    pending: pendingValidInvites,
   };
 }
 
@@ -205,6 +214,8 @@ export async function listCompanyUsers(params: {
       company_id,
       user_id,
       role,
+      status,
+      access_profile,
       created_at,
       profile:profiles!company_members_user_id_fkey (
         id,
@@ -238,197 +249,4 @@ export async function listCompanyUsers(params: {
   );
 
   return { data: users, error: null };
-}
-
-/**
- * Atualiza o que o schema atual permite com segurança:
- * - role em company_members (admin/member; protege último owner)
- * - full_name em profiles somente do próprio usuário (RLS atual)
- */
-export async function updateCompanyMemberBasics(params: {
-  companyId: string;
-  membershipId: string;
-  userId: string;
-  fullName: string;
-  role: CompanyRole;
-}): Promise<Result<{ updatedRole: boolean; updatedName: boolean }>> {
-  const supabase = createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return {
-      data: null,
-      error: { message: "Sessão autenticada ausente." },
-    };
-  }
-
-  const fullName = params.fullName.trim();
-  if (!fullName) {
-    return { data: null, error: { message: "Informe o nome do usuário." } };
-  }
-
-  const { data: memberships, error: listError } = await supabase
-    .from("company_members")
-    .select("id, user_id, role")
-    .eq("company_id", params.companyId);
-
-  if (listError) {
-    return {
-      data: null,
-      error: { message: `Erro ao validar membros: ${listError.message}` },
-    };
-  }
-
-  type MemberLite = { id: string; user_id: string; role: string };
-  const rows = (memberships ?? []) as MemberLite[];
-  const target = rows.find((row) => row.id === params.membershipId);
-
-  if (!target) {
-    return {
-      data: null,
-      error: { message: "Usuário não encontrado nesta empresa." },
-    };
-  }
-
-  const owners = rows.filter((row) => row.role === COMPANY_ROLES.owner);
-  const isSoleOwner =
-    target.role === COMPANY_ROLES.owner && owners.length === 1;
-
-  if (isSoleOwner && params.role !== COMPANY_ROLES.owner) {
-    return {
-      data: null,
-      error: {
-        message:
-          "O administrador principal não pode perder o cargo de proprietário.",
-      },
-    };
-  }
-
-  if (
-    target.role === COMPANY_ROLES.owner &&
-    params.role !== COMPANY_ROLES.owner &&
-    user.id === target.user_id
-  ) {
-    return {
-      data: null,
-      error: {
-        message: "Você não pode remover o próprio cargo de proprietário.",
-      },
-    };
-  }
-
-  let nextRole = params.role;
-  if (target.role === COMPANY_ROLES.owner) {
-    nextRole = COMPANY_ROLES.owner;
-  } else if (nextRole === COMPANY_ROLES.owner) {
-    return {
-      data: null,
-      error: {
-        message:
-          "Não é possível promover para proprietário por esta tela. Use o vínculo existente.",
-      },
-    };
-  }
-
-  let updatedRole = false;
-  if (nextRole !== target.role) {
-    const { error: roleError } = await supabase
-      .from("company_members")
-      .update({ role: nextRole } as never)
-      .eq("id", params.membershipId)
-      .eq("company_id", params.companyId);
-
-    if (roleError) {
-      return {
-        data: null,
-        error: {
-          message: `Não foi possível atualizar o cargo: ${roleError.message}`,
-        },
-      };
-    }
-    updatedRole = true;
-  }
-
-  let updatedName = false;
-  if (params.userId === user.id) {
-    const { error: nameError } = await supabase
-      .from("profiles")
-      .update({ full_name: fullName } as never)
-      .eq("id", user.id);
-
-    if (nameError) {
-      return {
-        data: null,
-        error: {
-          message: `Não foi possível atualizar o nome: ${nameError.message}`,
-        },
-      };
-    }
-    updatedName = true;
-  } else {
-    // RLS atual só permite atualizar o próprio profile.
-    // Nome de terceiros ficará para migration/admin path.
-  }
-
-  return {
-    data: { updatedRole, updatedName },
-    error: null,
-  };
-}
-
-export async function inviteCompanyUser(params: {
-  companyId: string;
-  fullName: string;
-  email: string;
-  role: CompanyRole;
-  accessProfile: AccessProfileId;
-  permissions: ModulePermissionState[];
-}): Promise<Result<null>> {
-  // Mantém o payload preparado (inclui permissões) para a futura integração
-  // Auth Admin + migration 024. Sem persistência enquanto a migration não rodar.
-  void params;
-  return {
-    data: null,
-    error: {
-      message: `${USERS_SCHEMA_REQUIRED} Também será necessário o fluxo de convite via Auth Admin.`,
-    },
-  };
-}
-
-export async function updateCompanyMemberStatus(_params: {
-  companyId: string;
-  membershipId: string;
-  status: UserStatus;
-}): Promise<Result<null>> {
-  void _params;
-  return {
-    data: null,
-    error: { message: USERS_SCHEMA_REQUIRED },
-  };
-}
-
-export async function saveCompanyMemberPermissions(_params: {
-  companyId: string;
-  membershipId: string;
-  accessProfile: AccessProfileId;
-  permissions: ModulePermissionState[];
-}): Promise<Result<null>> {
-  void _params;
-  return {
-    data: null,
-    error: { message: USERS_SCHEMA_REQUIRED },
-  };
-}
-
-/** Mapeia perfil de acesso → role persistível no enum atual. */
-export function companyRoleForAccessProfile(
-  profile: AccessProfileId,
-  currentRole: CompanyRole
-): CompanyRole {
-  if (currentRole === COMPANY_ROLES.owner) return COMPANY_ROLES.owner;
-  if (profile === ACCESS_PROFILES.administrator) return COMPANY_ROLES.admin;
-  return COMPANY_ROLES.member;
 }

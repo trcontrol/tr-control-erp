@@ -10,6 +10,8 @@ const ROUTES = {
   resetPassword: "/reset-password",
   dashboard: "/dashboard",
   authCallback: "/api/auth/callback",
+  authCallbackPage: "/auth/callback",
+  authConfirm: "/auth/confirm",
 } as const;
 
 const PUBLIC_ROUTES = [
@@ -18,6 +20,8 @@ const PUBLIC_ROUTES = [
   ROUTES.forgotPassword,
   ROUTES.resetPassword,
   ROUTES.authCallback,
+  ROUTES.authCallbackPage,
+  ROUTES.authConfirm,
 ] as const;
 
 /** Rotas de auth onde usuário logado deve ir para o dashboard */
@@ -58,6 +62,32 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = ROUTES.dashboard;
     return NextResponse.redirect(url);
+  }
+
+  // /admin/*: exige autenticação (já coberta) + Super Admin da plataforma.
+  // Layout também chama requirePlatformAdmin() (404). Aqui falha fechada cedo.
+  if (user && pathname.startsWith("/admin")) {
+    const { data: isAdmin, error: adminError } = await supabase.rpc(
+      "is_platform_admin"
+    );
+
+    let allowed = !adminError && isAdmin === true;
+
+    if (!allowed) {
+      const email = user.email?.trim().toLowerCase() ?? "";
+      const envEmails = (process.env.PLATFORM_ADMIN_EMAILS ?? "")
+        .split(",")
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean);
+      allowed = Boolean(email && envEmails.includes(email));
+    }
+
+    if (!allowed) {
+      const url = request.nextUrl.clone();
+      url.pathname = ROUTES.dashboard;
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

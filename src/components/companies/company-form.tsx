@@ -22,10 +22,7 @@ import {
   COMPANY_LOGOS_BUCKET,
   TAX_REGIMES,
 } from "@/lib/constants";
-import {
-  updateCompanyRecord,
-  uploadCompanyLogo,
-} from "@/lib/companies/actions";
+import { uploadCompanyLogo } from "@/lib/companies/actions";
 import {
   formatCnpj,
   formatPhone,
@@ -34,8 +31,10 @@ import {
   isValidEmail,
   onlyDigits,
 } from "@/lib/companies/format";
+import { updateCompanySettingsAction } from "@/lib/settings/actions";
 import { useTenant } from "@/providers/tenant-provider";
-import type { Company, CompanyUpdate } from "@/types/database";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
+import type { Company } from "@/types/database";
 import type { CompanyWithMembership } from "@/types";
 
 type CompanyFormState = {
@@ -114,7 +113,8 @@ function FieldError({ message }: { message?: string }) {
 
 export function CompanyForm({ company }: CompanyFormProps) {
   const router = useRouter();
-  const { updateCompany } = useTenant();
+  const { updateCompany, editableModules } = useTenant();
+  const canEditCompany = editableModules.includes(PERMISSION_MODULES.settings);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<CompanyFormState>(() => toFormState(company));
@@ -217,6 +217,10 @@ export function CompanyForm({ company }: CompanyFormProps) {
 
   async function handleLogoChange(file: File | null) {
     if (!file) return;
+    if (!canEditCompany) {
+      setError("Você não tem permissão para editar os dados da empresa.");
+      return;
+    }
 
     if (!file.type.startsWith("image/")) {
       setError("Envie um arquivo de imagem válido (JPG, PNG, WEBP ou GIF).");
@@ -262,6 +266,11 @@ export function CompanyForm({ company }: CompanyFormProps) {
     setError(null);
     setSuccess(null);
 
+    if (!canEditCompany) {
+      setError("Você não tem permissão para editar os dados da empresa.");
+      return;
+    }
+
     if (!validate()) {
       setError("Preencha os campos obrigatórios corretamente.");
       return;
@@ -270,14 +279,15 @@ export function CompanyForm({ company }: CompanyFormProps) {
     setLoading(true);
 
     try {
-      const payload: CompanyUpdate = {
+      const result = await updateCompanySettingsAction({
+        companyId: company.id,
         name: form.name.trim(),
-        legal_name: form.legal_name.trim(),
+        legalName: form.legal_name.trim(),
         cnpj: form.cnpj.trim() ? formatCnpj(form.cnpj) : null,
-        state_registration: form.state_registration.trim() || null,
-        municipal_registration: form.municipal_registration.trim() || null,
-        tax_regime: form.tax_regime || null,
-        zip_code: formatZipCode(form.zip_code),
+        stateRegistration: form.state_registration.trim() || null,
+        municipalRegistration: form.municipal_registration.trim() || null,
+        taxRegime: form.tax_regime || null,
+        zipCode: formatZipCode(form.zip_code),
         street: form.street.trim(),
         number: form.number.trim(),
         complement: form.complement.trim() || null,
@@ -289,23 +299,18 @@ export function CompanyForm({ company }: CompanyFormProps) {
         whatsapp: form.whatsapp ? formatPhone(form.whatsapp) : null,
         email: form.email.trim().toLowerCase(),
         website: form.website.trim() || null,
-        responsible_name: form.responsible_name.trim(),
+        responsibleName: form.responsible_name.trim(),
         notes: form.notes.trim() || null,
-        logo_url: form.logo_url || null,
-      };
+        logoUrl: form.logo_url || null,
+      });
 
-      const { data, error: updateError } = await updateCompanyRecord(
-        company.id,
-        payload
-      );
-
-      if (updateError || !data) {
-        setError(updateError?.message ?? "Não foi possível salvar as alterações.");
+      if (result.error || !result.data) {
+        setError(result.error?.message ?? "Não foi possível salvar as alterações.");
         return;
       }
 
-      updateCompany(data);
-      setSuccess("Alterações salvas com sucesso.");
+      updateCompany(result.data);
+      setSuccess("Dados da empresa atualizados com sucesso.");
       router.refresh();
     } catch (err) {
       setError(
@@ -320,6 +325,13 @@ export function CompanyForm({ company }: CompanyFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {!canEditCompany ? (
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-950">
+          Você pode visualizar os dados da empresa, mas não possui permissão
+          para editá-los (é necessário Configurações → Editar).
+        </div>
+      ) : null}
+
       {error && (
         <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           {error}
@@ -662,7 +674,10 @@ export function CompanyForm({ company }: CompanyFormProps) {
           </div>
         </CardContent>
         <CardFooter className="justify-end border-t px-6 py-4">
-          <Button type="submit" disabled={loading || uploadingLogo}>
+          <Button
+            type="submit"
+            disabled={!canEditCompany || loading || uploadingLogo}
+          >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (

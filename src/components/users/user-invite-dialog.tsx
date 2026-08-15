@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { UserAccessPermissionsForm } from "@/components/users/user-access-permissions-form";
 import { COMPANY_ROLES, type CompanyRole } from "@/lib/constants";
-import { inviteCompanyUser } from "@/lib/users/actions";
+import { inviteCompanyUser } from "@/lib/users/invite-actions";
 import { userRoleLabel } from "@/lib/users/format";
 import {
   ACCESS_PROFILE_OPTIONS,
@@ -19,9 +19,10 @@ import {
   type ModulePermissionState,
   accessProfileLabel,
   dominantPermissionScope,
-  permissionsForProfile,
   summarizeEnabledModules,
 } from "@/lib/users/permissions";
+import { permissionsForProfileInPlan } from "@/lib/plans/access";
+import { useTenant } from "@/providers/tenant-provider";
 import { cn } from "@/lib/utils";
 
 type InviteStep = 1 | 2 | 3;
@@ -30,6 +31,7 @@ type UserInviteDialogProps = {
   companyId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onInvited?: () => void;
 };
 
 const STEPS: Array<{ id: InviteStep; label: string }> = [
@@ -75,7 +77,11 @@ export function UserInviteDialog({
   companyId,
   open,
   onOpenChange,
+  onInvited,
 }: UserInviteDialogProps) {
+  const { company } = useTenant();
+  const plan = company?.plan ?? "essential";
+
   const [step, setStep] = useState<InviteStep>(1);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -84,11 +90,12 @@ export function UserInviteDialog({
     ACCESS_PROFILES.professional
   );
   const [permissions, setPermissions] = useState<ModulePermissionState[]>(
-    () => permissionsForProfile(ACCESS_PROFILES.professional)
+    () => permissionsForProfileInPlan(ACCESS_PROFILES.professional, plan)
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -97,11 +104,14 @@ export function UserInviteDialog({
     setEmail("");
     setRole(COMPANY_ROLES.member);
     setAccessProfile(ACCESS_PROFILES.professional);
-    setPermissions(permissionsForProfile(ACCESS_PROFILES.professional));
+    setPermissions(
+      permissionsForProfileInPlan(ACCESS_PROFILES.professional, plan)
+    );
     setSaving(false);
     setError(null);
     setAccessError(null);
-  }, [open]);
+    setSuccessMessage(null);
+  }, [open, plan]);
 
   const enabledModules = useMemo(
     () => summarizeEnabledModules(permissions),
@@ -133,10 +143,8 @@ export function UserInviteDialog({
   function goToAccesses() {
     if (!validateStep1()) return;
 
-    // Se o perfil mudou na etapa 1 e as permissões ainda estão no preset anterior
-    // alinhado ao perfil, regenera; se já for custom, preserva.
     if (accessProfile !== ACCESS_PROFILES.custom) {
-      setPermissions(permissionsForProfile(accessProfile));
+      setPermissions(permissionsForProfileInPlan(accessProfile, plan));
     }
     setStep(2);
   }
@@ -144,7 +152,7 @@ export function UserInviteDialog({
   function handleProfileChangeFromStep1(profile: AccessProfileId) {
     setAccessProfile(profile);
     if (profile !== ACCESS_PROFILES.custom) {
-      setPermissions(permissionsForProfile(profile));
+      setPermissions(permissionsForProfileInPlan(profile, plan));
     }
   }
 
@@ -168,7 +176,13 @@ export function UserInviteDialog({
       return;
     }
 
-    onOpenChange(false);
+    setSuccessMessage(
+      result.data.message || "Convite enviado com sucesso."
+    );
+    onInvited?.();
+    window.setTimeout(() => {
+      onOpenChange(false);
+    }, 1800);
   }
 
   const dialogTitle =
@@ -287,6 +301,7 @@ export function UserInviteDialog({
               idPrefix="invite-access"
               accessProfile={accessProfile}
               permissions={permissions}
+              plan={plan}
               onAccessProfileChange={setAccessProfile}
               onPermissionsChange={setPermissions}
               showProfileSelect
@@ -400,14 +415,18 @@ export function UserInviteDialog({
               )}
             </div>
 
-            {error ? (
+            {successMessage ? (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                {successMessage}
+              </div>
+            ) : error ? (
               <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                 {error}
               </div>
             ) : (
               <div className="rounded-md border border-[var(--brand-gold)]/30 bg-[var(--brand-gold)]/10 p-3 text-sm text-[var(--brand-navy)]">
-                O envio ainda não persiste no banco. Depende da migration 024 e
-                do fluxo Auth Admin.
+                Ao enviar, o convite será gravado e o convidado receberá um
+                e-mail para criar a senha e acessar a empresa.
               </div>
             )}
 

@@ -1,4 +1,4 @@
-import type { FinancialEntryWithRelations } from "@/lib/finance/actions";
+import type { FinancialEntryWithRelations } from "@/lib/finance/entry-query";
 import { opportunityStageLabel } from "@/lib/funnel/format";
 import type { PurchaseListItem } from "@/lib/purchases/actions";
 import type { SaleListItem } from "@/lib/sales/actions";

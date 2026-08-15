@@ -42,6 +42,7 @@ import {
 } from "@/lib/finance/format";
 import { useTenant } from "@/providers/tenant-provider";
 import { cn } from "@/lib/utils";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
 
 function statusLabel(status: string) {
   return (
@@ -51,7 +52,9 @@ function statusLabel(status: string) {
 }
 
 export function FinanceBoard() {
-  const { company } = useTenant();
+  const { company, creatableModules, editableModules } = useTenant();
+  const canCreate = creatableModules.includes(PERMISSION_MODULES.finance);
+  const canEdit = editableModules.includes(PERMISSION_MODULES.finance);
   const [tab, setTab] = useState<FinancialEntryType>(
     FINANCIAL_ENTRY_TYPES.payable
   );
@@ -200,12 +203,14 @@ export function FinanceBoard() {
           </button>
         </div>
 
-        <Button asChild>
-          <Link href={`${ROUTES.financeNew}?type=${tab}`}>
-            <Plus className="h-4 w-4" />
-            Novo lançamento
-          </Link>
-        </Button>
+        {canCreate ? (
+          <Button asChild>
+            <Link href={`${ROUTES.financeNew}?type=${tab}`}>
+              <Plus className="h-4 w-4" />
+              Novo lançamento
+            </Link>
+          </Button>
+        ) : null}
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -307,12 +312,14 @@ export function FinanceBoard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center pb-6">
-            <Button asChild>
-              <Link href={`${ROUTES.financeNew}?type=${tab}`}>
-                <Plus className="h-4 w-4" />
-                Novo lançamento
-              </Link>
-            </Button>
+            {canCreate ? (
+              <Button asChild>
+                <Link href={`${ROUTES.financeNew}?type=${tab}`}>
+                  <Plus className="h-4 w-4" />
+                  Novo lançamento
+                </Link>
+              </Button>
+            ) : null}
           </CardContent>
         </Card>
       ) : (
@@ -367,8 +374,9 @@ export function FinanceBoard() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
-                        {(entry.status === FINANCIAL_STATUS.pending ||
-                          entry.status === FINANCIAL_STATUS.overdue) && (
+                        {canEdit &&
+                        (entry.status === FINANCIAL_STATUS.pending ||
+                          entry.status === FINANCIAL_STATUS.overdue) ? (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -386,17 +394,19 @@ export function FinanceBoard() {
                               <CheckCircle2 className="h-4 w-4" />
                             )}
                           </Button>
-                        )}
+                        ) : null}
                         <Button asChild variant="ghost" size="icon">
                           <Link href={financeDetailPath(entry.id)}>
                             <Eye className="h-4 w-4" />
                           </Link>
                         </Button>
-                        <Button asChild variant="ghost" size="icon">
-                          <Link href={financeEditPath(entry.id)}>
-                            <Pencil className="h-4 w-4" />
-                          </Link>
-                        </Button>
+                        {canEdit ? (
+                          <Button asChild variant="ghost" size="icon">
+                            <Link href={financeEditPath(entry.id)}>
+                              <Pencil className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -438,8 +448,9 @@ export function FinanceBoard() {
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {(entry.status === FINANCIAL_STATUS.pending ||
-                      entry.status === FINANCIAL_STATUS.overdue) && (
+                    {canEdit &&
+                    (entry.status === FINANCIAL_STATUS.pending ||
+                      entry.status === FINANCIAL_STATUS.overdue) ? (
                       <Button
                         className="flex-1"
                         variant="secondary"
@@ -450,13 +461,15 @@ export function FinanceBoard() {
                           ? "Marcar pago"
                           : "Marcar recebido"}
                       </Button>
-                    )}
+                    ) : null}
                     <Button asChild variant="outline" className="flex-1">
                       <Link href={financeDetailPath(entry.id)}>Ver</Link>
                     </Button>
-                    <Button asChild className="flex-1">
-                      <Link href={financeEditPath(entry.id)}>Editar</Link>
-                    </Button>
+                    {canEdit ? (
+                      <Button asChild className="flex-1">
+                        <Link href={financeEditPath(entry.id)}>Editar</Link>
+                      </Button>
+                    ) : null}
                   </div>
                 </CardContent>
               </Card>

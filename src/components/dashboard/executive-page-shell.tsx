@@ -20,23 +20,34 @@ type ExecutivePageShellProps = {
   children: React.ReactNode;
 };
 
-function firstNameFromUser(user: {
-  email?: string | null;
-  user_metadata?: Record<string, unknown>;
-} | null) {
-  const meta = user?.user_metadata;
+function firstNameFromDisplayName(fullName: string) {
+  const first = fullName.trim().split(/\s+/)[0] ?? "";
+  if (!first) return null;
+  return first.charAt(0).toUpperCase() + first.slice(1);
+}
+
+function firstNameFromSources(params: {
+  profileFullName?: string | null;
+  user: {
+    email?: string | null;
+    user_metadata?: Record<string, unknown>;
+  } | null;
+}) {
+  const profileName = params.profileFullName?.trim();
+  if (profileName) {
+    return firstNameFromDisplayName(profileName);
+  }
+
+  const meta = params.user?.user_metadata;
   const fromMeta = [meta?.full_name, meta?.name, meta?.first_name].find(
     (value) => typeof value === "string" && value.trim()
   ) as string | undefined;
 
   if (fromMeta) {
-    const first = fromMeta.trim().split(/\s+/)[0] ?? "";
-    if (first) {
-      return first.charAt(0).toUpperCase() + first.slice(1);
-    }
+    return firstNameFromDisplayName(fromMeta);
   }
 
-  const local = user?.email?.split("@")[0]?.trim();
+  const local = params.user?.email?.split("@")[0]?.trim();
   if (!local) return null;
 
   const part = local.split(/[._-]/)[0] ?? local;
@@ -52,9 +63,30 @@ export function ExecutivePageShell({
 
   useEffect(() => {
     const supabase = createClient();
-    void supabase.auth.getUser().then(({ data }) => {
-      setFirstName(firstNameFromUser(data.user));
-    });
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setFirstName(null);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      setFirstName(
+        firstNameFromSources({
+          profileFullName:
+            (profile as { full_name?: string | null } | null)?.full_name ??
+            null,
+          user,
+        })
+      );
+    })();
   }, []);
 
   const greeting = firstName

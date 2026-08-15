@@ -42,6 +42,7 @@ import {
   toNumberAmount,
 } from "@/lib/purchases/format";
 import { listSuppliers } from "@/lib/suppliers/actions";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
 import { useTenant } from "@/providers/tenant-provider";
 import type { Product, Supplier } from "@/types/database";
 
@@ -75,7 +76,10 @@ function createEmptyItem(): DraftItem {
 
 export function PurchaseForm({ mode, purchase }: PurchaseFormProps) {
   const router = useRouter();
-  const { company } = useTenant();
+  const { company, creatableModules, editableModules } = useTenant();
+  const canCreate = creatableModules.includes(PERMISSION_MODULES.purchases);
+  const canEdit = editableModules.includes(PERMISSION_MODULES.purchases);
+  const actionAllowed = mode === "create" ? canCreate : canEdit;
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [supplierId, setSupplierId] = useState(purchase?.supplier_id ?? "");
@@ -222,6 +226,15 @@ export function PurchaseForm({ mode, purchase }: PurchaseFormProps) {
       return;
     }
 
+    if (!actionAllowed) {
+      setError(
+        mode === "create"
+          ? "Você não tem permissão para criar compras."
+          : "Você não tem permissão para editar compras."
+      );
+      return;
+    }
+
     const nextErrors: Record<string, string> = {};
     if (!purchaseDate) nextErrors.purchaseDate = "Campo obrigatório";
 
@@ -305,6 +318,13 @@ export function PurchaseForm({ mode, purchase }: PurchaseFormProps) {
   return (
     <>
       <form className="space-y-6" onSubmit={(e) => void handleSubmit(e)}>
+        {!actionAllowed ? (
+          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            {mode === "create"
+              ? "Você não tem permissão para criar compras."
+              : "Você não tem permissão para editar compras."}
+          </div>
+        ) : null}
         {error ? (
           <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
             {error}
@@ -569,7 +589,10 @@ export function PurchaseForm({ mode, purchase }: PurchaseFormProps) {
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading || loadingOptions}>
+            <Button
+              type="submit"
+              disabled={loading || loadingOptions || !actionAllowed}
+            >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (

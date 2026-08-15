@@ -5,13 +5,19 @@ import {
 } from "@/lib/constants";
 import { listCustomers } from "@/lib/customers/actions";
 import {
-  listFinancialEntries,
+  queryFinancialEntries,
   type FinancialEntryWithRelations,
-} from "@/lib/finance/actions";
+} from "@/lib/finance/entry-query";
 import type { OpportunityWithRelations } from "@/lib/funnel/actions";
 import { listProductFilterOptions } from "@/lib/products/actions";
-import { listPurchases, type PurchaseListItem } from "@/lib/purchases/actions";
-import { listSales, type SaleListItem } from "@/lib/sales/actions";
+import {
+  queryPurchases,
+  type PurchaseListItem,
+} from "@/lib/purchases/purchase-query";
+import {
+  querySales,
+  type SaleListItem,
+} from "@/lib/sales/sale-query";
 import {
   listStockMovements,
   type StockMovementWithRelations,
@@ -172,8 +178,9 @@ export async function getSalesReport(params: {
   periodFrom: string;
   periodTo: string;
 }): Promise<Result<SalesReportData>> {
+  const supabase = createClient();
   const [salesResult, customersResult] = await Promise.all([
-    listSales({
+    querySales(supabase, {
       companyId: params.companyId,
       status: params.status,
       customerId: params.customerId,
@@ -212,8 +219,9 @@ export async function getPurchasesReport(params: {
   periodFrom: string;
   periodTo: string;
 }): Promise<Result<PurchasesReportData>> {
+  const supabase = createClient();
   const [purchasesResult, suppliersResult] = await Promise.all([
-    listPurchases({
+    queryPurchases(supabase, {
       companyId: params.companyId,
       status: params.status,
       supplierId: params.supplierId,
@@ -253,7 +261,9 @@ export async function getFinanceReport(params: {
   periodFrom: string;
   periodTo: string;
 }): Promise<Result<FinanceReportData>> {
-  const result = await listFinancialEntries({
+  // Fase Reports: ainda sem assert de módulo reports/finance.
+  // Usa query compartilhada no client (não passa pelo gate de finance/actions).
+  const result = await queryFinancialEntries(createClient(), {
     companyId: params.companyId,
     entryType: params.entryType,
     status: params.status,
@@ -296,7 +306,7 @@ export async function getReceivablesReport(params: {
   periodTo: string;
 }): Promise<Result<ReceivablesReportData>> {
   const [entriesResult, customersResult] = await Promise.all([
-    listFinancialEntries({
+    queryFinancialEntries(createClient(), {
       companyId: params.companyId,
       entryType: FINANCIAL_ENTRY_TYPES.receivable,
       status: params.status,
@@ -346,7 +356,7 @@ export async function getPayablesReport(params: {
   periodTo: string;
 }): Promise<Result<PayablesReportData>> {
   const [entriesResult, suppliersResult] = await Promise.all([
-    listFinancialEntries({
+    queryFinancialEntries(createClient(), {
       companyId: params.companyId,
       entryType: FINANCIAL_ENTRY_TYPES.payable,
       status: params.status,
@@ -503,13 +513,14 @@ export async function getCustomersReport(params: {
   periodFrom: string;
   periodTo: string;
 }): Promise<Result<CustomersReportData>> {
+  const supabase = createClient();
   const [customersResult, salesResult] = await Promise.all([
     listCustomers({
       companyId: params.companyId,
       status: params.status,
       personType: params.personType,
     }),
-    listSales({
+    querySales(supabase, {
       companyId: params.companyId,
       status: SALE_STATUS.confirmed,
     }),

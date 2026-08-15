@@ -27,11 +27,14 @@ import {
   formatDateBR,
   saleStatusLabel,
 } from "@/lib/sales/format";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
 import { useTenant } from "@/providers/tenant-provider";
 import type { Customer } from "@/types/database";
 
 export function SalesList() {
-  const { company } = useTenant();
+  const { company, creatableModules, editableModules } = useTenant();
+  const canCreate = creatableModules.includes(PERMISSION_MODULES.sales);
+  const canEdit = editableModules.includes(PERMISSION_MODULES.sales);
   const [sales, setSales] = useState<SaleListItem[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
@@ -110,12 +113,14 @@ export function SalesList() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button asChild>
-          <Link href={ROUTES.salesNew}>
-            <Plus className="h-4 w-4" />
-            Nova venda
-          </Link>
-        </Button>
+        {canCreate ? (
+          <Button asChild>
+            <Link href={ROUTES.salesNew}>
+              <Plus className="h-4 w-4" />
+              Nova venda
+            </Link>
+          </Button>
+        ) : null}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -176,14 +181,16 @@ export function SalesList() {
               Cadastre a primeira venda da empresa {company.name}.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-center pb-6">
-            <Button asChild>
-              <Link href={ROUTES.salesNew}>
-                <Plus className="h-4 w-4" />
-                Nova venda
-              </Link>
-            </Button>
-          </CardContent>
+          {canCreate ? (
+            <CardContent className="flex justify-center pb-6">
+              <Button asChild>
+                <Link href={ROUTES.salesNew}>
+                  <Plus className="h-4 w-4" />
+                  Nova venda
+                </Link>
+              </Button>
+            </CardContent>
+          ) : null}
         </Card>
       ) : (
         <>
@@ -226,7 +233,7 @@ export function SalesList() {
                             <Eye className="h-4 w-4" />
                           </Link>
                         </Button>
-                        {sale.status === SALE_STATUS.draft ? (
+                        {canEdit && sale.status === SALE_STATUS.draft ? (
                           <Button asChild variant="ghost" size="icon">
                             <Link href={saleEditPath(sale.id)}>
                               <Pencil className="h-4 w-4" />

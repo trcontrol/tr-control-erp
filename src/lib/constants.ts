@@ -54,7 +54,17 @@ export const ROUTES = {
   reports: "/reports",
   users: "/users",
   settings: "/settings",
+  /** Painel SaaS — Super Admin da plataforma (não é /companies do tenant) */
+  adminCompanies: "/admin/companies",
+  /** Callback PKCE (API) — OAuth / code exchange no servidor */
   authCallback: "/api/auth/callback",
+  /** Callback client — convites (hash/token) + code no browser */
+  authCallbackPage: "/auth/callback",
+  /**
+   * Confirmação de e-mail Auth via token_hash (SSR/PKCE oficial).
+   * Usado por templates Invite / Reset Password / Magic Link.
+   */
+  authConfirm: "/auth/confirm",
 } as const;
 
 export function customerDetailPath(id: string) {
@@ -526,14 +536,21 @@ export type CompanyRole =
   (typeof COMPANY_ROLES)[keyof typeof COMPANY_ROLES];
 
 export const COMPANY_PLANS = {
-  free: "free",
-  starter: "starter",
-  business: "business",
-  enterprise: "enterprise",
+  essential: "essential",
+  professional: "professional",
+  premium: "premium",
 } as const;
 
 export type CompanyPlan =
   (typeof COMPANY_PLANS)[keyof typeof COMPANY_PLANS];
+
+export const COMPANY_STATUSES = {
+  active: "active",
+  suspended: "suspended",
+} as const;
+
+export type CompanyStatus =
+  (typeof COMPANY_STATUSES)[keyof typeof COMPANY_STATUSES];
 
 export const COMPANY_LOGOS_BUCKET = "company-logos";
 

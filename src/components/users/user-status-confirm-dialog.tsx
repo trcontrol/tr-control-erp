@@ -4,10 +4,8 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import {
-  updateCompanyMemberStatus,
-  type CompanyUser,
-} from "@/lib/users/actions";
+import type { CompanyUser } from "@/lib/users/actions";
+import { updateCompanyMemberStatus } from "@/lib/users/member-actions";
 import {
   USER_STATUS,
   userStatusLabel,
@@ -18,6 +16,7 @@ type UserStatusConfirmDialogProps = {
   user: CompanyUser | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSaved?: () => void;
 };
 
 function nextStatus(status: UserStatus): UserStatus {
@@ -30,6 +29,7 @@ export function UserStatusConfirmDialog({
   user,
   open,
   onOpenChange,
+  onSaved,
 }: UserStatusConfirmDialogProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +57,7 @@ export function UserStatusConfirmDialog({
       return;
     }
 
+    onSaved?.();
     onOpenChange(false);
   }
 

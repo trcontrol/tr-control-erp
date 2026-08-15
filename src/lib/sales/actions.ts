@@ -1,45 +1,37 @@
-import { createClient } from "@/lib/supabase/client";
+"use server";
+
+/**
+ * Sales — server actions com enforcement:
+ * plan entitlement ∩ member_permissions (can_view/create/edit/delete).
+ *
+ * confirm / cancel → can_edit (efeitos finance/estoque são do domínio Sales).
+ * Scope (all/own/team) NÃO é aplicado nesta fase.
+ *
+ * Relatórios leem via sale-query + client próprio (sem exigir sales.view).
+ */
 import { SALE_STATUS } from "@/lib/constants";
+import { assertMemberPermission } from "@/lib/plans/require-module-access";
 import { calcLineTotal } from "@/lib/sales/format";
-import type {
-  Customer,
-  Product,
-  Sale,
-  SaleInsert,
-  SaleItem,
-  SaleItemInsert,
-} from "@/types/database";
+import {
+  querySale,
+  querySales,
+  type SaleItemWithProduct,
+  type SaleListItem,
+  type SaleWithRelations,
+} from "@/lib/sales/sale-query";
+import { createClient } from "@/lib/supabase/server";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
+import type { Sale, SaleInsert, SaleItemInsert } from "@/types/database";
+
+export type {
+  SaleItemWithProduct,
+  SaleListItem,
+  SaleWithRelations,
+} from "@/lib/sales/sale-query";
 
 type Result<T> =
   | { data: T; error: null }
   | { data: null; error: { message: string } };
-
-export type SaleItemWithProduct = SaleItem & {
-  product: Pick<
-    Product,
-    | "id"
-    | "name"
-    | "unit"
-    | "sku"
-    | "internal_code"
-    | "tracks_stock"
-    | "product_type"
-    | "status"
-    | "sale_price"
-  > | null;
-};
-
-export type SaleWithRelations = Sale & {
-  customer: Pick<
-    Customer,
-    "id" | "full_name" | "trade_name" | "document"
-  > | null;
-  items: SaleItemWithProduct[];
-};
-
-export type SaleListItem = Sale & {
-  customer: Pick<Customer, "id" | "full_name" | "trade_name"> | null;
-};
 
 export type SaleItemInput = {
   product_id: string;
@@ -49,38 +41,9 @@ export type SaleItemInput = {
   sort_order?: number;
 };
 
-const SALE_SELECT = `
-  *,
-  customer:customers (
-    id,
-    full_name,
-    trade_name,
-    document
-  ),
-  items:sale_items (
-    *,
-    product:products (
-      id,
-      name,
-      unit,
-      sku,
-      internal_code,
-      tracks_stock,
-      product_type,
-      status,
-      sale_price
-    )
-  )
-`;
-
-const LIST_SELECT = `
-  *,
-  customer:customers (
-    id,
-    full_name,
-    trade_name
-  )
-`;
+async function deny<T>(message: string): Promise<Result<T>> {
+  return { data: null, error: { message } };
+}
 
 function mapPgError(message: string) {
   if (message.includes("pago ou recebido") || message.includes("recebido")) {
@@ -97,116 +60,20 @@ function mapPgError(message: string) {
   if (message.includes("unitário") || message.includes("negativo")) {
     return message;
   }
+  if (message.includes("Sem permissão")) return message;
   return message;
 }
 
 async function callSaleRpc(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: { rpc: (...args: any[]) => any },
   fn: "confirm_sale" | "cancel_sale" | "recalculate_sale_totals",
   args: Record<string, unknown>
 ) {
-  const supabase = createClient();
-  return (
-    supabase as unknown as {
-      rpc: (
-        fnName: string,
-        params?: Record<string, unknown>
-      ) => Promise<{ data: unknown; error: { message: string } | null }>;
-    }
-  ).rpc(fn, args);
-}
-
-function sortItems(items: SaleItemWithProduct[]) {
-  return [...items].sort((a, b) => {
-    if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
-    return a.created_at.localeCompare(b.created_at);
-  });
-}
-
-export async function listSales(params: {
-  companyId: string;
-  search?: string;
-  status?: string;
-  customerId?: string;
-  periodFrom?: string;
-  periodTo?: string;
-}): Promise<Result<SaleListItem[]>> {
-  const supabase = createClient();
-  let query = supabase
-    .from("sales")
-    .select(LIST_SELECT)
-    .eq("company_id", params.companyId)
-    .order("sale_date", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  if (params.status && params.status !== "all") {
-    query = query.eq("status", params.status);
-  }
-
-  if (params.customerId && params.customerId !== "all") {
-    query = query.eq("customer_id", params.customerId);
-  }
-
-  if (params.periodFrom) {
-    query = query.gte("sale_date", params.periodFrom);
-  }
-
-  if (params.periodTo) {
-    query = query.lte("sale_date", params.periodTo);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    return { data: null, error: { message: mapPgError(error.message) } };
-  }
-
-  let rows = (data ?? []) as SaleListItem[];
-
-  if (params.search?.trim()) {
-    const term = params.search.trim().toLowerCase();
-    rows = rows.filter((row) => {
-      const doc = row.document_number?.toLowerCase() ?? "";
-      const notes = row.notes?.toLowerCase() ?? "";
-      const customerName =
-        row.customer?.trade_name?.toLowerCase() ||
-        row.customer?.full_name?.toLowerCase() ||
-        "";
-      return (
-        doc.includes(term) ||
-        notes.includes(term) ||
-        customerName.includes(term) ||
-        row.id.toLowerCase().includes(term)
-      );
-    });
-  }
-
-  return { data: rows, error: null };
-}
-
-export async function getSale(
-  companyId: string,
-  saleId: string
-): Promise<Result<SaleWithRelations>> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("sales")
-    .select(SALE_SELECT)
-    .eq("company_id", companyId)
-    .eq("id", saleId)
-    .maybeSingle();
-
-  if (error) {
-    return { data: null, error: { message: mapPgError(error.message) } };
-  }
-
-  if (!data) {
-    return { data: null, error: { message: "Venda não encontrada." } };
-  }
-
-  const sale = data as SaleWithRelations;
-  sale.items = sortItems(sale.items ?? []);
-
-  return { data: sale, error: null };
+  return supabase.rpc(fn, args) as Promise<{
+    data: unknown;
+    error: { message: string } | null;
+  }>;
 }
 
 function validateItems(items: SaleItemInput[]): string | null {
@@ -230,17 +97,66 @@ function validateItems(items: SaleItemInput[]): string | null {
   return null;
 }
 
+export async function listSales(params: {
+  companyId: string;
+  search?: string;
+  status?: string;
+  customerId?: string;
+  periodFrom?: string;
+  periodTo?: string;
+}): Promise<Result<SaleListItem[]>> {
+  const authz = await assertMemberPermission({
+    companyId: params.companyId,
+    module: PERMISSION_MODULES.sales,
+    action: "view",
+  });
+  if (!authz.ok) return deny(authz.message);
+
+  const supabase = await createClient();
+  const result = await querySales(supabase, params);
+  if (result.error) {
+    return { data: null, error: { message: mapPgError(result.error.message) } };
+  }
+  return result;
+}
+
+export async function getSale(
+  companyId: string,
+  saleId: string
+): Promise<Result<SaleWithRelations>> {
+  const authz = await assertMemberPermission({
+    companyId,
+    module: PERMISSION_MODULES.sales,
+    action: "view",
+  });
+  if (!authz.ok) return deny(authz.message);
+
+  const supabase = await createClient();
+  const result = await querySale(supabase, companyId, saleId);
+  if (result.error) {
+    return { data: null, error: { message: mapPgError(result.error.message) } };
+  }
+  return result;
+}
+
 export async function createSale(params: {
   companyId: string;
   header: Omit<SaleInsert, "company_id" | "status">;
   items: SaleItemInput[];
 }): Promise<Result<SaleWithRelations>> {
+  const authz = await assertMemberPermission({
+    companyId: params.companyId,
+    module: PERMISSION_MODULES.sales,
+    action: "create",
+  });
+  if (!authz.ok) return deny(authz.message);
+
   const validationError = validateItems(params.items);
   if (validationError) {
     return { data: null, error: { message: validationError } };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -308,9 +224,11 @@ export async function createSale(params: {
     };
   }
 
-  const { error: recalcError } = await callSaleRpc("recalculate_sale_totals", {
-    p_sale_id: saleRow.id,
-  });
+  const { error: recalcError } = await callSaleRpc(
+    supabase,
+    "recalculate_sale_totals",
+    { p_sale_id: saleRow.id }
+  );
 
   if (recalcError) {
     return {
@@ -319,7 +237,7 @@ export async function createSale(params: {
     };
   }
 
-  return getSale(params.companyId, saleRow.id);
+  return querySale(supabase, params.companyId, saleRow.id);
 }
 
 export async function updateSaleDraft(params: {
@@ -328,7 +246,15 @@ export async function updateSaleDraft(params: {
   header: Omit<SaleInsert, "company_id" | "status">;
   items: SaleItemInput[];
 }): Promise<Result<SaleWithRelations>> {
-  const current = await getSale(params.companyId, params.saleId);
+  const authz = await assertMemberPermission({
+    companyId: params.companyId,
+    module: PERMISSION_MODULES.sales,
+    action: "edit",
+  });
+  if (!authz.ok) return deny(authz.message);
+
+  const supabase = await createClient();
+  const current = await querySale(supabase, params.companyId, params.saleId);
   if (current.error || !current.data) {
     return {
       data: null,
@@ -347,8 +273,6 @@ export async function updateSaleDraft(params: {
   if (validationError) {
     return { data: null, error: { message: validationError } };
   }
-
-  const supabase = createClient();
 
   const { error: updateError } = await supabase
     .from("sales")
@@ -404,9 +328,11 @@ export async function updateSaleDraft(params: {
     return { data: null, error: { message: mapPgError(itemsError.message) } };
   }
 
-  const { error: recalcError } = await callSaleRpc("recalculate_sale_totals", {
-    p_sale_id: params.saleId,
-  });
+  const { error: recalcError } = await callSaleRpc(
+    supabase,
+    "recalculate_sale_totals",
+    { p_sale_id: params.saleId }
+  );
 
   if (recalcError) {
     return {
@@ -415,14 +341,21 @@ export async function updateSaleDraft(params: {
     };
   }
 
-  return getSale(params.companyId, params.saleId);
+  return querySale(supabase, params.companyId, params.saleId);
 }
 
 export async function deleteSaleDraft(
   companyId: string,
   saleId: string
 ): Promise<Result<true>> {
-  const supabase = createClient();
+  const authz = await assertMemberPermission({
+    companyId,
+    module: PERMISSION_MODULES.sales,
+    action: "delete",
+  });
+  if (!authz.ok) return deny(authz.message);
+
+  const supabase = await createClient();
   const { error } = await supabase
     .from("sales")
     .delete()
@@ -441,7 +374,15 @@ export async function confirmSale(
   companyId: string,
   saleId: string
 ): Promise<Result<SaleWithRelations>> {
-  const current = await getSale(companyId, saleId);
+  const authz = await assertMemberPermission({
+    companyId,
+    module: PERMISSION_MODULES.sales,
+    action: "edit",
+  });
+  if (!authz.ok) return deny(authz.message);
+
+  const supabase = await createClient();
+  const current = await querySale(supabase, companyId, saleId);
   if (current.error || !current.data) {
     return {
       data: null,
@@ -463,7 +404,7 @@ export async function confirmSale(
     };
   }
 
-  const { error } = await callSaleRpc("confirm_sale", {
+  const { error } = await callSaleRpc(supabase, "confirm_sale", {
     p_sale_id: saleId,
   });
 
@@ -471,7 +412,7 @@ export async function confirmSale(
     return { data: null, error: { message: mapPgError(error.message) } };
   }
 
-  return getSale(companyId, saleId);
+  return querySale(supabase, companyId, saleId);
 }
 
 export async function cancelSale(
@@ -479,7 +420,15 @@ export async function cancelSale(
   saleId: string,
   reason?: string | null
 ): Promise<Result<SaleWithRelations>> {
-  const { error } = await callSaleRpc("cancel_sale", {
+  const authz = await assertMemberPermission({
+    companyId,
+    module: PERMISSION_MODULES.sales,
+    action: "edit",
+  });
+  if (!authz.ok) return deny(authz.message);
+
+  const supabase = await createClient();
+  const { error } = await callSaleRpc(supabase, "cancel_sale", {
     p_sale_id: saleId,
     p_reason: reason?.trim() || null,
   });
@@ -488,5 +437,5 @@ export async function cancelSale(
     return { data: null, error: { message: mapPgError(error.message) } };
   }
 
-  return getSale(companyId, saleId);
+  return querySale(supabase, companyId, saleId);
 }

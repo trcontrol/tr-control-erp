@@ -1,34 +1,40 @@
-import { createClient } from "@/lib/supabase/client";
+"use server";
+
+/**
+ * Purchases — server actions com enforcement:
+ * plan entitlement ∩ member_permissions (can_view/create/edit/delete).
+ *
+ * confirm / cancel → can_edit (efeitos finance/estoque são do domínio Purchases).
+ * Scope (all/own/team) NÃO é aplicado nesta fase.
+ *
+ * Relatórios leem via purchase-query + client próprio (sem exigir purchases.view).
+ */
 import { PURCHASE_STATUS } from "@/lib/constants";
+import { assertMemberPermission } from "@/lib/plans/require-module-access";
 import { calcLineTotal } from "@/lib/purchases/format";
+import {
+  queryPurchase,
+  queryPurchases,
+  type PurchaseListItem,
+  type PurchaseWithRelations,
+} from "@/lib/purchases/purchase-query";
+import { createClient } from "@/lib/supabase/server";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
 import type {
   Purchase,
   PurchaseInsert,
-  PurchaseItem,
   PurchaseItemInsert,
-  Product,
-  Supplier,
 } from "@/types/database";
+
+export type {
+  PurchaseItemWithProduct,
+  PurchaseListItem,
+  PurchaseWithRelations,
+} from "@/lib/purchases/purchase-query";
 
 type Result<T> =
   | { data: T; error: null }
   | { data: null; error: { message: string } };
-
-export type PurchaseItemWithProduct = PurchaseItem & {
-  product: Pick<
-    Product,
-    "id" | "name" | "unit" | "sku" | "internal_code" | "tracks_stock" | "status"
-  > | null;
-};
-
-export type PurchaseWithRelations = Purchase & {
-  supplier: Pick<Supplier, "id" | "full_name" | "trade_name" | "document"> | null;
-  items: PurchaseItemWithProduct[];
-};
-
-export type PurchaseListItem = Purchase & {
-  supplier: Pick<Supplier, "id" | "full_name" | "trade_name"> | null;
-};
 
 export type PurchaseItemInput = {
   product_id: string;
@@ -38,36 +44,9 @@ export type PurchaseItemInput = {
   sort_order?: number;
 };
 
-const PURCHASE_SELECT = `
-  *,
-  supplier:suppliers (
-    id,
-    full_name,
-    trade_name,
-    document
-  ),
-  items:purchase_items (
-    *,
-    product:products (
-      id,
-      name,
-      unit,
-      sku,
-      internal_code,
-      tracks_stock,
-      status
-    )
-  )
-`;
-
-const LIST_SELECT = `
-  *,
-  supplier:suppliers (
-    id,
-    full_name,
-    trade_name
-  )
-`;
+async function deny<T>(message: string): Promise<Result<T>> {
+  return { data: null, error: { message } };
+}
 
 function mapPgError(message: string) {
   if (message.includes("já está pago")) return message;
@@ -81,117 +60,20 @@ function mapPgError(message: string) {
   if (message.includes("unitário") || message.includes("negativo")) {
     return message;
   }
+  if (message.includes("Sem permissão")) return message;
   return message;
 }
 
 async function callPurchaseRpc(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: { rpc: (...args: any[]) => any },
   fn: "confirm_purchase" | "cancel_purchase" | "recalculate_purchase_totals",
   args: Record<string, unknown>
 ) {
-  const supabase = createClient();
-  // Tipagem do supabase.rpc com Functions customizadas exige cast neste projeto.
-  return (
-    supabase as unknown as {
-      rpc: (
-        fnName: string,
-        params?: Record<string, unknown>
-      ) => Promise<{ data: unknown; error: { message: string } | null }>;
-    }
-  ).rpc(fn, args);
-}
-
-function sortItems(items: PurchaseItemWithProduct[]) {
-  return [...items].sort((a, b) => {
-    if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
-    return a.created_at.localeCompare(b.created_at);
-  });
-}
-
-export async function listPurchases(params: {
-  companyId: string;
-  search?: string;
-  status?: string;
-  supplierId?: string;
-  periodFrom?: string;
-  periodTo?: string;
-}): Promise<Result<PurchaseListItem[]>> {
-  const supabase = createClient();
-  let query = supabase
-    .from("purchases")
-    .select(LIST_SELECT)
-    .eq("company_id", params.companyId)
-    .order("purchase_date", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  if (params.status && params.status !== "all") {
-    query = query.eq("status", params.status);
-  }
-
-  if (params.supplierId && params.supplierId !== "all") {
-    query = query.eq("supplier_id", params.supplierId);
-  }
-
-  if (params.periodFrom) {
-    query = query.gte("purchase_date", params.periodFrom);
-  }
-
-  if (params.periodTo) {
-    query = query.lte("purchase_date", params.periodTo);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    return { data: null, error: { message: mapPgError(error.message) } };
-  }
-
-  let rows = (data ?? []) as PurchaseListItem[];
-
-  if (params.search?.trim()) {
-    const term = params.search.trim().toLowerCase();
-    rows = rows.filter((row) => {
-      const doc = row.document_number?.toLowerCase() ?? "";
-      const notes = row.notes?.toLowerCase() ?? "";
-      const supplierName =
-        row.supplier?.trade_name?.toLowerCase() ||
-        row.supplier?.full_name?.toLowerCase() ||
-        "";
-      return (
-        doc.includes(term) ||
-        notes.includes(term) ||
-        supplierName.includes(term) ||
-        row.id.toLowerCase().includes(term)
-      );
-    });
-  }
-
-  return { data: rows, error: null };
-}
-
-export async function getPurchase(
-  companyId: string,
-  purchaseId: string
-): Promise<Result<PurchaseWithRelations>> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("purchases")
-    .select(PURCHASE_SELECT)
-    .eq("company_id", companyId)
-    .eq("id", purchaseId)
-    .maybeSingle();
-
-  if (error) {
-    return { data: null, error: { message: mapPgError(error.message) } };
-  }
-
-  if (!data) {
-    return { data: null, error: { message: "Compra não encontrada." } };
-  }
-
-  const purchase = data as PurchaseWithRelations;
-  purchase.items = sortItems(purchase.items ?? []);
-
-  return { data: purchase, error: null };
+  return supabase.rpc(fn, args) as Promise<{
+    data: unknown;
+    error: { message: string } | null;
+  }>;
 }
 
 function validateItems(items: PurchaseItemInput[]): string | null {
@@ -221,11 +103,60 @@ function validateItems(items: PurchaseItemInput[]): string | null {
   return null;
 }
 
+export async function listPurchases(params: {
+  companyId: string;
+  search?: string;
+  status?: string;
+  supplierId?: string;
+  periodFrom?: string;
+  periodTo?: string;
+}): Promise<Result<PurchaseListItem[]>> {
+  const authz = await assertMemberPermission({
+    companyId: params.companyId,
+    module: PERMISSION_MODULES.purchases,
+    action: "view",
+  });
+  if (!authz.ok) return deny(authz.message);
+
+  const supabase = await createClient();
+  const result = await queryPurchases(supabase, params);
+  if (result.error) {
+    return { data: null, error: { message: mapPgError(result.error.message) } };
+  }
+  return result;
+}
+
+export async function getPurchase(
+  companyId: string,
+  purchaseId: string
+): Promise<Result<PurchaseWithRelations>> {
+  const authz = await assertMemberPermission({
+    companyId,
+    module: PERMISSION_MODULES.purchases,
+    action: "view",
+  });
+  if (!authz.ok) return deny(authz.message);
+
+  const supabase = await createClient();
+  const result = await queryPurchase(supabase, companyId, purchaseId);
+  if (result.error) {
+    return { data: null, error: { message: mapPgError(result.error.message) } };
+  }
+  return result;
+}
+
 export async function createPurchase(params: {
   companyId: string;
   header: Omit<PurchaseInsert, "company_id" | "status">;
   items: PurchaseItemInput[];
 }): Promise<Result<PurchaseWithRelations>> {
+  const authz = await assertMemberPermission({
+    companyId: params.companyId,
+    module: PERMISSION_MODULES.purchases,
+    action: "create",
+  });
+  if (!authz.ok) return deny(authz.message);
+
   const validationError = validateItems(params.items);
   if (validationError) {
     return { data: null, error: { message: validationError } };
@@ -248,7 +179,7 @@ export async function createPurchase(params: {
     };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -317,6 +248,7 @@ export async function createPurchase(params: {
   }
 
   const { error: recalcError } = await callPurchaseRpc(
+    supabase,
     "recalculate_purchase_totals",
     { p_purchase_id: purchaseRow.id }
   );
@@ -328,7 +260,7 @@ export async function createPurchase(params: {
     };
   }
 
-  return getPurchase(params.companyId, purchaseRow.id);
+  return queryPurchase(supabase, params.companyId, purchaseRow.id);
 }
 
 export async function updatePurchaseDraft(params: {
@@ -337,7 +269,19 @@ export async function updatePurchaseDraft(params: {
   header: Omit<PurchaseInsert, "company_id" | "status">;
   items: PurchaseItemInput[];
 }): Promise<Result<PurchaseWithRelations>> {
-  const current = await getPurchase(params.companyId, params.purchaseId);
+  const authz = await assertMemberPermission({
+    companyId: params.companyId,
+    module: PERMISSION_MODULES.purchases,
+    action: "edit",
+  });
+  if (!authz.ok) return deny(authz.message);
+
+  const supabase = await createClient();
+  const current = await queryPurchase(
+    supabase,
+    params.companyId,
+    params.purchaseId
+  );
   if (current.error || !current.data) {
     return {
       data: null,
@@ -356,8 +300,6 @@ export async function updatePurchaseDraft(params: {
   if (validationError) {
     return { data: null, error: { message: validationError } };
   }
-
-  const supabase = createClient();
 
   const { error: updateError } = await supabase
     .from("purchases")
@@ -414,6 +356,7 @@ export async function updatePurchaseDraft(params: {
   }
 
   const { error: recalcError } = await callPurchaseRpc(
+    supabase,
     "recalculate_purchase_totals",
     { p_purchase_id: params.purchaseId }
   );
@@ -425,14 +368,21 @@ export async function updatePurchaseDraft(params: {
     };
   }
 
-  return getPurchase(params.companyId, params.purchaseId);
+  return queryPurchase(supabase, params.companyId, params.purchaseId);
 }
 
 export async function deletePurchaseDraft(
   companyId: string,
   purchaseId: string
 ): Promise<Result<true>> {
-  const supabase = createClient();
+  const authz = await assertMemberPermission({
+    companyId,
+    module: PERMISSION_MODULES.purchases,
+    action: "delete",
+  });
+  if (!authz.ok) return deny(authz.message);
+
+  const supabase = await createClient();
   const { error } = await supabase
     .from("purchases")
     .delete()
@@ -451,7 +401,15 @@ export async function confirmPurchase(
   companyId: string,
   purchaseId: string
 ): Promise<Result<PurchaseWithRelations>> {
-  const current = await getPurchase(companyId, purchaseId);
+  const authz = await assertMemberPermission({
+    companyId,
+    module: PERMISSION_MODULES.purchases,
+    action: "edit",
+  });
+  if (!authz.ok) return deny(authz.message);
+
+  const supabase = await createClient();
+  const current = await queryPurchase(supabase, companyId, purchaseId);
   if (current.error || !current.data) {
     return {
       data: null,
@@ -475,7 +433,7 @@ export async function confirmPurchase(
     };
   }
 
-  const { error } = await callPurchaseRpc("confirm_purchase", {
+  const { error } = await callPurchaseRpc(supabase, "confirm_purchase", {
     p_purchase_id: purchaseId,
   });
 
@@ -483,7 +441,7 @@ export async function confirmPurchase(
     return { data: null, error: { message: mapPgError(error.message) } };
   }
 
-  return getPurchase(companyId, purchaseId);
+  return queryPurchase(supabase, companyId, purchaseId);
 }
 
 export async function cancelPurchase(
@@ -491,7 +449,15 @@ export async function cancelPurchase(
   purchaseId: string,
   reason?: string | null
 ): Promise<Result<PurchaseWithRelations>> {
-  const { error } = await callPurchaseRpc("cancel_purchase", {
+  const authz = await assertMemberPermission({
+    companyId,
+    module: PERMISSION_MODULES.purchases,
+    action: "edit",
+  });
+  if (!authz.ok) return deny(authz.message);
+
+  const supabase = await createClient();
+  const { error } = await callPurchaseRpc(supabase, "cancel_purchase", {
     p_purchase_id: purchaseId,
     p_reason: reason?.trim() || null,
   });
@@ -500,5 +466,5 @@ export async function cancelPurchase(
     return { data: null, error: { message: mapPgError(error.message) } };
   }
 
-  return getPurchase(companyId, purchaseId);
+  return queryPurchase(supabase, companyId, purchaseId);
 }

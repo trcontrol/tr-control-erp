@@ -8,48 +8,76 @@ import {
   ShoppingCart,
   UserPlus,
   Wallet,
+  type LucideIcon,
 } from "lucide-react";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import {
+  PERMISSION_MODULES,
+  type PermissionModuleId,
+} from "@/lib/users/permissions";
+import { useTenant } from "@/providers/tenant-provider";
 
-const actions = [
+type QuickAction = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  tone: keyof typeof toneStyles;
+  module: PermissionModuleId;
+  /** Ação rápida exige create no módulo */
+  requiresCreate: true;
+};
+
+const actions: QuickAction[] = [
   {
     href: ROUTES.salesNew,
     label: "Nova venda",
     icon: ShoppingBag,
     tone: "gold",
+    module: PERMISSION_MODULES.sales,
+    requiresCreate: true,
   },
   {
     href: ROUTES.purchasesNew,
     label: "Nova compra",
     icon: ShoppingCart,
     tone: "navy",
+    module: PERMISSION_MODULES.purchases,
+    requiresCreate: true,
   },
   {
     href: ROUTES.financeNew,
     label: "Lançamento",
     icon: Wallet,
     tone: "green",
+    module: PERMISSION_MODULES.finance,
+    requiresCreate: true,
   },
   {
     href: ROUTES.customersNew,
     label: "Novo cliente",
     icon: UserPlus,
     tone: "rose",
+    module: PERMISSION_MODULES.customers,
+    requiresCreate: true,
   },
   {
     href: ROUTES.productsNew,
     label: "Novo produto",
     icon: PackagePlus,
     tone: "coral",
+    module: PERMISSION_MODULES.products,
+    requiresCreate: true,
   },
   {
     href: ROUTES.tasksNew,
     label: "Nova tarefa",
     icon: ListTodo,
     tone: "purple",
+    module: PERMISSION_MODULES.tasks,
+    requiresCreate: true,
   },
-] as const;
+];
 
 const toneStyles = {
   gold: {
@@ -79,13 +107,32 @@ const toneStyles = {
 } as const;
 
 export function ExecutiveQuickActions() {
+  const { allowedModules, creatableModules } = useTenant();
+
+  const visible = actions.filter((action) => {
+    if (!allowedModules.includes(action.module)) return false;
+    if (action.requiresCreate && !creatableModules.includes(action.module)) {
+      return false;
+    }
+    return true;
+  });
+
+  if (visible.length === 0) return null;
+
+  const gridClass =
+    visible.length >= 6
+      ? "grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2 xl:grid-cols-6"
+      : visible.length >= 4
+        ? "grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2 xl:grid-cols-4"
+        : "grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2";
+
   return (
     <section className="w-full min-w-0 rounded-[18px] border border-[var(--brand-navy)]/[0.05] bg-[linear-gradient(180deg,#fff_0%,#faf8f6_100%)] px-3 py-2.5 shadow-[0_2px_10px_rgb(17_32_59/0.035)] sm:px-4 sm:py-3">
       <p className="mb-2 text-left text-[11px] font-semibold tracking-[0.04em] text-[var(--brand-gold)] sm:mb-2.5">
         Acesso rápido
       </p>
-      <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2 xl:grid-cols-6">
-        {actions.map((action) => {
+      <div className={gridClass}>
+        {visible.map((action) => {
           const Icon = action.icon;
           const tone = toneStyles[action.tone];
           return (

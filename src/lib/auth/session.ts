@@ -32,6 +32,18 @@ function emptyResult(
   };
 }
 
+function sortCompaniesDeterministic(
+  rows: CompanyWithMembership[]
+): CompanyWithMembership[] {
+  return [...rows].sort((a, b) => {
+    const byName = a.name.localeCompare(b.name, "pt-BR", {
+      sensitivity: "base",
+    });
+    if (byName !== 0) return byName;
+    return a.id.localeCompare(b.id);
+  });
+}
+
 export async function getSession() {
   const supabase = await createClient();
   const {
@@ -45,6 +57,7 @@ export async function getSession() {
  * Carrega empresas do usuário autenticado.
  * Usa duas consultas (members → companies) para evitar falhas silenciosas
  * do embed PostgREST e para respeitar RLS em cada tabela.
+ * Ordenação determinística por nome (não define empresa ativa).
  */
 export async function getUserCompanies(): Promise<UserCompaniesResult> {
   const supabase = await createClient();
@@ -68,8 +81,10 @@ export async function getUserCompanies(): Promise<UserCompaniesResult> {
     error: membershipsError,
   } = await supabase
     .from("company_members")
-    .select("id, company_id, user_id, role, created_at")
-    .eq("user_id", user.id);
+    .select("id, company_id, user_id, role, access_profile, status, created_at")
+    .eq("user_id", user.id)
+    .neq("status", "inactive")
+    .order("created_at", { ascending: true });
 
   if (membershipsError) {
     return emptyResult(
@@ -83,7 +98,13 @@ export async function getUserCompanies(): Promise<UserCompaniesResult> {
 
   const memberRows = (memberships ?? []) as Pick<
     CompanyMember,
-    "id" | "company_id" | "user_id" | "role" | "created_at"
+    | "id"
+    | "company_id"
+    | "user_id"
+    | "role"
+    | "access_profile"
+    | "status"
+    | "created_at"
   >[];
 
   const memberCompanyIds = memberRows.map((row) => row.company_id);
@@ -120,23 +141,27 @@ export async function getUserCompanies(): Promise<UserCompaniesResult> {
   const companies = (companiesData ?? []) as Company[];
   const companiesById = new Map(companies.map((company) => [company.id, company]));
 
-  const result: CompanyWithMembership[] = memberRows
-    .map((membership) => {
-      const company = companiesById.get(membership.company_id);
-      if (!company) return null;
+  const result: CompanyWithMembership[] = sortCompaniesDeterministic(
+    memberRows
+      .map((membership) => {
+        const company = companiesById.get(membership.company_id);
+        if (!company) return null;
 
-      return {
-        ...company,
+        return {
+          ...company,
         membership: {
           id: membership.id,
           company_id: membership.company_id,
           user_id: membership.user_id,
           role: membership.role,
+          access_profile: membership.access_profile,
+          status: membership.status,
           created_at: membership.created_at,
         },
-      };
-    })
-    .filter((row): row is CompanyWithMembership => row !== null);
+        };
+      })
+      .filter((row): row is CompanyWithMembership => row !== null)
+  );
 
   let error: string | null = null;
 

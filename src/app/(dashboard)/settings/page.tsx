@@ -12,7 +12,7 @@ export default function SettingsPage() {
           Configurações
         </h1>
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
-          Preferências e ajustes gerais do sistema
+          Conta pessoal e dados cadastrais da empresa ativa
         </p>
       </div>
       <SettingsBoard />

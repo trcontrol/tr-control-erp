@@ -1,6 +1,14 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { getSession, getUserCompanies } from "@/lib/auth/session";
+import {
+  ACTIVE_COMPANY_COOKIE,
+  parseActiveCompanyMarker,
+  resolveActiveCompanyId,
+} from "@/lib/auth/active-company";
+import { isPlatformAdmin } from "@/lib/admin/platform-admin";
+import { resolveMemberAccessSnapshot } from "@/lib/plans/require-module-access";
 import { TenantProvider } from "@/providers/tenant-provider";
 import { ROUTES } from "@/lib/constants";
 
@@ -15,12 +23,40 @@ export default async function DashboardLayout({
     redirect(ROUTES.login);
   }
 
-  const { companies, error, debug } = await getUserCompanies();
+  const [{ companies, error, debug }, platformAdmin, cookieStore] =
+    await Promise.all([
+      getUserCompanies(),
+      isPlatformAdmin(),
+      cookies(),
+    ]);
+
+  const preferredCompanyId =
+    parseActiveCompanyMarker(
+      cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value
+    )?.companyId ?? null;
+
+  const initialCompanyId = resolveActiveCompanyId(
+    companies.map((company) => company.id),
+    preferredCompanyId
+  );
+
+  const access = initialCompanyId
+    ? await resolveMemberAccessSnapshot(initialCompanyId)
+    : null;
 
   return (
-    <TenantProvider companies={companies} loadError={error}>
+    <TenantProvider
+      companies={companies}
+      initialCompanyId={initialCompanyId ?? undefined}
+      initialAllowedModules={access?.allowedModules ?? []}
+      initialCreatableModules={access?.creatableModules ?? []}
+      initialEditableModules={access?.editableModules ?? []}
+      initialDeletableModules={access?.deletableModules ?? []}
+      loadError={error}
+    >
       <AppShell
         userEmail={user.email}
+        isPlatformAdmin={platformAdmin}
         banner={
           error ? (
             <div className="border-b border-destructive/30 bg-destructive/10 px-6 py-3 text-sm text-destructive">

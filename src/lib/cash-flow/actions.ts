@@ -1,4 +1,14 @@
-import { createClient } from "@/lib/supabase/client";
+"use server";
+
+/**
+ * Cash Flow — somente leitura (RPC dashboard).
+ * Enforcement: plan entitlement ∩ can_view do módulo cash_flow.
+ * Sem mutações nesta fase. Scope não aplicado.
+ */
+import { normalizeCashFlowDashboard } from "@/lib/cash-flow/normalize";
+import { assertMemberPermission } from "@/lib/plans/require-module-access";
+import { createClient } from "@/lib/supabase/server";
+import { PERMISSION_MODULES } from "@/lib/users/permissions";
 import type { CashFlowDashboard } from "@/types/database";
 
 type Result<T> =
@@ -18,52 +28,20 @@ export type CashFlowDashboardParams = {
   grain?: "day" | "week" | "month";
 };
 
-function toNumber(value: number | string | null | undefined) {
-  const amount = typeof value === "string" ? Number(value) : (value ?? 0);
-  return Number.isFinite(amount) ? amount : 0;
-}
-
-export function normalizeCashFlowDashboard(
-  raw: CashFlowDashboard
-): CashFlowDashboard {
-  return {
-    ...raw,
-    kpis: {
-      current_balance: toNumber(raw.kpis.current_balance),
-      realized_inflows: toNumber(raw.kpis.realized_inflows),
-      realized_outflows: toNumber(raw.kpis.realized_outflows),
-      period_balance: toNumber(raw.kpis.period_balance),
-      open_receivables: toNumber(raw.kpis.open_receivables),
-      open_payables: toNumber(raw.kpis.open_payables),
-      realized_opening_balance: toNumber(raw.kpis.realized_opening_balance),
-      projected_opening_balance: toNumber(raw.kpis.projected_opening_balance),
-    },
-    series: (raw.series ?? []).map((point) => ({
-      ...point,
-      realized_inflows: toNumber(point.realized_inflows),
-      realized_outflows: toNumber(point.realized_outflows),
-      realized_net: toNumber(point.realized_net),
-      projected_inflows: toNumber(point.projected_inflows),
-      projected_outflows: toNumber(point.projected_outflows),
-      projected_net: toNumber(point.projected_net),
-      realized_balance: toNumber(point.realized_balance),
-      projected_balance: toNumber(point.projected_balance),
-    })),
-    movements: (raw.movements ?? []).map((row) => ({
-      ...row,
-      inflow: toNumber(row.inflow),
-      outflow: toNumber(row.outflow),
-      running_balance: toNumber(row.running_balance),
-    })),
-  };
-}
-
 export async function getCashFlowDashboard(
   params: CashFlowDashboardParams
 ): Promise<Result<CashFlowDashboard>> {
-  const supabase = createClient();
+  const authz = await assertMemberPermission({
+    companyId: params.companyId,
+    module: PERMISSION_MODULES.cashFlow,
+    action: "view",
+  });
+  if (!authz.ok) {
+    return { data: null, error: { message: authz.message } };
+  }
 
-  // Tipagem do supabase.rpc com Functions customizadas exige cast neste projeto.
+  const supabase = await createClient();
+
   const { data, error } = await (
     supabase as unknown as {
       rpc: (

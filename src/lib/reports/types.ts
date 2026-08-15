@@ -9,6 +9,13 @@ export const REPORT_TYPES = {
   funnel: "funnel",
 } as const;
 
+/**
+ * FOLLOW-UP (fase posterior de planos):
+ * restringir REPORT_TYPES por entitlement
+ * (básico / completo / avançado — Essential vs Professional vs Premium).
+ * Nesta fase o módulo `reports` é liberado inteiro nos 3 planos.
+ */
+
 export type ReportType = (typeof REPORT_TYPES)[keyof typeof REPORT_TYPES];
 
 export type ReportTypeMeta = {

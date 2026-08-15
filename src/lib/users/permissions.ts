@@ -97,6 +97,8 @@ export type PermissionModuleConfig = {
   id: PermissionModuleId;
   label: string;
   supportsExport: boolean;
+  /** Quando false, a UI de permissões omite Criar/Excluir (V1 Settings). */
+  supportsCreateDelete?: boolean;
   scopes: PermissionScope[];
 };
 
@@ -187,6 +189,7 @@ export const PERMISSION_MODULE_CATALOG: PermissionModuleConfig[] = [
     id: PERMISSION_MODULES.settings,
     label: "Configurações",
     supportsExport: false,
+    supportsCreateDelete: false,
     scopes: [PERMISSION_SCOPES.all],
   },
   {
@@ -473,4 +476,136 @@ export function deriveAccessProfileFromRole(role: string): AccessProfileId {
     return ACCESS_PROFILES.administrator;
   }
   return ACCESS_PROFILES.professional;
+}
+
+/** Mapeia perfil de acesso → role persistível (owner permanece owner). */
+export function companyRoleForAccessProfile(
+  profile: AccessProfileId,
+  currentRole: string
+): "owner" | "admin" | "member" {
+  if (currentRole === "owner") return "owner";
+  if (profile === ACCESS_PROFILES.administrator) return "admin";
+  return "member";
+}
+
+/** Formato persistido em company_invites.permissions / member_permissions. */
+export type PersistedModulePermission = {
+  module: string;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  can_export: boolean;
+  scope: PermissionScope;
+};
+
+export function serializePermissionsForStorage(
+  permissions: ModulePermissionState[]
+): PersistedModulePermission[] {
+  return permissions.map((permission) => ({
+    module: permission.module,
+    can_view: permission.view,
+    can_create: permission.create,
+    can_edit: permission.edit,
+    can_delete: permission.delete,
+    can_export: permission.export,
+    scope: permission.scope,
+  }));
+}
+
+function isPermissionScope(value: unknown): value is PermissionScope {
+  return (
+    value === PERMISSION_SCOPES.all ||
+    value === PERMISSION_SCOPES.own ||
+    value === PERMISSION_SCOPES.own_agenda ||
+    value === PERMISSION_SCOPES.team
+  );
+}
+
+export function parseStoredPermissions(
+  value: unknown
+): PersistedModulePermission[] {
+  if (!Array.isArray(value)) return [];
+
+  const parsed: PersistedModulePermission[] = [];
+
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const moduleId =
+      typeof row.module === "string" ? row.module.trim() : "";
+    if (!moduleId) continue;
+
+    const scope = isPermissionScope(row.scope)
+      ? row.scope
+      : PERMISSION_SCOPES.all;
+
+    parsed.push({
+      module: moduleId,
+      can_view: Boolean(row.can_view ?? row.view),
+      can_create: Boolean(row.can_create ?? row.create),
+      can_edit: Boolean(row.can_edit ?? row.edit),
+      can_delete: Boolean(row.can_delete ?? row.delete),
+      can_export: Boolean(row.can_export ?? row.export),
+      scope,
+    });
+  }
+
+  return parsed;
+}
+
+const PERMISSION_MODULE_IDS = new Set<string>(
+  PERMISSION_MODULE_CATALOG.map((module) => module.id)
+);
+
+export function isPermissionModuleId(value: string): value is PermissionModuleId {
+  return PERMISSION_MODULE_IDS.has(value);
+}
+
+export function isAccessProfileId(value: string): value is AccessProfileId {
+  return (
+    value === ACCESS_PROFILES.administrator ||
+    value === ACCESS_PROFILES.manager ||
+    value === ACCESS_PROFILES.professional ||
+    value === ACCESS_PROFILES.attendant ||
+    value === ACCESS_PROFILES.custom
+  );
+}
+
+/**
+ * Hidrata a matriz da UI a partir de linhas persistidas.
+ * Módulos ausentes no storage usam o fallback do perfil.
+ */
+export function hydrateModulePermissionsFromStored(
+  stored: PersistedModulePermission[],
+  fallbackProfile: AccessProfileId
+): ModulePermissionState[] {
+  const byModule = new Map(
+    stored
+      .filter((row) => isPermissionModuleId(row.module))
+      .map((row) => [row.module, row] as const)
+  );
+
+  return permissionsForProfile(fallbackProfile).map((permission) => {
+    const row = byModule.get(permission.module);
+    if (!row) return permission;
+
+    const config = PERMISSION_MODULE_CATALOG.find(
+      (module) => module.id === permission.module
+    );
+    const scope =
+      config && config.scopes.includes(row.scope)
+        ? row.scope
+        : (config?.scopes[0] ?? PERMISSION_SCOPES.all);
+
+    return applyViewDependency({
+      module: permission.module,
+      view: row.can_view,
+      create: row.can_create,
+      edit: row.can_edit,
+      delete: row.can_delete,
+      export: config?.supportsExport ? row.can_export : false,
+      scope,
+    });
+  });
 }

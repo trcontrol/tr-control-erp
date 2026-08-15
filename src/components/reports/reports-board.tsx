@@ -42,7 +42,7 @@ import {
   PURCHASE_STATUS_OPTIONS,
   SALE_STATUS_OPTIONS,
 } from "@/lib/constants";
-import type { FinancialEntryWithRelations } from "@/lib/finance/actions";
+import type { FinancialEntryWithRelations } from "@/lib/finance/entry-query";
 import { opportunityStageLabel } from "@/lib/funnel/format";
 import {
   getCustomersReport,

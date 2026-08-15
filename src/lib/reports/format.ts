@@ -20,7 +20,7 @@ import {
   monthBucketLabel,
   toNumberAmount,
 } from "@/lib/dashboard/format";
-import type { FinancialEntryWithRelations } from "@/lib/finance/actions";
+import type { FinancialEntryWithRelations } from "@/lib/finance/entry-query";
 import type { OpportunityWithRelations } from "@/lib/funnel/actions";
 import {
   customerDisplayName,

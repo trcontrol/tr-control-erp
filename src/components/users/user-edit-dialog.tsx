@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -8,17 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { COMPANY_ROLES, type CompanyRole } from "@/lib/constants";
-import {
-  companyRoleForAccessProfile,
-  updateCompanyMemberBasics,
-  type CompanyUser,
-} from "@/lib/users/actions";
+import type { CompanyUser } from "@/lib/users/actions";
+import { updateCompanyMemberBasics } from "@/lib/users/member-actions";
 import { USER_STATUS_OPTIONS, type UserStatus } from "@/lib/users/format";
 import {
   ACCESS_PROFILE_OPTIONS,
   ACCESS_PROFILES,
+  companyRoleForAccessProfile,
   type AccessProfileId,
 } from "@/lib/users/permissions";
+import { useTenant } from "@/providers/tenant-provider";
 
 type UserEditDialogProps = {
   user: CompanyUser | null;
@@ -35,6 +35,8 @@ export function UserEditDialog({
   onSaved,
   onConfigureAccess,
 }: UserEditDialogProps) {
+  const router = useRouter();
+  const { company, refreshAccessSnapshot } = useTenant();
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<CompanyRole>(COMPANY_ROLES.member);
   const [status, setStatus] = useState<UserStatus>("active");
@@ -43,7 +45,6 @@ export function UserEditDialog({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !user) return;
@@ -52,7 +53,6 @@ export function UserEditDialog({
     setStatus(user.status);
     setAccessProfile(user.accessProfile);
     setError(null);
-    setInfo(null);
   }, [open, user]);
 
   async function handleSubmit(event: React.FormEvent) {
@@ -61,11 +61,11 @@ export function UserEditDialog({
 
     setSaving(true);
     setError(null);
-    setInfo(null);
 
-    const nextRole = user.role === COMPANY_ROLES.owner
-      ? COMPANY_ROLES.owner
-      : companyRoleForAccessProfile(accessProfile, role);
+    const nextRole =
+      user.role === COMPANY_ROLES.owner
+        ? COMPANY_ROLES.owner
+        : companyRoleForAccessProfile(accessProfile, role);
 
     const result = await updateCompanyMemberBasics({
       companyId: user.companyId,
@@ -73,6 +73,8 @@ export function UserEditDialog({
       userId: user.userId,
       fullName,
       role: nextRole,
+      status,
+      accessProfile,
     });
 
     setSaving(false);
@@ -82,23 +84,16 @@ export function UserEditDialog({
       return;
     }
 
-    const notes: string[] = [];
-    if (!user.isCurrentUser) {
-      notes.push(
-        "O nome de outros usuários só poderá ser alterado após a migration/admin path (RLS atual limita ao próprio perfil)."
-      );
-    }
-    if (status !== user.status || accessProfile !== user.accessProfile) {
-      notes.push(
-        "Status e perfil de acesso detalhado serão persistidos após a migration autorizada."
-      );
-    }
-    if (result.data.updatedRole || result.data.updatedName) {
-      onSaved();
-    }
-    if (notes.length > 0) {
-      setInfo(notes.join(" "));
-      return;
+    onSaved();
+
+    // Perfil/cargo alteram hasFullPlanAccess / snapshot efetivo do próprio usuário.
+    if (
+      user.isCurrentUser &&
+      company?.id &&
+      user.companyId === company.id
+    ) {
+      await refreshAccessSnapshot(company.id);
+      router.refresh();
     }
 
     onOpenChange(false);
@@ -216,11 +211,6 @@ export function UserEditDialog({
           {error ? (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               {error}
-            </div>
-          ) : null}
-          {info ? (
-            <div className="rounded-md border border-[var(--brand-gold)]/30 bg-[var(--brand-gold)]/10 p-3 text-sm text-[var(--brand-navy)]">
-              {info}
             </div>
           ) : null}
 

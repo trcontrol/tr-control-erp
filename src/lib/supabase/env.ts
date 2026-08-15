@@ -3,6 +3,11 @@ export type SupabaseEnv = {
   publishableKey: string;
 };
 
+export type SupabaseAdminEnv = {
+  url: string;
+  serviceRoleKey: string;
+};
+
 function isValidEnvValue(value: string | undefined): value is string {
   const trimmed = value?.trim();
   return Boolean(trimmed && !trimmed.startsWith("your-"));

@@ -1,21 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
+import { checkPlatformAdminAction } from "@/lib/admin/platform-admin-actions";
 
 type AppShellProps = {
   userEmail?: string;
+  isPlatformAdmin?: boolean;
   banner?: React.ReactNode;
   children: React.ReactNode;
 };
 
-export function AppShell({ userEmail, banner, children }: AppShellProps) {
+export function AppShell({
+  userEmail,
+  isPlatformAdmin = false,
+  banner,
+  children,
+}: AppShellProps) {
+  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [platformAdmin, setPlatformAdmin] = useState(isPlatformAdmin);
+
+  useEffect(() => {
+    setPlatformAdmin(isPlatformAdmin);
+  }, [isPlatformAdmin]);
+
+  // Atualiza após navegação — o layout do dashboard pode ficar stale.
+  useEffect(() => {
+    let cancelled = false;
+
+    void checkPlatformAdminAction()
+      .then((allowed) => {
+        if (!cancelled) setPlatformAdmin(allowed);
+      })
+      .catch(() => {
+        if (!cancelled) setPlatformAdmin(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   return (
     <div className="bg-app-shell flex min-h-screen overflow-x-clip">
-      <Sidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <Sidebar
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        isPlatformAdmin={platformAdmin}
+      />
       <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
         <Header
           userEmail={userEmail}

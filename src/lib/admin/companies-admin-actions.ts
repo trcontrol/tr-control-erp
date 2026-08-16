@@ -3,12 +3,17 @@
 import { revalidatePath } from "next/cache";
 import {
   createCompanyWithOwnerInvite,
+  deleteCompanyForPlatformAdmin,
+  getAdminCompanyDeletionCounts,
   resendInitialOwnerInvite,
   updateCompanyCommercial,
 } from "@/lib/admin/companies-admin";
 import type {
+  AdminCompanyDeletionCounts,
   CreateCompanyWithOwnerInput,
   CreateCompanyWithOwnerResult,
+  DeleteCompanyInput,
+  DeleteCompanyResult,
   UpdateCompanyCommercialInput,
   UpdateCompanyCommercialResult,
 } from "@/lib/admin/companies-admin-shared";
@@ -56,5 +61,26 @@ export async function getAdminCompanySeatUsageAction(
   if ("error" in result) {
     return { error: result.error };
   }
+  return result;
+}
+
+/** Super Admin: contagens informativas para o modal de exclusão. */
+export async function getAdminCompanyDeletionCountsAction(
+  companyId: string
+): Promise<AdminCompanyDeletionCounts | { error: string }> {
+  return getAdminCompanyDeletionCounts(companyId);
+}
+
+/** Super Admin: exclusão definitiva do tenant. */
+export async function deleteCompanyForPlatformAdminAction(
+  input: DeleteCompanyInput
+): Promise<DeleteCompanyResult | { error: string }> {
+  const result = await deleteCompanyForPlatformAdmin(input);
+
+  if (!("error" in result)) {
+    revalidatePath(ROUTES.adminCompanies);
+    revalidatePath("/", "layout");
+  }
+
   return result;
 }

@@ -1536,6 +1536,15 @@ export type Database = {
           status: string;
         };
       };
+      delete_company_for_platform_admin: {
+        Args: {
+          p_company_id: string;
+        };
+        Returns: {
+          company_id: string;
+          company_name: string;
+        };
+      };
     };
     Enums: {
       [_ in never]: never;

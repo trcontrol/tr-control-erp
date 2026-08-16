@@ -2,19 +2,25 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { KeyRound, ShieldCheck, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/constants";
+import {
+  AuthAlert,
+  AuthFormCard,
+  AuthSplitShell,
+  authInputClassName,
+  authPrimaryButtonClassName,
+} from "@/components/auth/auth-split-shell";
+
+const HIGHLIGHTS = [
+  { icon: ListChecks, label: "Processo simples" },
+  { icon: ShieldCheck, label: "Acesso protegido" },
+  { icon: KeyRound, label: "Retorno ao sistema em poucos passos" },
+] as const;
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -46,58 +52,85 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Recuperar senha</CardTitle>
-        <CardDescription>
-          Enviaremos um link para redefinir sua senha
-        </CardDescription>
-      </CardHeader>
+    <AuthSplitShell
+      panelTitle={
+        <>
+          Recupere seu acesso{" "}
+          <span className="text-[var(--brand-gold-soft)]">com segurança.</span>
+        </>
+      }
+      panelDescription="Informe o e-mail utilizado no TR Control ERP e enviaremos as instruções para redefinir sua senha."
+      highlights={HIGHLIGHTS}
+      backHref={ROUTES.login}
+      backLabel="Voltar para o login"
+    >
       {success ? (
-        <CardContent className="space-y-4">
-          <div className="rounded-md bg-primary/10 p-3 text-sm text-foreground">
+        <AuthFormCard
+          title="Esqueceu sua senha?"
+          description="Se existir uma conta com esse e-mail, você receberá um link para redefinir a senha."
+          footer={
+            <p className="text-center text-sm text-[var(--brand-navy-mid)]/75">
+              <Link
+                href={ROUTES.login}
+                className="font-medium text-[var(--brand-navy-deep)] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-gold)]"
+              >
+                Voltar para o login
+              </Link>
+            </p>
+          }
+        >
+          <AuthAlert variant="success">
             Se existir uma conta com esse e-mail, você receberá um link para
             redefinir a senha. Verifique sua caixa de entrada.
-          </div>
-          <p className="text-center text-sm text-muted-foreground">
-            <Link href={ROUTES.login} className="text-primary hover:underline">
-              Voltar para o login
-            </Link>
-          </p>
-        </CardContent>
+          </AuthAlert>
+        </AuthFormCard>
       ) : (
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
+        <AuthFormCard
+          title="Esqueceu sua senha?"
+          description="Informe seu e-mail de acesso para receber as instruções de redefinição."
+          footer={
+            <p className="text-center text-sm text-[var(--brand-navy-mid)]/75">
+              Lembrou a senha?{" "}
+              <Link
+                href={ROUTES.login}
+                className="font-medium text-[var(--brand-navy-deep)] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-gold)]"
+              >
+                Entrar
+              </Link>
+            </p>
+          }
+        >
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && <AuthAlert variant="error">{error}</AuthAlert>}
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label
+                htmlFor="email"
+                className="text-[var(--brand-navy-deep)]"
+              >
+                E-mail
+              </Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="seu@email.com"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={loading}
+                className={authInputClassName}
               />
             </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Enviando..." : "Enviar link de recuperação"}
+            <Button
+              type="submit"
+              disabled={loading}
+              className={authPrimaryButtonClassName}
+            >
+              {loading ? "Enviando..." : "Enviar instruções"}
             </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              Lembrou a senha?{" "}
-              <Link href={ROUTES.login} className="text-primary hover:underline">
-                Entrar
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
+          </form>
+        </AuthFormCard>
       )}
-    </Card>
+    </AuthSplitShell>
   );
 }

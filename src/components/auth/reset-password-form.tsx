@@ -3,17 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ShieldCheck, UserRound, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { ROUTES } from "@/lib/constants";
 import {
@@ -21,11 +14,43 @@ import {
   validatePasswordResetFlowAction,
 } from "@/lib/auth/password-reset-flow-actions";
 import { acceptFlowInviteAction } from "@/lib/users/invite-actions";
+import {
+  AuthAlert,
+  AuthFormCard,
+  AuthSplitShell,
+  authInputClassName,
+  authPrimaryButtonClassName,
+} from "@/components/auth/auth-split-shell";
 
 const MIN_PASSWORD_LENGTH = 8;
 
+const HIGHLIGHTS = [
+  { icon: Lock, label: "Conta protegida" },
+  { icon: UserRound, label: "Acesso individual" },
+  { icon: ShieldCheck, label: "Gestão com segurança" },
+] as const;
+
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
+}
+
+function ResetShell({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthSplitShell
+      panelTitle={
+        <>
+          Crie uma nova senha{" "}
+          <span className="text-[var(--brand-gold-soft)]">para continuar.</span>
+        </>
+      }
+      panelDescription="Escolha uma nova senha para proteger seu acesso ao TR Control ERP."
+      highlights={HIGHLIGHTS}
+      backHref={ROUTES.login}
+      backLabel="Voltar para o login"
+    >
+      {children}
+    </AuthSplitShell>
+  );
 }
 
 export function ResetPasswordForm() {
@@ -330,121 +355,123 @@ export function ResetPasswordForm() {
 
   if (checkingSession) {
     return (
-      <Card className="w-full max-w-md">
-        <CardContent className="pt-6">
-          <p className="text-center text-sm text-muted-foreground">
+      <ResetShell>
+        <AuthFormCard
+          title="Redefinir senha"
+          description="Validando o link de acesso à sua conta."
+        >
+          <p className="text-center text-sm text-[var(--brand-navy-mid)]/70">
             Validando link de acesso...
           </p>
-        </CardContent>
-      </Card>
+        </AuthFormCard>
+      </ResetShell>
     );
   }
 
   if (success) {
     return (
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Senha definida</CardTitle>
-          <CardDescription>
-            Sua senha foi salva e o acesso à empresa foi vinculado. Use-a para
-            entrar na sua conta.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md bg-primary/10 p-3 text-sm text-foreground">
+      <ResetShell>
+        <AuthFormCard
+          title="Senha definida"
+          description="Sua senha foi salva e o acesso à empresa foi vinculado. Use-a para entrar na sua conta."
+          footer={
+            <Button asChild className={authPrimaryButtonClassName}>
+              <Link href={ROUTES.login}>Ir para o login</Link>
+            </Button>
+          }
+        >
+          <AuthAlert variant="success">
             Redirecionando para o login...
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button asChild className="w-full">
-            <Link href={ROUTES.login}>Ir para o login</Link>
-          </Button>
-        </CardFooter>
-      </Card>
+          </AuthAlert>
+        </AuthFormCard>
+      </ResetShell>
     );
   }
 
   if (!hasPasswordSession) {
     return (
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Link inválido ou expirado</CardTitle>
-          <CardDescription>
-            Peça ao administrador para reenviar o convite, ou solicite um novo
-            link de recuperação
-          </CardDescription>
-        </CardHeader>
-        {error ? (
-          <CardContent>
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
+      <ResetShell>
+        <AuthFormCard
+          title="Link inválido ou expirado"
+          description="Peça ao administrador para reenviar o convite, ou solicite um novo link de recuperação."
+          footer={
+            <div className="space-y-4">
+              <Button asChild className={authPrimaryButtonClassName}>
+                <Link href={ROUTES.forgotPassword}>Solicitar novo link</Link>
+              </Button>
+              <p className="text-center text-sm text-[var(--brand-navy-mid)]/75">
+                <Link
+                  href={ROUTES.login}
+                  className="font-medium text-[var(--brand-navy-deep)] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-gold)]"
+                >
+                  Voltar para o login
+                </Link>
+              </p>
             </div>
-          </CardContent>
-        ) : null}
-        <CardFooter className="flex flex-col gap-4">
-          <Button asChild className="w-full">
-            <Link href={ROUTES.forgotPassword}>Solicitar novo link</Link>
-          </Button>
-          <p className="text-center text-sm text-muted-foreground">
-            <Link href={ROUTES.login} className="text-primary hover:underline">
-              Voltar para o login
-            </Link>
-          </p>
-        </CardFooter>
-      </Card>
+          }
+        >
+          {error ? <AuthAlert variant="error">{error}</AuthAlert> : null}
+        </AuthFormCard>
+      </ResetShell>
     );
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Criar senha de acesso</CardTitle>
-        <CardDescription>
-          Defina a senha do seu primeiro acesso ou da recuperação de conta
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
+    <ResetShell>
+      <AuthFormCard
+        title="Redefinir senha"
+        description="Defina uma nova senha para sua conta."
+      >
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {error && <AuthAlert variant="error">{error}</AuthAlert>}
           <div className="space-y-2">
-            <Label htmlFor="password">Nova senha</Label>
+            <Label htmlFor="password" className="text-[var(--brand-navy-deep)]">
+              Nova senha
+            </Label>
             <Input
               id="password"
               type="password"
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               minLength={MIN_PASSWORD_LENGTH}
               required
               disabled={passwordSaved || loading}
+              className={authInputClassName}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirmar nova senha</Label>
+            <Label
+              htmlFor="confirmPassword"
+              className="text-[var(--brand-navy-deep)]"
+            >
+              Confirmar nova senha
+            </Label>
             <Input
               id="confirmPassword"
               type="password"
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               minLength={MIN_PASSWORD_LENGTH}
               required
               disabled={passwordSaved || loading}
+              className={authInputClassName}
             />
           </div>
-        </CardContent>
-        <CardFooter>
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button
+            type="submit"
+            className={authPrimaryButtonClassName}
+            disabled={loading}
+          >
             {loading
               ? "Salvando..."
               : passwordSaved
                 ? "Tentar vincular empresa novamente"
-                : "Salvar senha"}
+                : "Salvar nova senha"}
           </Button>
-        </CardFooter>
-      </form>
-    </Card>
+        </form>
+      </AuthFormCard>
+    </ResetShell>
   );
 }

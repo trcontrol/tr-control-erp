@@ -27,16 +27,18 @@ export function AppShell({
     setPlatformAdmin(isPlatformAdmin);
   }, [isPlatformAdmin]);
 
-  // Atualiza após navegação — o layout do dashboard pode ficar stale.
+  // Refresh after navigation — layout may be stale.
+  // Only apply confirmed results; never regress SSR true on recheck failure.
   useEffect(() => {
     let cancelled = false;
 
     void checkPlatformAdminAction()
-      .then((allowed) => {
-        if (!cancelled) setPlatformAdmin(allowed);
+      .then((result) => {
+        if (cancelled || !result.ok) return;
+        setPlatformAdmin(result.allowed);
       })
       .catch(() => {
-        if (!cancelled) setPlatformAdmin(false);
+        // Preserve current state (e.g. SSR-confirmed Super Admin).
       });
 
     return () => {

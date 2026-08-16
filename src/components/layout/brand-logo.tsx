@@ -1,57 +1,60 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 type BrandLogoProps = {
   className?: string;
+  /** When true, show only the official symbol badge (collapsed sidebar). */
   compact?: boolean;
 };
+
+/**
+ * Official sidebar badge — gold frame + navy interior in the asset.
+ * Outer white corners removed as real alpha (v4).
+ */
+const SYMBOL_SRC = "/brand/symbol-tr-control-erp-sidebar-v4.png";
 
 export function BrandMark({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl",
-        "bg-gradient-to-br from-[var(--brand-navy-mid)] to-[var(--brand-navy-deep)]",
-        "shadow-[0_6px_16px_rgb(0_0_0_/28%),inset_0_1px_0_rgb(255_255_255_/12%)]",
-        "ring-1 ring-white/10",
+        "relative inline-flex h-16 w-16 shrink-0 items-center justify-center",
         className
       )}
       aria-hidden
     >
-      <span className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-[var(--brand-gold)] via-[var(--brand-gold-soft)] to-[var(--brand-gold)]" />
-      <span className="font-display text-[13px] font-bold leading-none tracking-tight text-white">
-        TR
-      </span>
-      <span className="absolute bottom-1.5 h-1 w-1 rounded-full bg-[var(--brand-coral)]" />
+      <Image
+        src={SYMBOL_SRC}
+        alt=""
+        width={1024}
+        height={1024}
+        unoptimized
+        priority
+        className="h-full w-full object-contain"
+      />
     </span>
   );
 }
 
 export function BrandLogo({ className, compact = false }: BrandLogoProps) {
+  if (compact) {
+    return (
+      <div className={cn("flex items-center justify-center", className)}>
+        <BrandMark />
+      </div>
+    );
+  }
+
   return (
-    <div className={cn("flex min-w-0 items-center gap-3", className)}>
-      <BrandMark
-        className={cn(
-          compact ? "h-10 w-10 rounded-[14px]" : "h-10 w-10 rounded-[15px]"
-        )}
-      />
+    <div className={cn("flex min-w-0 items-center gap-2.5", className)}>
+      <BrandMark />
       <div className="min-w-0">
-        <p
-          className={cn(
-            "font-display font-semibold leading-none tracking-tight text-white",
-            compact ? "text-[1.05rem]" : "text-[1.12rem] lg:text-[1.18rem]"
-          )}
-        >
+        <p className="font-display text-[1.12rem] font-semibold leading-none tracking-tight text-white lg:text-[1.18rem]">
           TR Control{" "}
           <span className="font-sans text-[0.72em] font-semibold tracking-[0.04em] text-[var(--brand-coral)]">
             ERP
           </span>
         </p>
-        <p
-          className={cn(
-            "mt-1.5 truncate font-medium leading-none text-[var(--brand-gold-soft)]/90",
-            compact ? "text-[10px]" : "text-[11px]"
-          )}
-        >
+        <p className="mt-1.5 truncate text-[11px] font-medium leading-none text-[var(--brand-gold-soft)]/90">
           Gestão empresarial
         </p>
       </div>

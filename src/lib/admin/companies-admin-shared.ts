@@ -91,3 +91,35 @@ export type UpdateCompanyCommercialResult = {
   status: CompanyStatus;
   message: string;
 };
+
+/** Contagens informativas para o modal de exclusão (Super Admin). */
+export type AdminCompanyDeletionCounts = {
+  companyId: string;
+  name: string;
+  slug: string;
+  plan: string;
+  status: string;
+  activeMembers: number;
+  pendingInvites: number;
+  customers: number;
+  suppliers: number;
+  products: number;
+  purchases: number;
+  sales: number;
+  financialEntries: number;
+  tasks: number;
+  agendaEvents: number;
+  opportunities: number;
+};
+
+export type DeleteCompanyInput = {
+  companyId: string;
+  /** Deve coincidir com companies.name atual no servidor. */
+  confirmName: string;
+};
+
+export type DeleteCompanyResult = {
+  companyId: string;
+  message: string;
+  storageWarning: boolean;
+};

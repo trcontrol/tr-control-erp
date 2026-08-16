@@ -1,17 +1,22 @@
 import {
   companyPlanLabel,
   companyStatusLabel,
+  type AdminCompanyDeletionCounts,
   type AdminCompanyListItem,
   type CreateCompanyWithOwnerInput,
   type CreateCompanyWithOwnerResult,
+  type DeleteCompanyInput,
+  type DeleteCompanyResult,
   type UpdateCompanyCommercialInput,
   type UpdateCompanyCommercialResult,
 } from "@/lib/admin/companies-admin-shared";
 import { requirePlatformAdmin } from "@/lib/admin/platform-admin";
 import { isValidEmail, onlyDigits } from "@/lib/companies/format";
 import {
+  COMPANY_LOGOS_BUCKET,
   COMPANY_PLANS,
   COMPANY_STATUSES,
+  PRODUCT_IMAGES_BUCKET,
   type CompanyPlan,
   type CompanyStatus,
 } from "@/lib/constants";
@@ -41,9 +46,12 @@ import { getCompanySeatUsage } from "@/lib/plans/seats";
 import type { Json } from "@/types/database";
 
 export type {
+  AdminCompanyDeletionCounts,
   AdminCompanyListItem,
   CreateCompanyWithOwnerInput,
   CreateCompanyWithOwnerResult,
+  DeleteCompanyInput,
+  DeleteCompanyResult,
   UpdateCompanyCommercialInput,
   UpdateCompanyCommercialResult,
 } from "@/lib/admin/companies-admin-shared";
@@ -613,5 +621,320 @@ export async function updateCompanyCommercial(
     plan: nextPlan,
     status: nextStatus,
     message: `Empresa atualizada: ${companyPlanLabel(nextPlan)} · ${companyStatusLabel(nextStatus)}.`,
+  };
+}
+
+async function countRowsForCompany(
+  admin: ReturnType<typeof createAdminClient>,
+  table:
+    | "company_members"
+    | "company_invites"
+    | "customers"
+    | "suppliers"
+    | "products"
+    | "purchases"
+    | "sales"
+    | "financial_entries"
+    | "tasks"
+    | "agenda_events"
+    | "opportunities",
+  companyId: string,
+  extraEq?: { column: string; value: string }
+): Promise<number | { error: string }> {
+  let query = admin
+    .from(table)
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId);
+
+  if (extraEq) {
+    query = query.eq(extraEq.column, extraEq.value);
+  }
+
+  const { count, error } = await query;
+  if (error) {
+    return { error: error.message };
+  }
+  return count ?? 0;
+}
+
+/**
+ * Contagens informativas para o modal de exclusão (somente leitura).
+ * Não são usadas como fonte de verdade no delete.
+ */
+export async function getAdminCompanyDeletionCounts(
+  companyId: string
+): Promise<AdminCompanyDeletionCounts | { error: string }> {
+  await requirePlatformAdmin();
+
+  const id = typeof companyId === "string" ? companyId.trim() : "";
+  if (!UUID_RE.test(id)) {
+    return { error: "Identificador da empresa inválido." };
+  }
+
+  const admin = createAdminClient();
+  const { data: company, error: companyError } = await admin
+    .from("companies")
+    .select("id, name, slug, plan, status")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (companyError) {
+    return {
+      error: `Não foi possível carregar a empresa: ${companyError.message}`,
+    };
+  }
+  if (!company) {
+    return { error: "Empresa não encontrada." };
+  }
+
+  const row = company as {
+    id: string;
+    name: string;
+    slug: string;
+    plan: string;
+    status: string;
+  };
+
+  const results = await Promise.all([
+    countRowsForCompany(admin, "company_members", id, {
+      column: "status",
+      value: "active",
+    }),
+    countRowsForCompany(admin, "company_invites", id, {
+      column: "status",
+      value: "pending",
+    }),
+    countRowsForCompany(admin, "customers", id),
+    countRowsForCompany(admin, "suppliers", id),
+    countRowsForCompany(admin, "products", id),
+    countRowsForCompany(admin, "purchases", id),
+    countRowsForCompany(admin, "sales", id),
+    countRowsForCompany(admin, "financial_entries", id),
+    countRowsForCompany(admin, "tasks", id),
+    countRowsForCompany(admin, "agenda_events", id),
+    countRowsForCompany(admin, "opportunities", id),
+  ]);
+
+  for (const result of results) {
+    if (typeof result === "object" && "error" in result) {
+      return {
+        error: `Não foi possível carregar as contagens: ${result.error}`,
+      };
+    }
+  }
+
+  const [
+    activeMembers,
+    pendingInvites,
+    customers,
+    suppliers,
+    products,
+    purchases,
+    sales,
+    financialEntries,
+    tasks,
+    agendaEvents,
+    opportunities,
+  ] = results as number[];
+
+  return {
+    companyId: row.id,
+    name: row.name,
+    slug: row.slug,
+    plan: row.plan,
+    status: row.status ?? COMPANY_STATUSES.active,
+    activeMembers,
+    pendingInvites,
+    customers,
+    suppliers,
+    products,
+    purchases,
+    sales,
+    financialEntries,
+    tasks,
+    agendaEvents,
+    opportunities,
+  };
+}
+
+async function listStorageObjectPaths(
+  admin: ReturnType<typeof createAdminClient>,
+  bucket: string,
+  prefix: string
+): Promise<{ paths: string[]; error: string | null }> {
+  const { data, error } = await admin.storage.from(bucket).list(prefix, {
+    limit: 1000,
+    offset: 0,
+  });
+
+  if (error) {
+    const message = error.message.toLowerCase();
+    if (
+      message.includes("not found") ||
+      message.includes("does not exist") ||
+      message.includes("no such file")
+    ) {
+      return { paths: [], error: null };
+    }
+    return { paths: [], error: error.message };
+  }
+
+  const paths: string[] = [];
+  for (const item of data ?? []) {
+    if (!item.name || item.name === ".emptyFolderPlaceholder") continue;
+
+    // Pasta (id null): listar um nível abaixo sob o mesmo companyId.
+    if (item.id === null) {
+      const nested = await listStorageObjectPaths(
+        admin,
+        bucket,
+        `${prefix}/${item.name}`
+      );
+      if (nested.error) {
+        return nested;
+      }
+      paths.push(...nested.paths);
+      continue;
+    }
+
+    paths.push(`${prefix}/${item.name}`);
+  }
+
+  return { paths, error: null };
+}
+
+/**
+ * Remove objetos de Storage sob companyId nos buckets do tenant.
+ * Falhas viram warning — não revertem o delete do banco.
+ */
+async function cleanupCompanyStorage(companyId: string): Promise<{
+  storageWarning: boolean;
+}> {
+  const admin = createAdminClient();
+  const buckets = [COMPANY_LOGOS_BUCKET, PRODUCT_IMAGES_BUCKET] as const;
+  let storageWarning = false;
+
+  for (const bucket of buckets) {
+    const listed = await listStorageObjectPaths(admin, bucket, companyId);
+    if (listed.error) {
+      storageWarning = true;
+      continue;
+    }
+    if (listed.paths.length === 0) continue;
+
+    const { error: removeError } = await admin.storage
+      .from(bucket)
+      .remove(listed.paths);
+
+    if (removeError) {
+      storageWarning = true;
+    }
+  }
+
+  return { storageWarning };
+}
+
+/**
+ * Exclusão definitiva de tenant (Super Admin).
+ * Valida nome no servidor; RPC remove dados do company_id; limpa Storage após.
+ */
+export async function deleteCompanyForPlatformAdmin(
+  input: DeleteCompanyInput
+): Promise<DeleteCompanyResult | { error: string }> {
+  await requirePlatformAdmin();
+
+  const companyId =
+    typeof input.companyId === "string" ? input.companyId.trim() : "";
+  if (!UUID_RE.test(companyId)) {
+    return { error: "Identificador da empresa inválido." };
+  }
+
+  const confirmName =
+    typeof input.confirmName === "string" ? input.confirmName.trim() : "";
+  if (!confirmName) {
+    return { error: "Digite o nome da empresa para confirmar a exclusão." };
+  }
+
+  const admin = createAdminClient();
+  const { data: currentRow, error: currentError } = await admin
+    .from("companies")
+    .select("id, name")
+    .eq("id", companyId)
+    .maybeSingle();
+
+  if (currentError) {
+    return {
+      error: `Não foi possível carregar a empresa: ${currentError.message}`,
+    };
+  }
+  if (!currentRow) {
+    return { error: "Empresa não encontrada." };
+  }
+
+  const currentName = String(
+    (currentRow as { name?: string }).name ?? ""
+  ).trim();
+  if (confirmName !== currentName) {
+    return {
+      error:
+        "O nome digitado não confere com o nome atual da empresa. Digite exatamente o nome para confirmar.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await (
+    supabase as unknown as {
+      rpc: (
+        fnName: string,
+        params?: Record<string, unknown>
+      ) => Promise<{
+        data: Array<{
+          company_id: string;
+          company_name: string;
+        }> | null;
+        error: { message: string } | null;
+      }>;
+    }
+  ).rpc("delete_company_for_platform_admin", {
+    p_company_id: companyId,
+  });
+
+  if (error) {
+    const message = error.message.toLowerCase();
+    if (message.includes("not_platform_admin")) {
+      return {
+        error: "Apenas Super Admin pode excluir empresas da plataforma.",
+      };
+    }
+    if (message.includes("company_not_found")) {
+      return { error: "Empresa não encontrada." };
+    }
+    if (
+      message.includes("delete_company_for_platform_admin") &&
+      (message.includes("does not exist") || message.includes("schema cache"))
+    ) {
+      return {
+        error:
+          "RPC de exclusão indisponível. Aplique a migration 033_delete_company_for_platform_admin.",
+      };
+    }
+    return {
+      error: `Não foi possível excluir a empresa: ${error.message}`,
+    };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row?.company_id) {
+    return { error: "Empresa não encontrada." };
+  }
+
+  const { storageWarning } = await cleanupCompanyStorage(companyId);
+
+  return {
+    companyId: row.company_id,
+    message: storageWarning
+      ? "A empresa foi excluída, mas alguns arquivos não puderam ser removidos do armazenamento."
+      : "Empresa excluída permanentemente.",
+    storageWarning,
   };
 }

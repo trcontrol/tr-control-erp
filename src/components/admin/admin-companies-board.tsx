@@ -2,7 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Building2, Loader2, Mail, Pencil, Plus, RefreshCw } from "lucide-react";
+import {
+  Building2,
+  Loader2,
+  Mail,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
+import { DeleteCompanyDialog } from "@/components/admin/delete-company-dialog";
 import { EditCompanyCommercialForm } from "@/components/admin/edit-company-commercial-form";
 import { NewCompanyForm } from "@/components/admin/new-company-form";
 import { Button } from "@/components/ui/button";
@@ -37,6 +46,8 @@ export function AdminCompaniesBoard({
   const [createOpen, setCreateOpen] = useState(false);
   const [editingCompany, setEditingCompany] =
     useState<AdminCompanyListItem | null>(null);
+  const [deletingCompany, setDeletingCompany] =
+    useState<AdminCompanyListItem | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackTone, setFeedbackTone] = useState<"ok" | "warn">("ok");
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +73,14 @@ export function AdminCompaniesBoard({
     setError(null);
     setFeedback(message);
     setFeedbackTone("ok");
+    router.refresh();
+  }
+
+  function handleDeleted(result: { message: string; storageWarning: boolean }) {
+    setDeletingCompany(null);
+    setError(null);
+    setFeedback(result.message);
+    setFeedbackTone(result.storageWarning ? "warn" : "ok");
     router.refresh();
   }
 
@@ -139,7 +158,7 @@ export function AdminCompaniesBoard({
             </p>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-[var(--brand-navy)]/10">
-              <table className="w-full min-w-[860px] text-left text-sm">
+              <table className="w-full min-w-[920px] text-left text-sm">
                 <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Nome</th>
@@ -212,19 +231,35 @@ export function AdminCompaniesBoard({
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-8"
-                          onClick={() => {
-                            setError(null);
-                            setEditingCompany(company);
-                          }}
-                        >
-                          <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                          Editar
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => {
+                              setError(null);
+                              setEditingCompany(company);
+                            }}
+                          >
+                            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                            Editar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => {
+                              setError(null);
+                              setFeedback(null);
+                              setDeletingCompany(company);
+                            }}
+                          >
+                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                            Excluir empresa
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -271,6 +306,24 @@ export function AdminCompaniesBoard({
             company={editingCompany}
             onCancel={() => setEditingCompany(null)}
             onSuccess={handleCommercialUpdated}
+          />
+        ) : null}
+      </Dialog>
+
+      <Dialog
+        open={Boolean(deletingCompany)}
+        onOpenChange={(open) => {
+          if (!open) setDeletingCompany(null);
+        }}
+        title="Excluir empresa"
+        description="Exclusão definitiva exclusiva do Super Admin. Confirme digitando o nome da empresa."
+        className="max-w-xl"
+      >
+        {deletingCompany ? (
+          <DeleteCompanyDialog
+            company={deletingCompany}
+            onCancel={() => setDeletingCompany(null)}
+            onSuccess={handleDeleted}
           />
         ) : null}
       </Dialog>

@@ -89,9 +89,7 @@ export function ExecutivePageShell({
     })();
   }, []);
 
-  const greeting = firstName
-    ? `Bem-vinda, ${firstName}.`
-    : "Bem-vinda.";
+  const greeting = firstName ? `Olá, ${firstName}!` : "Olá!";
 
   return (
     <div className="min-w-0 space-y-2.5 sm:space-y-3 md:space-y-3.5">

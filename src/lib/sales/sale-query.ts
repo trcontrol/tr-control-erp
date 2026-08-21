@@ -7,6 +7,7 @@ import type {
   Product,
   Sale,
   SaleItem,
+  SalePaymentSchedule,
 } from "@/types/database";
 
 type Result<T> =
@@ -34,6 +35,7 @@ export type SaleWithRelations = Sale & {
     "id" | "full_name" | "trade_name" | "document"
   > | null;
   items: SaleItemWithProduct[];
+  payment_schedules: SalePaymentSchedule[];
 };
 
 export type SaleListItem = Sale & {
@@ -61,6 +63,9 @@ export const SALE_SELECT = `
       status,
       sale_price
     )
+  ),
+  payment_schedules:sale_payment_schedules (
+    *
   )
 `;
 
@@ -80,6 +85,15 @@ type SupabaseLike = { from: (table: string) => any };
 function sortItems(items: SaleItemWithProduct[]) {
   return [...items].sort((a, b) => {
     if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+    return a.created_at.localeCompare(b.created_at);
+  });
+}
+
+function sortSchedules(rows: SalePaymentSchedule[]) {
+  return [...rows].sort((a, b) => {
+    if (a.installment_number !== b.installment_number) {
+      return a.installment_number - b.installment_number;
+    }
     return a.created_at.localeCompare(b.created_at);
   });
 }
@@ -169,6 +183,7 @@ export async function querySale(
 
   const sale = data as SaleWithRelations;
   sale.items = sortItems(sale.items ?? []);
+  sale.payment_schedules = sortSchedules(sale.payment_schedules ?? []);
 
   return { data: sale, error: null };
 }

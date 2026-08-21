@@ -5,6 +5,7 @@
  * Enforcement: plan entitlement ∩ can_view do módulo cash_flow.
  * Sem mutações nesta fase. Scope não aplicado.
  */
+import { enrichCashFlowMovementsWithInstallments } from "@/lib/cash-flow/enrich-movements";
 import { normalizeCashFlowDashboard } from "@/lib/cash-flow/normalize";
 import { assertMemberPermission } from "@/lib/plans/require-module-access";
 import { createClient } from "@/lib/supabase/server";
@@ -82,8 +83,18 @@ export async function getCashFlowDashboard(
     };
   }
 
+  const normalized = normalizeCashFlowDashboard(data as CashFlowDashboard);
+  const movements = await enrichCashFlowMovementsWithInstallments({
+    supabase,
+    companyId: params.companyId,
+    movements: normalized.movements,
+  });
+
   return {
-    data: normalizeCashFlowDashboard(data as CashFlowDashboard),
+    data: {
+      ...normalized,
+      movements,
+    },
     error: null,
   };
 }

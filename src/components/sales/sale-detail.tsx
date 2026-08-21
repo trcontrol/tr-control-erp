@@ -37,7 +37,12 @@ import {
   formatDateTimeBR,
   paymentMethodLabel,
   saleStatusLabel,
+  toNumberAmount,
 } from "@/lib/sales/format";
+import {
+  PAYMENT_CONDITIONS,
+  paymentConditionLabel,
+} from "@/lib/sales/installments";
 import { formatStockQuantity } from "@/lib/products/format";
 import { PERMISSION_MODULES } from "@/lib/users/permissions";
 import { useTenant } from "@/providers/tenant-provider";
@@ -76,11 +81,24 @@ export function SaleDetail({ sale, companyId }: SaleDetailProps) {
 
   const isDraft = current.status === SALE_STATUS.draft;
   const isConfirmed = current.status === SALE_STATUS.confirmed;
+  const isInstallment =
+    current.payment_condition === PAYMENT_CONDITIONS.installment;
+  const schedules = current.payment_schedules ?? [];
 
   async function handleConfirm() {
     setLoadingAction("confirm");
     setError(null);
     setSuccess(null);
+
+    if (isInstallment) {
+      if (schedules.length < 2) {
+        setError(
+          "Venda parcelada sem plano completo. Edite a venda e gere as parcelas antes de confirmar."
+        );
+        setLoadingAction(null);
+        return;
+      }
+    }
 
     const result = await confirmSale(companyId, current.id);
 
@@ -92,7 +110,9 @@ export function SaleDetail({ sale, companyId }: SaleDetailProps) {
 
     setCurrent(result.data);
     setSuccess(
-      "Venda confirmada. Estoque e conta a receber foram gerados com sucesso."
+      isInstallment
+        ? "Venda confirmada. Estoque e contas a receber das parcelas foram gerados com sucesso."
+        : "Venda confirmada. Estoque e conta a receber foram gerados com sucesso."
     );
     setLoadingAction(null);
     router.refresh();
@@ -269,11 +289,17 @@ export function SaleDetail({ sale, companyId }: SaleDetailProps) {
             value={formatDateBR(current.sale_date)}
           />
           <InfoItem
-            label="Data de vencimento"
-            value={formatDateBR(current.due_date)}
+            label="Condição de pagamento"
+            value={paymentConditionLabel(current.payment_condition)}
           />
+          {!isInstallment ? (
+            <InfoItem
+              label="Data de vencimento"
+              value={formatDateBR(current.due_date)}
+            />
+          ) : null}
           <InfoItem
-            label="Forma de pagamento"
+            label={isInstallment ? "Forma padrão" : "Forma de pagamento"}
             value={paymentMethodLabel(current.payment_method, PAYMENT_METHODS)}
           />
           <InfoItem
@@ -307,12 +333,61 @@ export function SaleDetail({ sale, companyId }: SaleDetailProps) {
                 href={financeDetailPath(current.financial_entry_id)}
                 className="font-medium text-primary underline-offset-4 hover:underline"
               >
-                Ver conta a receber
+                {isInstallment
+                  ? "Ver 1ª parcela a receber"
+                  : "Ver conta a receber"}
               </Link>
             </div>
           ) : null}
         </CardContent>
       </Card>
+
+      {isInstallment && schedules.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Parcelas</CardTitle>
+            <CardDescription>
+              Plano de pagamento ({schedules.length} parcela
+              {schedules.length === 1 ? "" : "s"})
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-hidden rounded-xl border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Parcela</th>
+                    <th className="px-4 py-3 font-medium">Vencimento</th>
+                    <th className="px-4 py-3 font-medium">Valor</th>
+                    <th className="px-4 py-3 font-medium">Forma</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {schedules.map((row) => (
+                    <tr key={row.id} className="border-t">
+                      <td className="px-4 py-3 font-medium">
+                        {row.installment_number}/{row.installment_count}
+                      </td>
+                      <td className="px-4 py-3">
+                        {formatDateBR(row.due_date)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {formatCurrency(toNumberAmount(row.amount))}
+                      </td>
+                      <td className="px-4 py-3">
+                        {paymentMethodLabel(
+                          row.payment_method,
+                          PAYMENT_METHODS
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

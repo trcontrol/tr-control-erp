@@ -232,6 +232,8 @@ export type FinancialEntryRow = {
   bank_account_id: string | null;
   is_reconciled: boolean;
   reconciled_at: string | null;
+  installment_number: number | null;
+  installment_count: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -259,6 +261,8 @@ export type FinancialEntryInsert = {
   bank_account_id?: string | null;
   is_reconciled?: boolean;
   reconciled_at?: string | null;
+  installment_number?: number | null;
+  installment_count?: number | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -305,6 +309,9 @@ export type CashFlowDashboard = {
     entry_type: string;
     party_name: string | null;
     source_id: string | null;
+    /** Enrichment app-side (não vem da RPC 016). */
+    installment_number?: number | null;
+    installment_count?: number | null;
   }>;
 };
 
@@ -601,6 +608,7 @@ export type SaleRow = {
   sale_date: string;
   due_date: string | null;
   payment_method: string | null;
+  payment_condition: "cash" | "installment" | string;
   document_number: string | null;
   notes: string | null;
   freight_amount: number | string;
@@ -630,6 +638,7 @@ export type SaleInsert = {
   sale_date?: string;
   due_date?: string | null;
   payment_method?: string | null;
+  payment_condition?: string;
   document_number?: string | null;
   notes?: string | null;
   freight_amount?: number;
@@ -689,6 +698,40 @@ export type SaleItemInsert = {
 
 export type SaleItemUpdate = Partial<
   Omit<SaleItemInsert, "company_id" | "sale_id">
+> & {
+  company_id?: string;
+  sale_id?: string;
+};
+
+/** Plano de pagamento da venda em draft — não é ledger financeiro. */
+export type SalePaymentScheduleRow = {
+  id: string;
+  company_id: string;
+  sale_id: string;
+  installment_number: number;
+  installment_count: number;
+  due_date: string;
+  amount: number | string;
+  payment_method: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SalePaymentScheduleInsert = {
+  id?: string;
+  company_id: string;
+  sale_id: string;
+  installment_number: number;
+  installment_count: number;
+  due_date: string;
+  amount: number;
+  payment_method?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type SalePaymentScheduleUpdate = Partial<
+  Omit<SalePaymentScheduleInsert, "company_id" | "sale_id">
 > & {
   company_id?: string;
   sale_id?: string;
@@ -1099,6 +1142,27 @@ export type Database = {
             columns: ["product_id"];
             isOneToOne: false;
             referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sale_payment_schedules: {
+        Row: SalePaymentScheduleRow;
+        Insert: SalePaymentScheduleInsert;
+        Update: SalePaymentScheduleUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "sale_payment_schedules_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sale_payment_schedules_sale_id_fkey";
+            columns: ["sale_id"];
+            isOneToOne: false;
+            referencedRelation: "sales";
             referencedColumns: ["id"];
           },
         ];
@@ -1568,6 +1632,7 @@ export type Purchase = Tables<"purchases">;
 export type PurchaseItem = Tables<"purchase_items">;
 export type Sale = Tables<"sales">;
 export type SaleItem = Tables<"sale_items">;
+export type SalePaymentSchedule = Tables<"sale_payment_schedules">;
 export type Task = Tables<"tasks">;
 export type AgendaEvent = Tables<"agenda_events">;
 export type Opportunity = Tables<"opportunities">;

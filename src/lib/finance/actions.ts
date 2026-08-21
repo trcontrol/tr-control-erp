@@ -19,6 +19,12 @@ import {
   type FinancialEntryWithRelations,
 } from "@/lib/finance/entry-query";
 import { todayISODate } from "@/lib/finance/format";
+import {
+  filterUpcomingReceivables,
+  upcomingReceivablesPeriod,
+  type UpcomingReceivablesWindow,
+  UPCOMING_RECEIVABLES_DEFAULT_WINDOW,
+} from "@/lib/finance/upcoming";
 import { assertMemberPermission } from "@/lib/plans/require-module-access";
 import { createClient } from "@/lib/supabase/server";
 import { PERMISSION_MODULES } from "@/lib/users/permissions";
@@ -32,6 +38,8 @@ export type {
   FinancialEntryWithRelations,
   FinancialEntryWithCustomer,
 } from "@/lib/finance/entry-query";
+
+export type { UpcomingReceivablesWindow } from "@/lib/finance/upcoming";
 
 type Result<T> =
   | { data: T; error: null }
@@ -58,6 +66,41 @@ export async function listFinancialEntries(params: {
 
   const supabase = await createClient();
   return queryFinancialEntries(supabase, params);
+}
+
+/**
+ * Recebíveis futuros abertos na janela (7/15/30/60 dias ou todos futuros).
+ * Fonte: financial_entries via queryFinancialEntries (não usa schedules).
+ * Exclui vencidos, received, paid e cancelled.
+ */
+export async function getUpcomingReceivables(
+  companyId: string,
+  window: UpcomingReceivablesWindow = UPCOMING_RECEIVABLES_DEFAULT_WINDOW
+): Promise<Result<FinancialEntryWithRelations[]>> {
+  const authz = await assertMemberPermission({
+    companyId,
+    module: PERMISSION_MODULES.finance,
+    action: "view",
+  });
+  if (!authz.ok) return deny(authz.message);
+
+  const { periodFrom, periodTo } = upcomingReceivablesPeriod(window);
+  const supabase = await createClient();
+  const result = await queryFinancialEntries(supabase, {
+    companyId,
+    entryType: "receivable",
+    periodFrom,
+    periodTo,
+  });
+
+  if (result.error || !result.data) {
+    return result;
+  }
+
+  return {
+    data: filterUpcomingReceivables(result.data, periodFrom),
+    error: null,
+  };
 }
 
 export async function getFinancialEntry(

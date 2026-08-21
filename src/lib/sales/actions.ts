@@ -13,15 +13,24 @@ import { SALE_STATUS } from "@/lib/constants";
 import { assertMemberPermission } from "@/lib/plans/require-module-access";
 import { calcLineTotal } from "@/lib/sales/format";
 import {
+  PAYMENT_CONDITIONS,
+  type PaymentCondition,
+  validateInstallmentSchedule,
+} from "@/lib/sales/installments";
+import {
   querySale,
   querySales,
-  type SaleItemWithProduct,
   type SaleListItem,
   type SaleWithRelations,
 } from "@/lib/sales/sale-query";
 import { createClient } from "@/lib/supabase/server";
 import { PERMISSION_MODULES } from "@/lib/users/permissions";
-import type { Sale, SaleInsert, SaleItemInsert } from "@/types/database";
+import type {
+  Sale,
+  SaleInsert,
+  SaleItemInsert,
+  SalePaymentScheduleInsert,
+} from "@/types/database";
 
 export type {
   SaleItemWithProduct,
@@ -39,6 +48,18 @@ export type SaleItemInput = {
   unit_price: number;
   discount_amount: number;
   sort_order?: number;
+};
+
+export type SaleScheduleInput = {
+  installment_number: number;
+  installment_count: number;
+  due_date: string;
+  amount: number;
+  payment_method?: string | null;
+};
+
+type SaleHeaderInput = Omit<SaleInsert, "company_id" | "status"> & {
+  payment_condition?: PaymentCondition | string;
 };
 
 async function deny<T>(message: string): Promise<Result<T>> {
@@ -61,6 +82,12 @@ function mapPgError(message: string) {
     return message;
   }
   if (message.includes("Sem permissão")) return message;
+  if (message.includes("parcela") || message.includes("parcelas")) {
+    return message;
+  }
+  if (message.includes("plano de pagamento") || message.includes("installment")) {
+    return message;
+  }
   return message;
 }
 
@@ -92,6 +119,78 @@ function validateItems(items: SaleItemInput[]): string | null {
     if (!Number.isFinite(item.discount_amount) || item.discount_amount < 0) {
       return "O desconto do item não pode ser negativo.";
     }
+  }
+
+  return null;
+}
+
+function normalizePaymentCondition(
+  value?: string | null
+): PaymentCondition {
+  if (value === PAYMENT_CONDITIONS.installment) {
+    return PAYMENT_CONDITIONS.installment;
+  }
+  return PAYMENT_CONDITIONS.cash;
+}
+
+async function replaceSaleSchedules(params: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: { from: (table: string) => any };
+  companyId: string;
+  saleId: string;
+  paymentCondition: PaymentCondition;
+  schedules: SaleScheduleInput[] | undefined;
+  saleTotal: number;
+}): Promise<string | null> {
+  const { supabase, companyId, saleId, paymentCondition, schedules, saleTotal } =
+    params;
+
+  if (paymentCondition === PAYMENT_CONDITIONS.installment) {
+    const rows = schedules ?? [];
+    const validationError = validateInstallmentSchedule({
+      saleTotal,
+      rows: rows.map((row) => ({
+        installment_number: row.installment_number,
+        installment_count: row.installment_count,
+        due_date: row.due_date,
+        amount: row.amount,
+        payment_method: row.payment_method ?? null,
+      })),
+    });
+    if (validationError) return validationError;
+  }
+
+  const { error: deleteError } = await supabase
+    .from("sale_payment_schedules")
+    .delete()
+    .eq("company_id", companyId)
+    .eq("sale_id", saleId);
+
+  if (deleteError) {
+    return mapPgError(deleteError.message);
+  }
+
+  if (paymentCondition !== PAYMENT_CONDITIONS.installment) {
+    return null;
+  }
+
+  const rows = schedules ?? [];
+  const insertRows: SalePaymentScheduleInsert[] = rows.map((row) => ({
+    company_id: companyId,
+    sale_id: saleId,
+    installment_number: row.installment_number,
+    installment_count: row.installment_count,
+    due_date: row.due_date,
+    amount: row.amount,
+    payment_method: row.payment_method || null,
+  }));
+
+  const { error: insertError } = await supabase
+    .from("sale_payment_schedules")
+    .insert(insertRows as never);
+
+  if (insertError) {
+    return mapPgError(insertError.message);
   }
 
   return null;
@@ -141,8 +240,9 @@ export async function getSale(
 
 export async function createSale(params: {
   companyId: string;
-  header: Omit<SaleInsert, "company_id" | "status">;
+  header: SaleHeaderInput;
   items: SaleItemInput[];
+  schedules?: SaleScheduleInput[];
 }): Promise<Result<SaleWithRelations>> {
   const authz = await assertMemberPermission({
     companyId: params.companyId,
@@ -155,6 +255,10 @@ export async function createSale(params: {
   if (validationError) {
     return { data: null, error: { message: validationError } };
   }
+
+  const paymentCondition = normalizePaymentCondition(
+    params.header.payment_condition
+  );
 
   const supabase = await createClient();
   const {
@@ -170,6 +274,7 @@ export async function createSale(params: {
       sale_date: params.header.sale_date,
       due_date: params.header.due_date || null,
       payment_method: params.header.payment_method || null,
+      payment_condition: paymentCondition,
       document_number: params.header.document_number || null,
       notes: params.header.notes || null,
       freight_amount: params.header.freight_amount ?? 0,
@@ -237,14 +342,46 @@ export async function createSale(params: {
     };
   }
 
+  const refreshed = await querySale(supabase, params.companyId, saleRow.id);
+  if (refreshed.error || !refreshed.data) {
+    return {
+      data: null,
+      error: {
+        message:
+          refreshed.error?.message ??
+          "Não foi possível carregar a venda após o cálculo dos totais.",
+      },
+    };
+  }
+
+  const scheduleError = await replaceSaleSchedules({
+    supabase,
+    companyId: params.companyId,
+    saleId: saleRow.id,
+    paymentCondition,
+    schedules: params.schedules,
+    saleTotal: Number(refreshed.data.total_amount),
+  });
+
+  if (scheduleError) {
+    await supabase
+      .from("sales")
+      .delete()
+      .eq("company_id", params.companyId)
+      .eq("id", saleRow.id);
+
+    return { data: null, error: { message: scheduleError } };
+  }
+
   return querySale(supabase, params.companyId, saleRow.id);
 }
 
 export async function updateSaleDraft(params: {
   companyId: string;
   saleId: string;
-  header: Omit<SaleInsert, "company_id" | "status">;
+  header: SaleHeaderInput;
   items: SaleItemInput[];
+  schedules?: SaleScheduleInput[];
 }): Promise<Result<SaleWithRelations>> {
   const authz = await assertMemberPermission({
     companyId: params.companyId,
@@ -274,6 +411,10 @@ export async function updateSaleDraft(params: {
     return { data: null, error: { message: validationError } };
   }
 
+  const paymentCondition = normalizePaymentCondition(
+    params.header.payment_condition
+  );
+
   const { error: updateError } = await supabase
     .from("sales")
     .update({
@@ -281,6 +422,7 @@ export async function updateSaleDraft(params: {
       sale_date: params.header.sale_date,
       due_date: params.header.due_date || null,
       payment_method: params.header.payment_method || null,
+      payment_condition: paymentCondition,
       document_number: params.header.document_number || null,
       notes: params.header.notes || null,
       freight_amount: params.header.freight_amount ?? 0,
@@ -339,6 +481,31 @@ export async function updateSaleDraft(params: {
       data: null,
       error: { message: mapPgError(recalcError.message) },
     };
+  }
+
+  const refreshed = await querySale(supabase, params.companyId, params.saleId);
+  if (refreshed.error || !refreshed.data) {
+    return {
+      data: null,
+      error: {
+        message:
+          refreshed.error?.message ??
+          "Não foi possível carregar a venda após o cálculo dos totais.",
+      },
+    };
+  }
+
+  const scheduleError = await replaceSaleSchedules({
+    supabase,
+    companyId: params.companyId,
+    saleId: params.saleId,
+    paymentCondition,
+    schedules: params.schedules,
+    saleTotal: Number(refreshed.data.total_amount),
+  });
+
+  if (scheduleError) {
+    return { data: null, error: { message: scheduleError } };
   }
 
   return querySale(supabase, params.companyId, params.saleId);

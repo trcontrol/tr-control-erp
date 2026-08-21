@@ -134,7 +134,9 @@ export function CustomerDetail({ customer, companyId }: CustomerDetailProps) {
             label={isCompany ? "Razão social" : "Nome completo"}
             value={customer.full_name}
           />
-          <InfoItem label="Nome fantasia" value={customer.trade_name} />
+          {isCompany ? (
+            <InfoItem label="Nome fantasia" value={customer.trade_name} />
+          ) : null}
           <InfoItem
             label={isCompany ? "CNPJ" : "CPF"}
             value={customer.document}
@@ -148,9 +150,9 @@ export function CustomerDetail({ customer, companyId }: CustomerDetailProps) {
               label="Data de nascimento"
               value={
                 customer.birth_date
-                  ? new Date(`${customer.birth_date}T00:00:00`).toLocaleDateString(
-                      "pt-BR"
-                    )
+                  ? new Date(
+                      `${customer.birth_date}T00:00:00`
+                    ).toLocaleDateString("pt-BR")
                   : null
               }
             />

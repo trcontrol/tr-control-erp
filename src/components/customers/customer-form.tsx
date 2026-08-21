@@ -34,11 +34,12 @@ import {
   formatDocument,
   formatPhone,
   formatZipCode,
-  isValidDocument,
-  isValidEmail,
-  onlyDigits,
 } from "@/lib/customers/format";
-import type { Customer, CustomerInsert } from "@/types/database";
+import {
+  normalizeCustomerPayload,
+  validateCustomerPayload,
+} from "@/lib/customers/validate";
+import type { Customer } from "@/types/database";
 
 type CustomerFormState = {
   person_type: PersonType;
@@ -146,33 +147,39 @@ export function CustomerForm({ companyId, customer, mode }: CustomerFormProps) {
     setSuccess(null);
   }
 
-  function validate() {
-    const nextErrors: Partial<Record<keyof CustomerFormState, string>> = {};
+  function handlePersonTypeChange(nextType: PersonType) {
+    setForm((current) => {
+      const next = {
+        ...current,
+        person_type: nextType,
+        document: current.document
+          ? formatDocument(current.document, nextType)
+          : "",
+        secondary_document: "",
+      };
 
-    if (!form.full_name.trim()) {
-      nextErrors.full_name = "Campo obrigatório";
-    }
+      if (nextType === PERSON_TYPES.company) {
+        next.birth_date = "";
+      } else {
+        next.trade_name = "";
+        clearCnpjMeta();
+      }
 
-    if (!form.document.trim()) {
-      nextErrors.document = "Campo obrigatório";
-    } else if (!isValidDocument(form.document, form.person_type)) {
-      nextErrors.document = isCompany ? "CNPJ inválido" : "CPF inválido";
-    }
-
-    if (form.email.trim() && !isValidEmail(form.email)) {
-      nextErrors.email = "E-mail inválido";
-    }
-
-    if (form.zip_code && onlyDigits(form.zip_code).length !== 8) {
-      nextErrors.zip_code = "CEP deve ter 8 dígitos";
-    }
-
-    setFieldErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+      return next;
+    });
+    setFieldErrors((current) => ({
+      ...current,
+      person_type: undefined,
+      document: undefined,
+      trade_name: undefined,
+      birth_date: undefined,
+      secondary_document: undefined,
+    }));
+    setSuccess(null);
   }
 
   async function handleCepBlur() {
-    const cep = onlyDigits(form.zip_code);
+    const cep = form.zip_code.replace(/\D/g, "");
     if (cep.length !== 8) return;
 
     setLookingUpCep(true);
@@ -216,34 +223,19 @@ export function CustomerForm({ companyId, customer, mode }: CustomerFormProps) {
     setError(null);
     setSuccess(null);
 
-    if (!validate()) {
-      setError("Preencha os campos obrigatórios corretamente.");
+    const validation = validateCustomerPayload(form);
+    if (!validation.ok) {
+      setFieldErrors(validation.fields);
+      setError(validation.message);
       return;
     }
 
     setLoading(true);
 
-    const payload: CustomerInsert = {
+    const payload = normalizeCustomerPayload({
+      ...form,
       company_id: companyId,
-      person_type: form.person_type,
-      full_name: form.full_name.trim(),
-      trade_name: form.trade_name.trim() || null,
-      document: formatDocument(form.document, form.person_type),
-      secondary_document: form.secondary_document.trim() || null,
-      birth_date: form.birth_date || null,
-      email: form.email.trim().toLowerCase() || null,
-      phone: form.phone ? formatPhone(form.phone) : null,
-      whatsapp: form.whatsapp ? formatPhone(form.whatsapp) : null,
-      zip_code: form.zip_code ? formatZipCode(form.zip_code) : null,
-      street: form.street.trim() || null,
-      number: form.number.trim() || null,
-      complement: form.complement.trim() || null,
-      neighborhood: form.neighborhood.trim() || null,
-      city: form.city.trim() || null,
-      state: form.state || null,
-      notes: form.notes.trim() || null,
-      status: form.status || CUSTOMER_STATUS.active,
-    };
+    });
 
     try {
       const result =
@@ -275,23 +267,23 @@ export function CustomerForm({ companyId, customer, mode }: CustomerFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
+    <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
+      {error ? (
         <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           {error}
         </div>
-      )}
-      {success && (
+      ) : null}
+      {success ? (
         <div className="rounded-md bg-primary/10 p-3 text-sm text-foreground">
           {success}
         </div>
-      )}
+      ) : null}
 
       <Card>
         <CardHeader>
-          <CardTitle>Dados do cliente</CardTitle>
+          <CardTitle>Identificação</CardTitle>
           <CardDescription>
-            Informações principais e documento
+            Tipo de pessoa, nome e documento (CPF/CNPJ opcional)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -301,19 +293,9 @@ export function CustomerForm({ companyId, customer, mode }: CustomerFormProps) {
               <Select
                 id="person_type"
                 value={form.person_type}
-                onChange={(e) => {
-                  const nextType = e.target.value as PersonType;
-                  updateField("person_type", nextType);
-                  updateField(
-                    "document",
-                    form.document
-                      ? formatDocument(form.document, nextType)
-                      : ""
-                  );
-                  if (nextType !== PERSON_TYPES.company) {
-                    clearCnpjMeta();
-                  }
-                }}
+                onChange={(e) =>
+                  handlePersonTypeChange(e.target.value as PersonType)
+                }
               >
                 {PERSON_TYPE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -321,6 +303,7 @@ export function CustomerForm({ companyId, customer, mode }: CustomerFormProps) {
                   </option>
                 ))}
               </Select>
+              <FieldError message={fieldErrors.person_type} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status *</Label>
@@ -348,18 +331,18 @@ export function CustomerForm({ companyId, customer, mode }: CustomerFormProps) {
               />
               <FieldError message={fieldErrors.full_name} />
             </div>
+            {isCompany ? (
+              <div className="space-y-2">
+                <Label htmlFor="trade_name">Nome fantasia</Label>
+                <Input
+                  id="trade_name"
+                  value={form.trade_name}
+                  onChange={(e) => updateField("trade_name", e.target.value)}
+                />
+              </div>
+            ) : null}
             <div className="space-y-2">
-              <Label htmlFor="trade_name">Nome fantasia</Label>
-              <Input
-                id="trade_name"
-                value={form.trade_name}
-                onChange={(e) => updateField("trade_name", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="document">
-                {isCompany ? "CNPJ *" : "CPF *"}
-              </Label>
+              <Label htmlFor="document">{isCompany ? "CNPJ" : "CPF"}</Label>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
                   id="document"
@@ -380,7 +363,6 @@ export function CustomerForm({ companyId, customer, mode }: CustomerFormProps) {
                   placeholder={
                     isCompany ? "00.000.000/0000-00" : "000.000.000-00"
                   }
-                  required
                 />
                 {isCompany ? (
                   <Button
@@ -388,7 +370,9 @@ export function CustomerForm({ companyId, customer, mode }: CustomerFormProps) {
                     variant="outline"
                     className="shrink-0"
                     disabled={lookingUpCnpj}
-                    onClick={() => void lookupCnpj(form.document, { force: true })}
+                    onClick={() =>
+                      void lookupCnpj(form.document, { force: true })
+                    }
                   >
                     {lookingUpCnpj ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

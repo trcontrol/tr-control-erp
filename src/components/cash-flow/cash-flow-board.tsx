@@ -48,6 +48,7 @@ import {
   statusLabel,
   toNumberAmount,
 } from "@/lib/cash-flow/format";
+import { installmentLabel } from "@/lib/finance/upcoming";
 import { useTenant } from "@/providers/tenant-provider";
 import { cn } from "@/lib/utils";
 import type { CashFlowDashboard } from "@/types/database";
@@ -418,11 +419,15 @@ export function CashFlowBoard() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[960px] text-left text-sm">
+                  <table className="w-full min-w-[1040px] text-left text-sm">
                     <thead>
                       <tr className="border-b text-muted-foreground">
                         <th className="px-2 py-2 font-medium">Data</th>
                         <th className="px-2 py-2 font-medium">Descrição</th>
+                        <th className="px-2 py-2 font-medium">
+                          Cliente / Fornecedor
+                        </th>
+                        <th className="px-2 py-2 font-medium">Parcela</th>
                         <th className="px-2 py-2 font-medium">Categoria</th>
                         <th className="px-2 py-2 font-medium">Origem</th>
                         <th className="px-2 py-2 font-medium">Forma</th>
@@ -442,7 +447,7 @@ export function CashFlowBoard() {
                     <tbody>
                       {dashboard.movements.map((row) => (
                         <tr key={row.id} className="border-b last:border-0">
-                          <td className="px-2 py-3 align-top">
+                          <td className="px-2 py-3 align-top whitespace-nowrap">
                             <div>{formatDateBR(row.flow_date)}</div>
                             {row.date_is_estimated ? (
                               <div className="text-xs text-amber-700">
@@ -451,12 +456,21 @@ export function CashFlowBoard() {
                             ) : null}
                           </td>
                           <td className="px-2 py-3 align-top">
-                            <div className="font-medium">{row.description}</div>
-                            {row.party_name ? (
-                              <div className="text-xs text-muted-foreground">
-                                {row.party_name}
-                              </div>
-                            ) : null}
+                            <div className="max-w-[220px] font-medium break-words">
+                              {row.description}
+                            </div>
+                          </td>
+                          <td className="px-2 py-3 align-top">
+                            <div className="max-w-[160px] break-words">
+                              {row.party_name || "—"}
+                            </div>
+                          </td>
+                          <td className="px-2 py-3 align-top tabular-nums whitespace-nowrap">
+                            {installmentLabel({
+                              installment_number:
+                                row.installment_number ?? null,
+                              installment_count: row.installment_count ?? null,
+                            })}
                           </td>
                           <td className="px-2 py-3 align-top">
                             {row.category || "—"}
@@ -467,20 +481,20 @@ export function CashFlowBoard() {
                           <td className="px-2 py-3 align-top">
                             {paymentMethodLabel(row.payment_method)}
                           </td>
-                          <td className="px-2 py-3 text-right align-top text-emerald-700">
+                          <td className="px-2 py-3 text-right align-top text-emerald-700 whitespace-nowrap">
                             {toNumberAmount(row.inflow) > 0
                               ? formatCurrency(row.inflow)
                               : "—"}
                           </td>
-                          <td className="px-2 py-3 text-right align-top text-rose-700">
+                          <td className="px-2 py-3 text-right align-top text-rose-700 whitespace-nowrap">
                             {toNumberAmount(row.outflow) > 0
                               ? formatCurrency(row.outflow)
                               : "—"}
                           </td>
-                          <td className="px-2 py-3 text-right align-top font-medium">
+                          <td className="px-2 py-3 text-right align-top font-medium whitespace-nowrap">
                             {formatCurrency(row.running_balance)}
                           </td>
-                          <td className="px-2 py-3 align-top">
+                          <td className="px-2 py-3 align-top whitespace-nowrap">
                             {statusLabel(row.status)}
                           </td>
                           <td className="px-2 py-3 align-top">

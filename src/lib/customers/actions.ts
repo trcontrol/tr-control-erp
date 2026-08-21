@@ -1,4 +1,9 @@
 import { createClient } from "@/lib/supabase/client";
+import {
+  mapCustomerPgError,
+  normalizeCustomerPayload,
+  validateCustomerPayload,
+} from "@/lib/customers/validate";
 import type { Customer, CustomerInsert, CustomerUpdate } from "@/types/database";
 
 type Result<T> =
@@ -36,7 +41,7 @@ export async function listCustomers(params: {
   const { data, error } = await query;
 
   if (error) {
-    return { data: null, error: { message: error.message } };
+    return { data: null, error: { message: mapCustomerPgError(error.message) } };
   }
 
   return { data: (data ?? []) as Customer[], error: null };
@@ -55,7 +60,7 @@ export async function getCustomer(
     .maybeSingle();
 
   if (error) {
-    return { data: null, error: { message: error.message } };
+    return { data: null, error: { message: mapCustomerPgError(error.message) } };
   }
 
   if (!data) {
@@ -68,15 +73,25 @@ export async function getCustomer(
 export async function createCustomer(
   payload: CustomerInsert
 ): Promise<Result<Customer>> {
+  const validation = validateCustomerPayload(payload);
+  if (!validation.ok) {
+    return { data: null, error: { message: validation.message } };
+  }
+
+  const normalized = normalizeCustomerPayload({
+    ...payload,
+    company_id: payload.company_id,
+  });
+
   const supabase = createClient();
   const { data, error } = await supabase
     .from("customers")
-    .insert(payload as never)
+    .insert(normalized as never)
     .select("*")
     .single();
 
   if (error) {
-    return { data: null, error: { message: error.message } };
+    return { data: null, error: { message: mapCustomerPgError(error.message) } };
   }
 
   return { data: data as Customer, error: null };
@@ -87,17 +102,45 @@ export async function updateCustomer(
   customerId: string,
   payload: CustomerUpdate
 ): Promise<Result<Customer>> {
+  const validation = validateCustomerPayload({
+    ...payload,
+    person_type: payload.person_type,
+    full_name: payload.full_name,
+  });
+  if (!validation.ok) {
+    return { data: null, error: { message: validation.message } };
+  }
+
+  if (!payload.person_type || !payload.full_name) {
+    return {
+      data: null,
+      error: { message: "Tipo de pessoa e nome são obrigatórios." },
+    };
+  }
+
+  const normalized = normalizeCustomerPayload({
+    ...payload,
+    company_id: companyId,
+    person_type: payload.person_type,
+    full_name: payload.full_name,
+  });
+
+  const updatePayload = (({ company_id: _omit, ...rest }) => {
+    void _omit;
+    return rest;
+  })(normalized);
+
   const supabase = createClient();
   const { data, error } = await supabase
     .from("customers")
-    .update(payload as never)
+    .update(updatePayload as never)
     .eq("company_id", companyId)
     .eq("id", customerId)
     .select("*")
     .single();
 
   if (error) {
-    return { data: null, error: { message: error.message } };
+    return { data: null, error: { message: mapCustomerPgError(error.message) } };
   }
 
   return { data: data as Customer, error: null };
@@ -115,7 +158,7 @@ export async function deleteCustomer(
     .eq("id", customerId);
 
   if (error) {
-    return { data: null, error: { message: error.message } };
+    return { data: null, error: { message: mapCustomerPgError(error.message) } };
   }
 
   return { data: true, error: null };

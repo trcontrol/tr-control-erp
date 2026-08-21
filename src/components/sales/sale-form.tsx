@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,10 @@ import {
 } from "@/components/ui/card";
 import { ProductForm } from "@/components/products/product-form";
 import { ProductSearchCombobox } from "@/components/stock/product-search-combobox";
+import {
+  SaleInstallmentSection,
+  type DraftInstallmentRow,
+} from "@/components/sales/sale-installment-section";
 import { PAYMENT_METHODS, ROUTES, saleDetailPath } from "@/lib/constants";
 import { listCustomers } from "@/lib/customers/actions";
 import { listProducts } from "@/lib/products/actions";
@@ -38,6 +42,14 @@ import {
   todayISODate,
   toNumberAmount,
 } from "@/lib/sales/format";
+import {
+  PAYMENT_CONDITIONS,
+  PAYMENT_CONDITION_OPTIONS,
+  generateInstallmentSchedule,
+  scheduleDifference,
+  validateInstallmentSchedule,
+  type PaymentCondition,
+} from "@/lib/sales/installments";
 import { PERMISSION_MODULES } from "@/lib/users/permissions";
 import { useTenant } from "@/providers/tenant-provider";
 import type { Customer, Product } from "@/types/database";
@@ -49,6 +61,8 @@ type DraftItem = {
   unit_price: string;
   discount_amount: string;
 };
+
+type PlanMode = "none" | "auto" | "manual";
 
 type SaleFormProps = {
   mode: "create" | "edit";
@@ -70,6 +84,56 @@ function createEmptyItem(): DraftItem {
   };
 }
 
+function scheduleRowKey(prefix: string, number: number) {
+  return `${prefix}-${number}`;
+}
+
+function toDraftInstallments(
+  sale: SaleWithRelations | undefined
+): DraftInstallmentRow[] {
+  const schedules = sale?.payment_schedules ?? [];
+  if (!schedules.length) return [];
+  return schedules.map((row) => ({
+    key: scheduleRowKey(row.id, row.installment_number),
+    installment_number: row.installment_number,
+    due_date: row.due_date,
+    amount: amountToCurrencyInput(row.amount),
+    payment_method: row.payment_method ?? "",
+  }));
+}
+
+function detectPlanMode(
+  sale: SaleWithRelations | undefined,
+  drafts: DraftInstallmentRow[],
+  paymentMethod: string
+): PlanMode {
+  if (!drafts.length) return "none";
+  const count = drafts.length;
+  const firstDue = drafts[0]?.due_date;
+  if (!firstDue) return "manual";
+
+  const generated = generateInstallmentSchedule({
+    totalAmount: toNumberAmount(sale?.total_amount ?? 0),
+    installmentCount: count,
+    firstDueDate: firstDue,
+    paymentMethod: paymentMethod || null,
+  });
+
+  if (generated.length !== drafts.length) return "manual";
+
+  const matches = generated.every((row, index) => {
+    const draft = drafts[index];
+    return (
+      draft.installment_number === row.installment_number &&
+      draft.due_date === row.due_date &&
+      parseCurrencyInput(draft.amount || "0") === row.amount &&
+      (draft.payment_method || null) === (row.payment_method || null)
+    );
+  });
+
+  return matches ? "auto" : "manual";
+}
+
 export function SaleForm({ mode, sale }: SaleFormProps) {
   const router = useRouter();
   const { company, creatableModules, editableModules } = useTenant();
@@ -82,6 +146,11 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
   const [saleDate, setSaleDate] = useState(sale?.sale_date ?? todayISODate());
   const [dueDate, setDueDate] = useState(sale?.due_date ?? "");
   const [paymentMethod, setPaymentMethod] = useState(sale?.payment_method ?? "");
+  const [paymentCondition, setPaymentCondition] = useState<PaymentCondition>(
+    sale?.payment_condition === PAYMENT_CONDITIONS.installment
+      ? PAYMENT_CONDITIONS.installment
+      : PAYMENT_CONDITIONS.cash
+  );
   const [documentNumber, setDocumentNumber] = useState(
     sale?.document_number ?? ""
   );
@@ -104,6 +173,27 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
     }
     return [createEmptyItem()];
   });
+
+  const initialDrafts = toDraftInstallments(sale);
+  const [installmentCount, setInstallmentCount] = useState(() => {
+    const fromSchedule = sale?.payment_schedules?.[0]?.installment_count;
+    if (fromSchedule) return String(fromSchedule);
+    if (initialDrafts.length >= 2) return String(initialDrafts.length);
+    return "3";
+  });
+  const [firstDueDate, setFirstDueDate] = useState(
+    initialDrafts[0]?.due_date ?? ""
+  );
+  const [installmentRows, setInstallmentRows] =
+    useState<DraftInstallmentRow[]>(initialDrafts);
+  const [planMode, setPlanMode] = useState<PlanMode>(() =>
+    detectPlanMode(sale, initialDrafts, sale?.payment_method ?? "")
+  );
+  const [divergenceWarning, setDivergenceWarning] = useState(false);
+  const lastAutoTotalRef = useRef<number | null>(
+    planMode === "auto" ? toNumberAmount(sale?.total_amount ?? 0) : null
+  );
+
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [loading, setLoading] = useState(false);
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -131,7 +221,11 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
           };
           if (emptyIndex >= 0) {
             const next = [...current];
-            next[emptyIndex] = { ...next[emptyIndex], ...nextItem, key: next[emptyIndex].key };
+            next[emptyIndex] = {
+              ...next[emptyIndex],
+              ...nextItem,
+              key: next[emptyIndex].key,
+            };
             return next;
           }
           return [...current, nextItem];
@@ -193,6 +287,106 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
     };
   }, [items, freightAmount, discountAmount]);
 
+  function buildGeneratedRows(total: number, count: number, firstDue: string) {
+    return generateInstallmentSchedule({
+      totalAmount: total,
+      installmentCount: count,
+      firstDueDate: firstDue,
+      paymentMethod: paymentMethod || null,
+    }).map((row) => ({
+      key: scheduleRowKey("gen", row.installment_number),
+      installment_number: row.installment_number,
+      due_date: row.due_date,
+      amount: amountToCurrencyInput(row.amount),
+      payment_method: row.payment_method ?? "",
+    }));
+  }
+
+  function applyGeneratedPlan(total: number) {
+    const count = Number.parseInt(installmentCount, 10);
+    if (!Number.isFinite(count) || count < 2) {
+      setFieldErrors((current) => ({
+        ...current,
+        installments: "Informe no mínimo 2 parcelas.",
+      }));
+      return false;
+    }
+    if (!firstDueDate) {
+      setFieldErrors((current) => ({
+        ...current,
+        installments: "Informe a primeira data de vencimento.",
+      }));
+      return false;
+    }
+    if (total <= 0) {
+      setFieldErrors((current) => ({
+        ...current,
+        installments: "O total da venda deve ser maior que zero para parcelar.",
+      }));
+      return false;
+    }
+
+    const nextRows = buildGeneratedRows(total, count, firstDueDate);
+    setInstallmentRows(nextRows);
+    setPlanMode("auto");
+    setDivergenceWarning(false);
+    lastAutoTotalRef.current = total;
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next.installments;
+      return next;
+    });
+    return true;
+  }
+
+  useEffect(() => {
+    if (paymentCondition !== PAYMENT_CONDITIONS.installment) return;
+    if (planMode !== "auto" || installmentRows.length === 0) return;
+
+    const total = preview.total;
+    if (
+      lastAutoTotalRef.current != null &&
+      Math.round(lastAutoTotalRef.current * 100) === Math.round(total * 100)
+    ) {
+      return;
+    }
+
+    const count = Number.parseInt(installmentCount, 10);
+    if (!Number.isFinite(count) || count < 2 || !firstDueDate || total <= 0) {
+      return;
+    }
+
+    setInstallmentRows(buildGeneratedRows(total, count, firstDueDate));
+    lastAutoTotalRef.current = total;
+    setDivergenceWarning(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- regen only on total/count/firstDue/method when auto
+  }, [
+    preview.total,
+    planMode,
+    paymentCondition,
+    installmentCount,
+    firstDueDate,
+    paymentMethod,
+  ]);
+
+  useEffect(() => {
+    if (paymentCondition !== PAYMENT_CONDITIONS.installment) {
+      setDivergenceWarning(false);
+      return;
+    }
+    if (planMode !== "manual" || installmentRows.length === 0) {
+      setDivergenceWarning(false);
+      return;
+    }
+    const diff = scheduleDifference(
+      preview.total,
+      installmentRows.map((row) => ({
+        amount: parseCurrencyInput(row.amount || "0"),
+      }))
+    );
+    setDivergenceWarning(Math.round(diff * 100) !== 0);
+  }, [preview.total, planMode, paymentCondition, installmentRows]);
+
   function updateItem(key: string, patch: Partial<DraftItem>) {
     setItems((current) =>
       current.map((item) => (item.key === key ? { ...item, ...patch } : item))
@@ -205,6 +399,40 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
         ? [createEmptyItem()]
         : current.filter((item) => item.key !== key)
     );
+  }
+
+  function handlePaymentConditionChange(value: string) {
+    const next =
+      value === PAYMENT_CONDITIONS.installment
+        ? PAYMENT_CONDITIONS.installment
+        : PAYMENT_CONDITIONS.cash;
+
+    setPaymentCondition(next);
+    if (next === PAYMENT_CONDITIONS.cash) {
+      setInstallmentRows([]);
+      setPlanMode("none");
+      setDivergenceWarning(false);
+      lastAutoTotalRef.current = null;
+      setFieldErrors((current) => {
+        const nextErrors = { ...current };
+        delete nextErrors.installments;
+        return nextErrors;
+      });
+    }
+  }
+
+  function handleInstallmentRowChange(
+    key: string,
+    patch: Partial<DraftInstallmentRow>
+  ) {
+    setInstallmentRows((current) =>
+      current.map((row) => (row.key === key ? { ...row, ...patch } : row))
+    );
+    setPlanMode("manual");
+  }
+
+  function handleGenerateInstallments() {
+    applyGeneratedPlan(preview.total);
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -263,6 +491,48 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
       nextErrors.discountAmount = "Desconto inválido";
     }
 
+    const saleTotal = calcSaleTotal(
+      parsedItems.reduce(
+        (sum, item) =>
+          sum +
+          calcLineTotal(item.quantity, item.unit_price, item.discount_amount),
+        0
+      ),
+      discount,
+      freight
+    );
+
+    let schedulesPayload:
+      | {
+          installment_number: number;
+          installment_count: number;
+          due_date: string;
+          amount: number;
+          payment_method: string | null;
+        }[]
+      | undefined;
+
+    if (paymentCondition === PAYMENT_CONDITIONS.installment) {
+      const count = installmentRows.length;
+      const parsedRows = installmentRows.map((row) => ({
+        installment_number: row.installment_number,
+        installment_count: count,
+        due_date: row.due_date,
+        amount: parseCurrencyInput(row.amount || "0"),
+        payment_method: row.payment_method || null,
+      }));
+
+      const scheduleError = validateInstallmentSchedule({
+        saleTotal,
+        rows: parsedRows,
+      });
+      if (scheduleError) {
+        nextErrors.installments = scheduleError;
+      } else {
+        schedulesPayload = parsedRows;
+      }
+    }
+
     setFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       setError("Preencha os campos obrigatórios corretamente.");
@@ -271,11 +541,17 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
 
     setLoading(true);
 
+    const resolvedDueDate =
+      paymentCondition === PAYMENT_CONDITIONS.installment
+        ? installmentRows[0]?.due_date || dueDate || null
+        : dueDate || null;
+
     const header = {
       customer_id: customerId || null,
       sale_date: saleDate,
-      due_date: dueDate || null,
+      due_date: resolvedDueDate,
       payment_method: paymentMethod || null,
+      payment_condition: paymentCondition,
       document_number: documentNumber.trim() || null,
       notes: notes.trim() || null,
       freight_amount: freight,
@@ -288,12 +564,14 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
             companyId: company.id,
             header,
             items: parsedItems,
+            schedules: schedulesPayload,
           })
         : await updateSaleDraft({
             companyId: company.id,
             saleId: sale!.id,
             header,
             items: parsedItems,
+            schedules: schedulesPayload,
           });
 
     if (result.error || !result.data) {
@@ -305,6 +583,8 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
     router.push(saleDetailPath(result.data.id));
     router.refresh();
   }
+
+  const isInstallment = paymentCondition === PAYMENT_CONDITIONS.installment;
 
   return (
     <>
@@ -359,14 +639,30 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
                 <FieldError message={fieldErrors.saleDate} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="due_date">Data de vencimento</Label>
-                <Input
-                  id="due_date"
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                />
+                <Label htmlFor="payment_condition">Condição de pagamento</Label>
+                <Select
+                  id="payment_condition"
+                  value={paymentCondition}
+                  onChange={(e) => handlePaymentConditionChange(e.target.value)}
+                >
+                  {PAYMENT_CONDITION_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
               </div>
+              {!isInstallment ? (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="due_date">Data de vencimento</Label>
+                    <Input
+                      id="due_date"
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                    />
+                  </div>
               <div className="space-y-2">
                 <Label htmlFor="payment_method">Forma de pagamento</Label>
                 <Select
@@ -374,14 +670,16 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
                 >
-                  <option value="">Selecione</option>
-                  {PAYMENT_METHODS.map((method) => (
-                    <option key={method.value} value={method.value}>
-                      {method.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
+                      <option value="">Selecione</option>
+                      {PAYMENT_METHODS.map((method) => (
+                        <option key={method.value} value={method.value}>
+                          {method.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                </>
+              ) : null}
               <div className="space-y-2">
                 <Label htmlFor="document_number">Pedido / Documento</Label>
                 <Input
@@ -394,6 +692,36 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
             </div>
           </CardContent>
         </Card>
+
+        {isInstallment ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Parcelamento</CardTitle>
+              <CardDescription>
+                Divida o total da venda em parcelas. A forma padrão preenche as
+                linhas; cada parcela pode ser ajustada depois.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SaleInstallmentSection
+                installmentCount={installmentCount}
+                firstDueDate={firstDueDate}
+                paymentMethod={paymentMethod}
+                rows={installmentRows}
+                saleTotal={preview.total}
+                planMode={planMode}
+                divergenceWarning={divergenceWarning}
+                disabled={loading || !actionAllowed}
+                onInstallmentCountChange={setInstallmentCount}
+                onFirstDueDateChange={setFirstDueDate}
+                onPaymentMethodChange={setPaymentMethod}
+                onGenerate={handleGenerateInstallments}
+                onRowChange={handleInstallmentRowChange}
+                error={fieldErrors.installments}
+              />
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card>
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -581,7 +909,10 @@ export function SaleForm({ mode, sale }: SaleFormProps) {
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading || loadingOptions || !actionAllowed}>
+            <Button
+              type="submit"
+              disabled={loading || loadingOptions || !actionAllowed}
+            >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (

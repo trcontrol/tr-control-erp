@@ -32,7 +32,17 @@ import {
   ACCESS_PROFILES,
   serializePermissionsForStorage,
 } from "@/lib/users/permissions";
-import { permissionsForProfileInPlan } from "@/lib/plans/access";
+import { permissionsForProfileInCompany } from "@/lib/plans/access";
+import {
+  buildModuleOverrideMap,
+  computeModuleOverrideDeltas,
+  modulesForCompany,
+  normalizeModuleOverridesForPlan,
+  overridesMapToRows,
+  sanitizeModuleOverridesForPlan,
+  type CompanyModuleOverrides,
+  EMPTY_MODULE_OVERRIDES,
+} from "@/lib/plans/company-entitlements";
 import {
   isPlanDowngrade,
   normalizeCompanyPlan,
@@ -119,6 +129,30 @@ export async function listAllCompaniesForPlatformAdmin(): Promise<{
     });
   }
 
+  const customCompanyIds = new Set<string>();
+  const { data: overrideRows, error: overrideError } = await admin
+    .from("company_module_overrides")
+    .select("company_id");
+
+  if (overrideError) {
+    // Migration 040 ainda não aplicada — lista sem badge Personalizado.
+    if (
+      !overrideError.message.includes("company_module_overrides") &&
+      overrideError.code !== "42P01" &&
+      overrideError.code !== "PGRST205"
+    ) {
+      return {
+        companies: [],
+        error: `Não foi possível carregar overrides de módulos: ${overrideError.message}`,
+      };
+    }
+  } else {
+    for (const row of overrideRows ?? []) {
+      const companyId = (row as { company_id: string }).company_id;
+      if (companyId) customCompanyIds.add(companyId);
+    }
+  }
+
   return {
     companies: companies.map((company) => {
       const pending = pendingByCompany.get(company.id) ?? null;
@@ -132,6 +166,7 @@ export async function listAllCompaniesForPlatformAdmin(): Promise<{
         createdAt: company.created_at,
         pendingInitialOwnerInviteId: pending?.id ?? null,
         pendingInitialOwnerEmail: pending?.email ?? null,
+        hasCustomAccess: customCompanyIds.has(company.id),
       };
     }),
     error: null,
@@ -222,8 +257,9 @@ async function sendOwnerInviteEmail(params: {
 }
 
 /**
- * Cria company + invite Owner via RPC e dispara e-mail Auth.
- * Permissões do Owner são geradas no servidor (preset Administrator).
+ * Cria company + overrides (opcional) + invite Owner na mesma transação SQL (041),
+ * depois dispara e-mail Auth.
+ * Nunca reporta sucesso completo se a personalização falhar (rollback da RPC).
  */
 export async function createCompanyWithOwnerInvite(
   input: CreateCompanyWithOwnerInput
@@ -240,8 +276,35 @@ export async function createCompanyWithOwnerInvite(
   const ownerEmail = input.ownerEmail.trim().toLowerCase();
   const ownerFullName = input.ownerFullName.trim();
   const status = input.status ?? COMPANY_STATUSES.active;
+  const moduleAccess = input.moduleAccess;
+
+  let overrideRows: Array<{ module_key: string; enabled: boolean }> = [];
+  let overridesForOwner = EMPTY_MODULE_OVERRIDES;
+
+  if (moduleAccess?.customized === true) {
+    const deltas = computeModuleOverrideDeltas(
+      input.plan,
+      moduleAccess.selectedModules
+    );
+    const sanitized = sanitizeModuleOverridesForPlan(
+      input.plan,
+      buildModuleOverrideMap(deltas)
+    );
+    if (sanitized.rejectedStructuralRemovals.length > 0) {
+      return {
+        error: `Não é possível remover módulos estruturais do plano: ${sanitized.rejectedStructuralRemovals.join(", ")}.`,
+      };
+    }
+    overrideRows = overridesMapToRows(sanitized.overrides);
+    overridesForOwner = sanitized.overrides;
+  }
+
   const permissions = serializePermissionsForStorage(
-    permissionsForProfileInPlan(ACCESS_PROFILES.administrator, input.plan)
+    permissionsForProfileInCompany(
+      ACCESS_PROFILES.administrator,
+      input.plan,
+      overridesForOwner
+    )
   );
 
   if (permissions.length === 0) {
@@ -249,7 +312,6 @@ export async function createCompanyWithOwnerInvite(
   }
 
   const supabase = await createClient();
-  // Cast alinhado a sales/purchases: tipagem do client com RETURNS TABLE é frágil.
   const { data, error } = await (
     supabase as unknown as {
       rpc: (
@@ -260,7 +322,7 @@ export async function createCompanyWithOwnerInvite(
         error: { message: string } | null;
       }>;
     }
-  ).rpc("create_company_with_owner_invite", {
+  ).rpc("create_company_with_custom_access_and_owner_invite", {
     p_name: name,
     p_legal_name: input.legalName?.trim() || null,
     p_slug: slug,
@@ -272,6 +334,7 @@ export async function createCompanyWithOwnerInvite(
     p_owner_full_name: ownerFullName,
     p_owner_email: ownerEmail,
     p_permissions: permissions as unknown as Json,
+    p_module_overrides: overrideRows as unknown as Json,
   });
 
   if (error) {
@@ -285,6 +348,21 @@ export async function createCompanyWithOwnerInvite(
     if (message.includes("not_platform_admin")) {
       return { error: "Apenas Super Admin pode criar empresas na plataforma." };
     }
+    if (message.includes("structural_module_cannot_be_disabled")) {
+      return {
+        error:
+          "Não é possível remover módulos estruturais (Dashboard, Configurações, Vendas, Financeiro, Fluxo de Caixa).",
+      };
+    }
+    if (
+      message.includes("create_company_with_custom_access_and_owner_invite") &&
+      (message.includes("does not exist") || message.includes("schema cache"))
+    ) {
+      return {
+        error:
+          "RPC de criação com acessos personalizados indisponível. Aplique a migration 041_company_module_overrides_hardening.",
+      };
+    }
     return { error: `Não foi possível criar a empresa: ${error.message}` };
   }
 
@@ -295,7 +373,7 @@ export async function createCompanyWithOwnerInvite(
   if (!companyId || !inviteId) {
     return {
       error:
-        "Empresa criada, mas a RPC não retornou company_id/invite_id. Verifique no banco.",
+        "A RPC não retornou company_id/invite_id. Nenhuma empresa deve ter sido persistida — verifique no banco.",
     };
   }
 
@@ -316,7 +394,7 @@ export async function createCompanyWithOwnerInvite(
         ? `Empresa criada, mas falhou ao carregar o convite: ${inviteError.message}`
         : "Empresa criada, mas o convite do Owner não foi encontrado.",
       message:
-        "Empresa criada. O e-mail do Owner não foi enviado — use Reenviar convite.",
+        "Empresa e acessos criados. O e-mail do Owner não foi enviado — use Reenviar convite.",
     };
   }
 
@@ -343,7 +421,7 @@ export async function createCompanyWithOwnerInvite(
       emailSent: false,
       emailError: emailResult.emailError,
       message:
-        "Empresa e convite criados, mas o e-mail do Owner falhou. Use Reenviar convite.",
+        "Empresa, acessos e convite criados, mas o e-mail do Owner falhou. Use Reenviar convite.",
     };
   }
 
@@ -476,8 +554,155 @@ function parseCommercialStatus(value: unknown): CompanyStatus | null {
   return null;
 }
 
+async function currentAuthUserId(): Promise<string | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.id ?? null;
+}
+
 /**
- * Atualiza somente companies.plan e companies.status (Super Admin).
+ * Substitui company_module_overrides por deltas esparsos (ou limpa se !customized).
+ * Sempre normaliza contra o plano destino.
+ */
+async function replaceCompanyModuleOverrides(params: {
+  companyId: string;
+  plan: CompanyPlan;
+  customized: boolean;
+  selectedModules?: import("@/lib/users/permissions").PermissionModuleId[];
+}): Promise<{ ok: true; hasCustomAccess: boolean } | { error: string }> {
+  const admin = createAdminClient();
+  const updatedBy = await currentAuthUserId();
+
+  const { error: deleteError } = await admin
+    .from("company_module_overrides")
+    .delete()
+    .eq("company_id", params.companyId);
+
+  if (deleteError) {
+    if (
+      deleteError.message.includes("company_module_overrides") ||
+      deleteError.code === "42P01" ||
+      deleteError.code === "PGRST205"
+    ) {
+      return {
+        error:
+          "Tabela company_module_overrides indisponível. Aplique a migration 040_company_module_overrides.",
+      };
+    }
+    return {
+      error: `Não foi possível limpar overrides: ${deleteError.message}`,
+    };
+  }
+
+  if (!params.customized) {
+    return { ok: true, hasCustomAccess: false };
+  }
+
+  const selected = params.selectedModules ?? [];
+  const deltas = computeModuleOverrideDeltas(params.plan, selected);
+  const sanitized = sanitizeModuleOverridesForPlan(
+    params.plan,
+    buildModuleOverrideMap(deltas)
+  );
+  if (sanitized.rejectedStructuralRemovals.length > 0) {
+    return {
+      error: `Não é possível remover módulos estruturais do plano: ${sanitized.rejectedStructuralRemovals.join(", ")}.`,
+    };
+  }
+  const rows = overridesMapToRows(sanitized.overrides);
+
+  if (rows.length === 0) {
+    return { ok: true, hasCustomAccess: false };
+  }
+
+  const payload = rows.map((row) => ({
+    company_id: params.companyId,
+    module_key: row.module_key,
+    enabled: row.enabled,
+    updated_by: updatedBy,
+  }));
+
+  const { error: insertError } = await admin
+    .from("company_module_overrides")
+    .insert(payload);
+
+  if (insertError) {
+    return {
+      error: `Não foi possível gravar overrides: ${insertError.message}`,
+    };
+  }
+
+  return { ok: true, hasCustomAccess: true };
+}
+
+export async function loadCompanyModuleOverridesForAdmin(
+  companyId: string
+): Promise<
+  | {
+      overrides: CompanyModuleOverrides;
+      entitledModules: import("@/lib/users/permissions").PermissionModuleId[];
+      plan: CompanyPlan;
+    }
+  | { error: string }
+> {
+  await requirePlatformAdmin();
+
+  const id = typeof companyId === "string" ? companyId.trim() : "";
+  if (!UUID_RE.test(id)) {
+    return { error: "Identificador da empresa inválido." };
+  }
+
+  const admin = createAdminClient();
+  const { data: company, error: companyError } = await admin
+    .from("companies")
+    .select("plan")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (companyError) {
+    return { error: companyError.message };
+  }
+  if (!company) {
+    return { error: "Empresa não encontrada." };
+  }
+
+  const plan = normalizeCompanyPlan((company as { plan?: string }).plan);
+
+  const { data: rows, error: overrideError } = await admin
+    .from("company_module_overrides")
+    .select("module_key, enabled")
+    .eq("company_id", id);
+
+  if (overrideError) {
+    if (
+      overrideError.message.includes("company_module_overrides") ||
+      overrideError.code === "42P01" ||
+      overrideError.code === "PGRST205"
+    ) {
+      return {
+        plan,
+        overrides: EMPTY_MODULE_OVERRIDES,
+        entitledModules: modulesForCompany(plan, EMPTY_MODULE_OVERRIDES),
+      };
+    }
+    return { error: overrideError.message };
+  }
+
+  const overrides = buildModuleOverrideMap(
+    (rows ?? []) as Array<{ module_key: string; enabled: boolean }>
+  );
+
+  return {
+    plan,
+    overrides,
+    entitledModules: modulesForCompany(plan, overrides),
+  };
+}
+
+/**
+ * Atualiza companies.plan / status e opcionalmente overrides de módulos.
  * Não reconcilia member_permissions (estratégia B — órfãs permanecem).
  */
 export async function updateCompanyCommercial(
@@ -616,11 +841,72 @@ export async function updateCompanyCommercial(
   const nextPlan = parseCommercialPlan(row.plan) ?? plan;
   const nextStatus = parseCommercialStatus(row.status) ?? status;
 
+  let hasCustomAccess = false;
+
+  if (input.moduleAccess) {
+    const overrideResult = await replaceCompanyModuleOverrides({
+      companyId,
+      plan: nextPlan,
+      customized: input.moduleAccess.customized,
+      selectedModules: input.moduleAccess.selectedModules,
+    });
+    if ("error" in overrideResult) {
+      return { error: overrideResult.error };
+    }
+    hasCustomAccess = overrideResult.hasCustomAccess;
+  } else if (currentPlan !== nextPlan) {
+    // Troca de plano sem payload de módulos: normaliza overrides existentes.
+    const { data: existingRows, error: loadError } = await admin
+      .from("company_module_overrides")
+      .select("module_key, enabled")
+      .eq("company_id", companyId);
+
+    if (
+      loadError &&
+      !loadError.message.includes("company_module_overrides") &&
+      loadError.code !== "42P01" &&
+      loadError.code !== "PGRST205"
+    ) {
+      return {
+        error: `Não foi possível normalizar overrides: ${loadError.message}`,
+      };
+    }
+
+    if (!loadError) {
+      const existing = buildModuleOverrideMap(
+        (existingRows ?? []) as Array<{ module_key: string; enabled: boolean }>
+      );
+      if (existing.size > 0) {
+        const normalized = normalizeModuleOverridesForPlan(nextPlan, existing);
+        const selected = modulesForCompany(nextPlan, normalized);
+        const overrideResult = await replaceCompanyModuleOverrides({
+          companyId,
+          plan: nextPlan,
+          customized: normalized.size > 0,
+          selectedModules: selected,
+        });
+        if ("error" in overrideResult) {
+          return { error: overrideResult.error };
+        }
+        hasCustomAccess = overrideResult.hasCustomAccess;
+      }
+    }
+  } else {
+    const { count } = await admin
+      .from("company_module_overrides")
+      .select("company_id", { count: "exact", head: true })
+      .eq("company_id", companyId);
+    hasCustomAccess = (count ?? 0) > 0;
+  }
+
+  const accessNote = hasCustomAccess ? " · acessos personalizados" : "";
+
   return {
     companyId: row.company_id,
     plan: nextPlan,
     status: nextStatus,
-    message: `Empresa atualizada: ${companyPlanLabel(nextPlan)} · ${companyStatusLabel(nextStatus)}.`,
+    hasCustomAccess,
+    message: `Empresa atualizada: ${companyPlanLabel(nextPlan)} · ${companyStatusLabel(nextStatus)}${accessNote}.`,
   };
 }
 

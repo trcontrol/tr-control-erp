@@ -22,7 +22,9 @@ type TenantProviderProps = {
   children: ReactNode;
   companies: CompanyWithMembership[];
   initialCompanyId?: string;
-  /** Módulos efetivos view (plano ∩ permissão) da empresa inicial */
+  /** Teto comercial efetivo (plan ⊕ overrides) da empresa inicial */
+  initialEntitledModules?: PermissionModuleId[];
+  /** Módulos efetivos view (teto ∩ permissão) da empresa inicial */
   initialAllowedModules?: PermissionModuleId[];
   /** Módulos com create efetivo */
   initialCreatableModules?: PermissionModuleId[];
@@ -34,6 +36,8 @@ type TenantProviderProps = {
 type TenantContextValue = TenantContext & {
   companies: CompanyWithMembership[];
   loadError: string | null;
+  /** Teto comercial da empresa ativa (plan ⊕ overrides) — gestão de usuários */
+  entitledModules: PermissionModuleId[];
   /** Módulos que a sidebar/guards consideram acessíveis na empresa ativa */
   allowedModules: PermissionModuleId[];
   /** Módulos em que o usuário pode criar (atalhos / botões Novo) */
@@ -55,6 +59,7 @@ export function TenantProvider({
   children,
   companies,
   initialCompanyId,
+  initialEntitledModules = [],
   initialAllowedModules = [],
   initialCreatableModules = [],
   initialEditableModules = [],
@@ -67,6 +72,9 @@ export function TenantProvider({
       companies.map((company) => company.id),
       initialCompanyId
     )
+  );
+  const [entitledModules, setEntitledModules] = useState<PermissionModuleId[]>(
+    initialEntitledModules
   );
   const [allowedModules, setAllowedModules] =
     useState<PermissionModuleId[]>(initialAllowedModules);
@@ -92,6 +100,10 @@ export function TenantProvider({
       )
     );
   }, [companies, initialCompanyId]);
+
+  useEffect(() => {
+    setEntitledModules(initialEntitledModules);
+  }, [initialEntitledModules]);
 
   useEffect(() => {
     setAllowedModules(initialAllowedModules);
@@ -120,6 +132,7 @@ export function TenantProvider({
       access: Awaited<ReturnType<typeof getMemberAccessAction>>
     ) => {
       if (activeCompanyIdRef.current !== companyId) return;
+      setEntitledModules(access?.entitledModules ?? []);
       setAllowedModules(access?.allowedModules ?? []);
       setCreatableModules(access?.creatableModules ?? []);
       setEditableModules(access?.editableModules ?? []);
@@ -170,6 +183,7 @@ export function TenantProvider({
       membership: activeCompany?.membership ?? null,
       role: (activeCompany?.membership.role as CompanyRole) ?? null,
       loadError,
+      entitledModules,
       allowedModules,
       creatableModules,
       editableModules,
@@ -182,6 +196,7 @@ export function TenantProvider({
       companiesState,
       activeCompany,
       loadError,
+      entitledModules,
       allowedModules,
       creatableModules,
       editableModules,

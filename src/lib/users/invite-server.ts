@@ -574,14 +574,23 @@ async function acceptSingleCompanyInvite(params: {
       .select("plan")
       .eq("id", invite.company_id)
       .maybeSingle();
-    const { permissionsForProfileInPlan } = await import("@/lib/plans/access");
+    const { data: overrideRows } = await admin
+      .from("company_module_overrides")
+      .select("module_key, enabled")
+      .eq("company_id", invite.company_id);
+    const { permissionsForProfileInCompany, buildModuleOverrideMap } =
+      await import("@/lib/plans/access");
     const { normalizeCompanyPlan } = await import("@/lib/plans/entitlements");
+    const overrides = buildModuleOverrideMap(
+      (overrideRows ?? []) as Array<{ module_key: string; enabled: boolean }>
+    );
     permissions = serializePermissionsForStorage(
-      permissionsForProfileInPlan(
+      permissionsForProfileInCompany(
         ACCESS_PROFILES.administrator,
         normalizeCompanyPlan(
           (companyPlanRow as { plan?: string } | null)?.plan
-        )
+        ),
+        overrides
       )
     );
   } else if (permissions.length > 0) {
@@ -590,16 +599,26 @@ async function acceptSingleCompanyInvite(params: {
       .select("plan")
       .eq("id", invite.company_id)
       .maybeSingle();
-    const { assertPermissionsWithinPlan } = await import("@/lib/plans/access");
+    const { data: overrideRows } = await admin
+      .from("company_module_overrides")
+      .select("module_key, enabled")
+      .eq("company_id", invite.company_id);
+    const {
+      assertPermissionsWithinCompany,
+      buildModuleOverrideMap,
+      entitledModuleSetForCompany,
+    } = await import("@/lib/plans/access");
     const { normalizeCompanyPlan } = await import("@/lib/plans/entitlements");
     const plan = normalizeCompanyPlan(
       (companyPlanRow as { plan?: string } | null)?.plan
     );
-    const gate = assertPermissionsWithinPlan(permissions, plan);
+    const overrides = buildModuleOverrideMap(
+      (overrideRows ?? []) as Array<{ module_key: string; enabled: boolean }>
+    );
+    const gate = assertPermissionsWithinCompany(permissions, plan, overrides);
     if (!gate.ok) {
-      // Orphan/out-of-plan rows no invite: mantém só módulos do plano.
-      const { entitledModuleSet } = await import("@/lib/plans/entitlements");
-      const entitled = entitledModuleSet(plan);
+      // Orphan/out-of-plan rows no invite: mantém só módulos do teto efetivo.
+      const entitled = entitledModuleSetForCompany(plan, overrides);
       permissions = permissions.filter((row) =>
         entitled.has(row.module as never)
       );
@@ -789,11 +808,20 @@ export async function createAndSendCompanyInvite(params: {
     };
   }
 
-  const { assertPermissionsWithinPlan } = await import("@/lib/plans/access");
+  const { data: overrideRows } = await admin
+    .from("company_module_overrides")
+    .select("module_key, enabled")
+    .eq("company_id", params.companyId);
+
+  const { assertPermissionsWithinCompany, buildModuleOverrideMap } =
+    await import("@/lib/plans/access");
   const { normalizeCompanyPlan } = await import("@/lib/plans/entitlements");
-  const planGate = assertPermissionsWithinPlan(
+  const planGate = assertPermissionsWithinCompany(
     permissionsPayload,
-    normalizeCompanyPlan((companyForPlan as { plan?: string } | null)?.plan)
+    normalizeCompanyPlan((companyForPlan as { plan?: string } | null)?.plan),
+    buildModuleOverrideMap(
+      (overrideRows ?? []) as Array<{ module_key: string; enabled: boolean }>
+    )
   );
   if (!planGate.ok) {
     return { error: planGate.message };

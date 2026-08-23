@@ -8,15 +8,19 @@ import {
 } from "@/lib/auth/active-company";
 import { getUserCompanies } from "@/lib/auth/session";
 import {
+  buildModuleOverrideMap,
+  modulesForCompany,
   normalizeCompanyPlan,
   permissionAllowsAction,
   resolveAllowedModules,
   resolveCreatableModules,
   resolveDeletableModules,
   resolveEditableModules,
+  type CompanyModuleOverrides,
   type MemberAccessSnapshot,
+  EMPTY_MODULE_OVERRIDES,
 } from "@/lib/plans/access";
-import { isModuleEntitled } from "@/lib/plans/entitlements";
+import { isModuleEntitledForCompany } from "@/lib/plans/company-entitlements";
 import {
   ACCESS_PROFILES,
   isAccessProfileId,
@@ -52,6 +56,32 @@ async function loadPermissionRows(params: {
   }
 
   return (data ?? []) as PermissionRow[];
+}
+
+export async function loadCompanyModuleOverrides(
+  companyId: string
+): Promise<CompanyModuleOverrides> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("company_module_overrides")
+    .select("module_key, enabled")
+    .eq("company_id", companyId);
+
+  if (error) {
+    // Tabela ainda não migrada: fallback seguro = sem overrides (preset puro).
+    if (
+      error.message.includes("company_module_overrides") ||
+      error.code === "42P01" ||
+      error.code === "PGRST205"
+    ) {
+      return EMPTY_MODULE_OVERRIDES;
+    }
+    throw new Error(`Erro ao carregar overrides de módulos: ${error.message}`);
+  }
+
+  return buildModuleOverrideMap(
+    (data ?? []) as Array<{ module_key: string; enabled: boolean }>
+  );
 }
 
 /**
@@ -98,6 +128,9 @@ export async function resolveMemberAccessSnapshot(
     ? (membership.access_profile as string)
     : ACCESS_PROFILES.professional;
 
+  const overrides = await loadCompanyModuleOverrides(activeId);
+  const entitledModules = modulesForCompany(plan, overrides);
+
   // Membership inactive: sem módulos efetivos (não trata row como acesso ativo).
   if (membership.status === "inactive") {
     return {
@@ -105,6 +138,7 @@ export async function resolveMemberAccessSnapshot(
       role: membership.role,
       accessProfile,
       membershipId: membership.id,
+      entitledModules,
       allowedModules: [],
       creatableModules: [],
       editableModules: [],
@@ -122,6 +156,7 @@ export async function resolveMemberAccessSnapshot(
     role: membership.role,
     accessProfile,
     permissionRows: rows,
+    overrides,
   });
 
   const creatable = resolveCreatableModules({
@@ -129,6 +164,7 @@ export async function resolveMemberAccessSnapshot(
     role: membership.role,
     accessProfile,
     permissionRows: rows,
+    overrides,
   });
 
   const editable = resolveEditableModules({
@@ -136,6 +172,7 @@ export async function resolveMemberAccessSnapshot(
     role: membership.role,
     accessProfile,
     permissionRows: rows,
+    overrides,
   });
 
   const deletable = resolveDeletableModules({
@@ -143,6 +180,7 @@ export async function resolveMemberAccessSnapshot(
     role: membership.role,
     accessProfile,
     permissionRows: rows,
+    overrides,
   });
 
   return {
@@ -150,6 +188,7 @@ export async function resolveMemberAccessSnapshot(
     role: membership.role,
     accessProfile,
     membershipId: membership.id,
+    entitledModules,
     allowedModules: [...allowed],
     creatableModules: [...creatable],
     editableModules: [...editable],
@@ -158,7 +197,7 @@ export async function resolveMemberAccessSnapshot(
 }
 
 /**
- * Gate de página/rota: plano ∩ permissão de visualizar.
+ * Gate de página/rota: teto efetivo ∩ permissão de visualizar.
  * Sem acesso → 404 (mesmo padrão do Super Admin).
  */
 export async function requireModuleAccess(
@@ -171,11 +210,19 @@ export async function requireModuleAccess(
   return snapshot;
 }
 
-/** Valida apenas se o plano da empresa inclui o módulo. */
+/**
+ * Valida se a empresa possui o módulo no teto efetivo (plan ⊕ overrides).
+ * Mantém assinatura dos call sites; carrega overrides uma vez.
+ */
 export async function assertPlanEntitlement(params: {
   companyId: string;
   module: PermissionModuleId;
-}): Promise<{ ok: true; plan: string } | { ok: false; message: string }> {
+  /** Evita N+1 quando o caller já carregou overrides */
+  overrides?: CompanyModuleOverrides;
+}): Promise<
+  | { ok: true; plan: string; overrides: CompanyModuleOverrides }
+  | { ok: false; message: string }
+> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("companies")
@@ -191,18 +238,21 @@ export async function assertPlanEntitlement(params: {
   }
 
   const plan = normalizeCompanyPlan((data as { plan?: string }).plan);
-  if (!isModuleEntitled(plan, params.module)) {
+  const overrides =
+    params.overrides ?? (await loadCompanyModuleOverrides(params.companyId));
+
+  if (!isModuleEntitledForCompany(plan, params.module, overrides)) {
     return {
       ok: false,
       message: "Este módulo não está disponível no plano da empresa.",
     };
   }
 
-  return { ok: true, plan };
+  return { ok: true, plan, overrides };
 }
 
 /**
- * Valida plano + membership + permissão de ação no módulo.
+ * Valida teto efetivo + membership + permissão de ação no módulo.
  * Usar em server actions / APIs — não confiar na UI.
  */
 export async function assertMemberPermission(params: {
@@ -257,6 +307,7 @@ export async function assertMemberPermission(params: {
   }
 
   const plan = normalizeCompanyPlan(planCheck.plan);
+  const overrides = planCheck.overrides;
   const rows = await loadPermissionRows({
     companyId: params.companyId,
     membershipId: member.id,
@@ -271,6 +322,7 @@ export async function assertMemberPermission(params: {
       action,
       role: member.role,
       accessProfile: member.access_profile,
+      overrides,
       row: row
         ? {
             module: row.module,
@@ -290,11 +342,14 @@ export async function assertMemberPermission(params: {
     };
   }
 
+  const entitledModules = modulesForCompany(plan, overrides);
+
   const allowed = resolveAllowedModules({
     plan,
     role: member.role,
     accessProfile: member.access_profile,
     permissionRows: rows,
+    overrides,
   });
 
   const creatable = resolveCreatableModules({
@@ -302,6 +357,7 @@ export async function assertMemberPermission(params: {
     role: member.role,
     accessProfile: member.access_profile,
     permissionRows: rows,
+    overrides,
   });
 
   const editable = resolveEditableModules({
@@ -309,6 +365,7 @@ export async function assertMemberPermission(params: {
     role: member.role,
     accessProfile: member.access_profile,
     permissionRows: rows,
+    overrides,
   });
 
   const deletable = resolveDeletableModules({
@@ -316,6 +373,7 @@ export async function assertMemberPermission(params: {
     role: member.role,
     accessProfile: member.access_profile,
     permissionRows: rows,
+    overrides,
   });
 
   return {
@@ -325,6 +383,7 @@ export async function assertMemberPermission(params: {
       role: member.role,
       accessProfile: member.access_profile,
       membershipId: member.id,
+      entitledModules,
       allowedModules: [...allowed],
       creatableModules: [...creatable],
       editableModules: [...editable],

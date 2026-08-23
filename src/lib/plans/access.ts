@@ -11,8 +11,13 @@ import {
   permissionsForProfile,
 } from "@/lib/users/permissions";
 import {
+  entitledModuleSetForCompany,
+  EMPTY_MODULE_OVERRIDES,
+  isModuleEntitledForCompany,
+  type CompanyModuleOverrides,
+} from "@/lib/plans/company-entitlements";
+import {
   entitledModuleSet,
-  isModuleEntitled,
 } from "@/lib/plans/entitlements";
 
 export {
@@ -24,7 +29,31 @@ export {
   isPlanDowngrade,
 } from "@/lib/plans/entitlements";
 
-/** Owner ou perfil administrator: acesso máximo DENTRO do plano (não bypassa plano). */
+export {
+  isModuleEntitledForCompany,
+  modulesForCompany,
+  entitledModuleSetForCompany,
+  buildModuleOverrideMap,
+  computeModuleOverrideDeltas,
+  normalizeModuleOverridesForPlan,
+  sanitizeModuleOverridesForPlan,
+  isStructuralModule,
+  isStructuralRemovalBlocked,
+  STRUCTURAL_MODULE_IDS,
+  hasCustomModuleAccess,
+  EMPTY_MODULE_OVERRIDES,
+  type CompanyModuleOverrides,
+  type CompanyModuleOverrideRow,
+} from "@/lib/plans/company-entitlements";
+
+function resolveEntitledSet(
+  plan: CompanyPlan | string | null | undefined,
+  overrides: CompanyModuleOverrides = EMPTY_MODULE_OVERRIDES
+): Set<PermissionModuleId> {
+  return entitledModuleSetForCompany(plan, overrides);
+}
+
+/** Owner ou perfil administrator: acesso máximo DENTRO do teto da empresa (não bypassa). */
 export function hasFullPlanAccess(params: {
   role: string | null | undefined;
   accessProfile: string | null | undefined;
@@ -34,28 +63,39 @@ export function hasFullPlanAccess(params: {
   return false;
 }
 
-/** Preset do perfil ∩ módulos do plano. */
+/** Preset do perfil ∩ módulos efetivos da empresa (plan ⊕ overrides). */
 export function permissionsForProfileInPlan(
   profile: AccessProfileId,
-  plan: CompanyPlan | string | null | undefined
+  plan: CompanyPlan | string | null | undefined,
+  overrides: CompanyModuleOverrides = EMPTY_MODULE_OVERRIDES
 ): ModulePermissionState[] {
-  const entitled = entitledModuleSet(plan);
-  return permissionsForProfile(profile)
-    .filter((row) => entitled.has(row.module))
-    .map((row) => {
-      const config = PERMISSION_MODULE_CATALOG.find((m) => m.id === row.module);
-      if (!config) return row;
-      // Módulos no catálogo mas fora do plano já filtrados; mantém estado.
-      return row;
-    });
+  return permissionsForProfileInCompany(profile, plan, overrides);
 }
 
-/** Zera / remove permissões de módulos fora do plano (para UI). */
+export function permissionsForProfileInCompany(
+  profile: AccessProfileId,
+  plan: CompanyPlan | string | null | undefined,
+  overrides: CompanyModuleOverrides = EMPTY_MODULE_OVERRIDES
+): ModulePermissionState[] {
+  const entitled = resolveEntitledSet(plan, overrides);
+  return permissionsForProfile(profile).filter((row) => entitled.has(row.module));
+}
+
+/** Zera / remove permissões de módulos fora do teto efetivo (para UI). */
 export function intersectPermissionsWithPlan(
   permissions: ModulePermissionState[],
-  plan: CompanyPlan | string | null | undefined
+  plan: CompanyPlan | string | null | undefined,
+  overrides: CompanyModuleOverrides = EMPTY_MODULE_OVERRIDES
 ): ModulePermissionState[] {
-  const entitled = entitledModuleSet(plan);
+  return intersectPermissionsWithCompany(permissions, plan, overrides);
+}
+
+export function intersectPermissionsWithCompany(
+  permissions: ModulePermissionState[],
+  plan: CompanyPlan | string | null | undefined,
+  overrides: CompanyModuleOverrides = EMPTY_MODULE_OVERRIDES
+): ModulePermissionState[] {
+  const entitled = resolveEntitledSet(plan, overrides);
   const byModule = new Map(permissions.map((p) => [p.module, p]));
 
   return PERMISSION_MODULE_CATALOG.filter((m) => entitled.has(m.id)).map(
@@ -67,6 +107,7 @@ export function intersectPermissionsWithPlan(
   );
 }
 
+/** @deprecated Prefer catalogModulesForCompany — mantido como alias do preset puro. */
 export function catalogModulesForPlan(
   plan: CompanyPlan | string | null | undefined
 ) {
@@ -74,15 +115,32 @@ export function catalogModulesForPlan(
   return PERMISSION_MODULE_CATALOG.filter((m) => entitled.has(m.id));
 }
 
+export function catalogModulesForCompany(
+  plan: CompanyPlan | string | null | undefined,
+  overrides: CompanyModuleOverrides = EMPTY_MODULE_OVERRIDES
+) {
+  const entitled = resolveEntitledSet(plan, overrides);
+  return PERMISSION_MODULE_CATALOG.filter((m) => entitled.has(m.id));
+}
+
 /**
  * Valida payload antes de persistir member_permissions / invites.
- * Rejeita qualquer módulo fora do plano (não confiar no client).
+ * Rejeita qualquer módulo fora do teto efetivo (plan ⊕ overrides).
  */
 export function assertPermissionsWithinPlan(
   permissions: Array<{ module: string }>,
-  plan: CompanyPlan | string | null | undefined
+  plan: CompanyPlan | string | null | undefined,
+  overrides: CompanyModuleOverrides = EMPTY_MODULE_OVERRIDES
 ): { ok: true } | { ok: false; message: string } {
-  const entitled = entitledModuleSet(plan);
+  return assertPermissionsWithinCompany(permissions, plan, overrides);
+}
+
+export function assertPermissionsWithinCompany(
+  permissions: Array<{ module: string }>,
+  plan: CompanyPlan | string | null | undefined,
+  overrides: CompanyModuleOverrides = EMPTY_MODULE_OVERRIDES
+): { ok: true } | { ok: false; message: string } {
+  const entitled = resolveEntitledSet(plan, overrides);
   for (const row of permissions) {
     const moduleId = row.module as PermissionModuleId;
     if (!entitled.has(moduleId)) {
@@ -102,8 +160,12 @@ export function canViewModule(params: {
   accessProfile: string | null | undefined;
   /** can_view da row member_permissions; ignorado se full plan access */
   permissionView?: boolean | null;
+  overrides?: CompanyModuleOverrides;
 }): boolean {
-  if (!isModuleEntitled(params.plan, params.module)) return false;
+  const overrides = params.overrides ?? EMPTY_MODULE_OVERRIDES;
+  if (!isModuleEntitledForCompany(params.plan, params.module, overrides)) {
+    return false;
+  }
   if (
     hasFullPlanAccess({
       role: params.role,
@@ -120,8 +182,12 @@ export function resolveAllowedModules(params: {
   role: string | null | undefined;
   accessProfile: string | null | undefined;
   permissionRows: Array<{ module: string; can_view: boolean }>;
+  overrides?: CompanyModuleOverrides;
 }): Set<PermissionModuleId> {
-  const entitled = entitledModuleSet(params.plan);
+  const entitled = resolveEntitledSet(
+    params.plan,
+    params.overrides ?? EMPTY_MODULE_OVERRIDES
+  );
   const allowed = new Set<PermissionModuleId>();
 
   if (
@@ -147,7 +213,7 @@ export function resolveAllowedModules(params: {
   return allowed;
 }
 
-/** Módulos com permissão de criar (plano ∩ can_create; owner/admin = todos do plano). */
+/** Módulos com permissão de criar (teto ∩ can_create; owner/admin = todos do teto). */
 export function resolveCreatableModules(params: {
   plan: CompanyPlan | string | null | undefined;
   role: string | null | undefined;
@@ -157,6 +223,7 @@ export function resolveCreatableModules(params: {
     can_view: boolean;
     can_create: boolean;
   }>;
+  overrides?: CompanyModuleOverrides;
 }): Set<PermissionModuleId> {
   return resolveModulesForFlag({
     ...params,
@@ -164,7 +231,7 @@ export function resolveCreatableModules(params: {
   });
 }
 
-/** Módulos com permissão de editar (plano ∩ can_edit; owner/admin = todos do plano). */
+/** Módulos com permissão de editar (teto ∩ can_edit; owner/admin = todos do teto). */
 export function resolveEditableModules(params: {
   plan: CompanyPlan | string | null | undefined;
   role: string | null | undefined;
@@ -174,6 +241,7 @@ export function resolveEditableModules(params: {
     can_view: boolean;
     can_edit: boolean;
   }>;
+  overrides?: CompanyModuleOverrides;
 }): Set<PermissionModuleId> {
   return resolveModulesForFlag({
     ...params,
@@ -181,7 +249,7 @@ export function resolveEditableModules(params: {
   });
 }
 
-/** Módulos com permissão de excluir (plano ∩ can_delete; owner/admin = todos do plano). */
+/** Módulos com permissão de excluir (teto ∩ can_delete; owner/admin = todos do teto). */
 export function resolveDeletableModules(params: {
   plan: CompanyPlan | string | null | undefined;
   role: string | null | undefined;
@@ -191,6 +259,7 @@ export function resolveDeletableModules(params: {
     can_view: boolean;
     can_delete: boolean;
   }>;
+  overrides?: CompanyModuleOverrides;
 }): Set<PermissionModuleId> {
   return resolveModulesForFlag({
     ...params,
@@ -210,8 +279,12 @@ function resolveModulesForFlag(params: {
     can_delete?: boolean;
   }>;
   flag: "can_create" | "can_edit" | "can_delete";
+  overrides?: CompanyModuleOverrides;
 }): Set<PermissionModuleId> {
-  const entitled = entitledModuleSet(params.plan);
+  const entitled = resolveEntitledSet(
+    params.plan,
+    params.overrides ?? EMPTY_MODULE_OVERRIDES
+  );
   const result = new Set<PermissionModuleId>();
 
   if (
@@ -243,6 +316,8 @@ export type MemberAccessSnapshot = {
   role: string;
   accessProfile: string;
   membershipId: string;
+  /** Teto comercial efetivo da empresa (plan ⊕ overrides) */
+  entitledModules: PermissionModuleId[];
   allowedModules: PermissionModuleId[];
   /** Módulos em que o usuário pode criar (atalhos "Novo …") */
   creatableModules: PermissionModuleId[];
@@ -259,8 +334,12 @@ export function permissionAllowsAction(params: {
   role: string | null | undefined;
   accessProfile: string | null | undefined;
   row: PersistedModulePermission | ModulePermissionState | null | undefined;
+  overrides?: CompanyModuleOverrides;
 }): boolean {
-  if (!isModuleEntitled(params.plan, params.module)) return false;
+  const overrides = params.overrides ?? EMPTY_MODULE_OVERRIDES;
+  if (!isModuleEntitledForCompany(params.plan, params.module, overrides)) {
+    return false;
+  }
 
   if (
     hasFullPlanAccess({

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
+import { CompanyModuleAccessChecklist } from "@/components/admin/company-module-access-checklist";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,8 +13,10 @@ import {
   COMPANY_STATUS_OPTIONS,
   slugifyCompanyName,
 } from "@/lib/admin/companies-admin-shared";
-import { COMPANY_PLANS, COMPANY_STATUSES } from "@/lib/constants";
+import { COMPANY_PLANS, COMPANY_STATUSES, type CompanyPlan } from "@/lib/constants";
 import { formatCnpj, formatPhone, onlyDigits } from "@/lib/companies/format";
+import { modulesForPlan } from "@/lib/plans/entitlements";
+import type { PermissionModuleId } from "@/lib/users/permissions";
 
 type NewCompanyFormProps = {
   onSuccess: (result: {
@@ -36,16 +39,26 @@ export function NewCompanyForm({ onSuccess, onCancel }: NewCompanyFormProps) {
   const [cnpj, setCnpj] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [plan, setPlan] = useState(COMPANY_PLANS.essential);
+  const [plan, setPlan] = useState<CompanyPlan>(COMPANY_PLANS.essential);
   const [status, setStatus] = useState(COMPANY_STATUSES.active);
   const [ownerFullName, setOwnerFullName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
+  const [customized, setCustomized] = useState(false);
+  const [selectedModules, setSelectedModules] = useState<PermissionModuleId[]>(
+    () => [...modulesForPlan(COMPANY_PLANS.essential)]
+  );
 
   useEffect(() => {
     if (!slugTouched) {
       setSlug(slugifyCompanyName(name));
     }
   }, [name, slugTouched]);
+
+  function handlePlanChange(nextPlan: CompanyPlan) {
+    setPlan(nextPlan);
+    // Troca de plano na criação: recalcula checklist a partir do novo preset.
+    setSelectedModules([...modulesForPlan(nextPlan)]);
+  }
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -63,6 +76,12 @@ export function NewCompanyForm({ onSuccess, onCancel }: NewCompanyFormProps) {
         status,
         ownerFullName,
         ownerEmail,
+        moduleAccess: {
+          customized,
+          selectedModules: customized
+            ? selectedModules
+            : [...modulesForPlan(plan)],
+        },
       });
 
       if ("error" in result) {
@@ -159,7 +178,7 @@ export function NewCompanyForm({ onSuccess, onCancel }: NewCompanyFormProps) {
               id="company-plan"
               value={plan}
               onChange={(event) =>
-                setPlan(event.target.value as typeof plan)
+                handlePlanChange(event.target.value as CompanyPlan)
               }
               disabled={pending}
               required
@@ -191,6 +210,16 @@ export function NewCompanyForm({ onSuccess, onCancel }: NewCompanyFormProps) {
           </div>
         </div>
       </section>
+
+      <CompanyModuleAccessChecklist
+        plan={plan}
+        customized={customized}
+        selectedModules={selectedModules}
+        onCustomizedChange={setCustomized}
+        onSelectedModulesChange={setSelectedModules}
+        disabled={pending}
+        idPrefix="new-company"
+      />
 
       <section className="space-y-3 border-t border-[var(--brand-navy)]/10 pt-4">
         <div>

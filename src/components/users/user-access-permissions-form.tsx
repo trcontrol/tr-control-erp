@@ -8,10 +8,12 @@ import {
   ACCESS_PROFILE_OPTIONS,
   ACCESS_PROFILES,
   PERMISSION_ACTIONS,
+  PERMISSION_MODULE_CATALOG,
   PERMISSION_SCOPE_OPTIONS,
   type AccessProfileId,
   type ModulePermissionState,
   type PermissionAction,
+  type PermissionModuleId,
   applyFullAccess,
   applyReadOnlyAccess,
   isCriticalOwnerModule,
@@ -20,16 +22,21 @@ import {
 } from "@/lib/users/permissions";
 import {
   catalogModulesForPlan,
-  intersectPermissionsWithPlan,
-  permissionsForProfileInPlan,
+  intersectPermissionsWithCompany,
+  permissionsForProfileInCompany,
 } from "@/lib/plans/access";
 import { cn } from "@/lib/utils";
 
 type UserAccessPermissionsFormProps = {
   accessProfile: AccessProfileId;
   permissions: ModulePermissionState[];
-  /** Plano da empresa ativa — limita módulos exibidos/editáveis */
+  /** Plano da empresa ativa — fallback se entitledModules não for passado */
   plan: string;
+  /** Teto comercial efetivo (plan ⊕ overrides). Preferir este catálogo.
+   * - `undefined` = não informado → fallback ao preset do plano
+   * - `[]` = empresa efetivamente sem módulos (sem fallback)
+   */
+  entitledModules?: PermissionModuleId[] | undefined;
   onAccessProfileChange: (profile: AccessProfileId) => void;
   onPermissionsChange: (permissions: ModulePermissionState[]) => void;
   protectPrimaryOwner?: boolean;
@@ -73,6 +80,7 @@ export function UserAccessPermissionsForm({
   accessProfile,
   permissions,
   plan,
+  entitledModules,
   onAccessProfileChange,
   onPermissionsChange,
   protectPrimaryOwner = false,
@@ -81,7 +89,13 @@ export function UserAccessPermissionsForm({
   onError,
   idPrefix = "access",
 }: UserAccessPermissionsFormProps) {
-  const moduleCatalog = useMemo(() => catalogModulesForPlan(plan), [plan]);
+  const moduleCatalog = useMemo(() => {
+    if (entitledModules === undefined) {
+      return catalogModulesForPlan(plan);
+    }
+    const allowed = new Set(entitledModules);
+    return PERMISSION_MODULE_CATALOG.filter((mod) => allowed.has(mod.id));
+  }, [plan, entitledModules]);
 
   const moduleById = useMemo(
     () => new Map(moduleCatalog.map((item) => [item.id, item])),
@@ -110,9 +124,10 @@ export function UserAccessPermissionsForm({
 
   function handleProfileChange(profile: AccessProfileId) {
     onAccessProfileChange(profile);
-    onPermissionsChange(
-      withOwnerProtection(permissionsForProfileInPlan(profile, plan))
+    const next = permissionsForProfileInCompany(profile, plan).filter((row) =>
+      moduleById.has(row.module)
     );
+    onPermissionsChange(withOwnerProtection(next));
     onError?.(null);
   }
 
@@ -192,7 +207,9 @@ export function UserAccessPermissionsForm({
             size="sm"
             onClick={() => {
               updatePermissions(
-                intersectPermissionsWithPlan(applyFullAccess(), plan),
+                intersectPermissionsWithCompany(applyFullAccess(), plan).filter(
+                  (row) => moduleById.has(row.module)
+                ),
                 false
               );
               onAccessProfileChange(ACCESS_PROFILES.administrator);
@@ -207,7 +224,10 @@ export function UserAccessPermissionsForm({
             size="sm"
             onClick={() => {
               updatePermissions(
-                intersectPermissionsWithPlan(applyReadOnlyAccess(), plan)
+                intersectPermissionsWithCompany(
+                  applyReadOnlyAccess(),
+                  plan
+                ).filter((row) => moduleById.has(row.module))
               );
               onError?.(null);
             }}

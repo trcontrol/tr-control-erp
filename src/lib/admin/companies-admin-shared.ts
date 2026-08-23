@@ -4,6 +4,7 @@ import {
   type CompanyPlan,
   type CompanyStatus,
 } from "@/lib/constants";
+import type { PermissionModuleId } from "@/lib/users/permissions";
 
 export const COMPANY_PLAN_OPTIONS: Array<{
   value: CompanyPlan;
@@ -55,6 +56,16 @@ export type AdminCompanyListItem = {
   createdAt: string;
   pendingInitialOwnerInviteId: string | null;
   pendingInitialOwnerEmail: string | null;
+  /** true se existe ao menos um row em company_module_overrides */
+  hasCustomAccess: boolean;
+};
+
+/** Acesso modular na criação/edição comercial (Super Admin). */
+export type CompanyModuleAccessInput = {
+  /** false → sem overrides (padrão do plano) */
+  customized: boolean;
+  /** Seleção efetiva no checklist (só usada se customized) */
+  selectedModules: PermissionModuleId[];
 };
 
 export type CreateCompanyWithOwnerInput = {
@@ -68,6 +79,7 @@ export type CreateCompanyWithOwnerInput = {
   status?: CompanyStatus;
   ownerFullName: string;
   ownerEmail: string;
+  moduleAccess?: CompanyModuleAccessInput;
 };
 
 export type CreateCompanyWithOwnerResult = {
@@ -78,17 +90,19 @@ export type CreateCompanyWithOwnerResult = {
   message: string;
 };
 
-/** Payload estrito — somente plan/status (Super Admin). */
+/** Payload comercial — plan/status + opcional personalização de módulos. */
 export type UpdateCompanyCommercialInput = {
   companyId: string;
   plan: CompanyPlan;
   status: CompanyStatus;
+  moduleAccess?: CompanyModuleAccessInput;
 };
 
 export type UpdateCompanyCommercialResult = {
   companyId: string;
   plan: CompanyPlan;
   status: CompanyStatus;
+  hasCustomAccess: boolean;
   message: string;
 };
 

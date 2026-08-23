@@ -5,9 +5,11 @@ import {
 } from "@/lib/users/permissions";
 
 /**
- * Entitlements comerciais por plano (versão 1).
- * Fonte de verdade do contrato: companies.plan
- * Esta matriz define o TETO de módulos — permissões de usuário ⊆ entitlements.
+ * Entitlements comerciais por plano (versão 1) — PRESET.
+ * Fonte de verdade do plano-base: companies.plan
+ * Esta matriz define o preset; o teto efetivo da empresa pode incluir
+ * deltas em company_module_overrides (ver company-entitlements.ts).
+ * Permissões de usuário ⊆ teto efetivo da empresa.
  *
  * FOLLOW-UP: granularidade de REPORT_TYPES (básico / completo / avançado)
  * por plano — nesta fase `reports` é módulo único nos três planos.
@@ -18,6 +20,8 @@ import {
  * - Rows órfãs ficam persistidas e inativas; re-upgrade pode reativá-las.
  * - Se o membro for editado/salvo após downgrade, a UI envia só o catálogo
  *   do plano atual e replaceMemberPermissions pode remover órfãs — aceitável.
+ *
+ * Seats (PLAN_LIMITS) seguem o plano-base, não os módulos efetivos.
  */
 export const PLAN_ENTITLEMENTS_VERSION = 1 as const;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -21,7 +21,7 @@ import {
   dominantPermissionScope,
   summarizeEnabledModules,
 } from "@/lib/users/permissions";
-import { permissionsForProfileInPlan } from "@/lib/plans/access";
+import { permissionsForProfileInCompany } from "@/lib/plans/access";
 import { useTenant } from "@/providers/tenant-provider";
 import { cn } from "@/lib/utils";
 
@@ -79,8 +79,18 @@ export function UserInviteDialog({
   onOpenChange,
   onInvited,
 }: UserInviteDialogProps) {
-  const { company } = useTenant();
+  const { company, entitledModules } = useTenant();
   const plan = company?.plan ?? "essential";
+
+  const profilePermissions = useCallback(
+    (profile: AccessProfileId) => {
+      const base = permissionsForProfileInCompany(profile, plan);
+      if (entitledModules === undefined) return base;
+      const allowed = new Set(entitledModules);
+      return base.filter((row) => allowed.has(row.module));
+    },
+    [plan, entitledModules]
+  );
 
   const [step, setStep] = useState<InviteStep>(1);
   const [fullName, setFullName] = useState("");
@@ -89,9 +99,7 @@ export function UserInviteDialog({
   const [accessProfile, setAccessProfile] = useState<AccessProfileId>(
     ACCESS_PROFILES.professional
   );
-  const [permissions, setPermissions] = useState<ModulePermissionState[]>(
-    () => permissionsForProfileInPlan(ACCESS_PROFILES.professional, plan)
-  );
+  const [permissions, setPermissions] = useState<ModulePermissionState[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
@@ -104,14 +112,12 @@ export function UserInviteDialog({
     setEmail("");
     setRole(COMPANY_ROLES.member);
     setAccessProfile(ACCESS_PROFILES.professional);
-    setPermissions(
-      permissionsForProfileInPlan(ACCESS_PROFILES.professional, plan)
-    );
+    setPermissions(profilePermissions(ACCESS_PROFILES.professional));
     setSaving(false);
     setError(null);
     setAccessError(null);
     setSuccessMessage(null);
-  }, [open, plan]);
+  }, [open, profilePermissions]);
 
   const enabledModules = useMemo(
     () => summarizeEnabledModules(permissions),
@@ -144,7 +150,7 @@ export function UserInviteDialog({
     if (!validateStep1()) return;
 
     if (accessProfile !== ACCESS_PROFILES.custom) {
-      setPermissions(permissionsForProfileInPlan(accessProfile, plan));
+      setPermissions(profilePermissions(accessProfile));
     }
     setStep(2);
   }
@@ -152,7 +158,7 @@ export function UserInviteDialog({
   function handleProfileChangeFromStep1(profile: AccessProfileId) {
     setAccessProfile(profile);
     if (profile !== ACCESS_PROFILES.custom) {
-      setPermissions(permissionsForProfileInPlan(profile, plan));
+      setPermissions(profilePermissions(profile));
     }
   }
 
@@ -302,6 +308,7 @@ export function UserInviteDialog({
               accessProfile={accessProfile}
               permissions={permissions}
               plan={plan}
+              entitledModules={entitledModules}
               onAccessProfileChange={setAccessProfile}
               onPermissionsChange={setPermissions}
               showProfileSelect

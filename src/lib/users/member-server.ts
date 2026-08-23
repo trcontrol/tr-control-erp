@@ -6,9 +6,14 @@ import {
 } from "@/lib/users/format";
 import { assertCanManageCompanyUsers } from "@/lib/users/invite-server";
 import {
-  assertPermissionsWithinPlan,
-  permissionsForProfileInPlan,
+  assertPermissionsWithinCompany,
+  permissionsForProfileInCompany,
 } from "@/lib/plans/access";
+import {
+  buildModuleOverrideMap,
+  EMPTY_MODULE_OVERRIDES,
+  type CompanyModuleOverrides,
+} from "@/lib/plans/company-entitlements";
 import { normalizeCompanyPlan } from "@/lib/plans/entitlements";
 import {
   ACCESS_PROFILES,
@@ -90,6 +95,7 @@ function normalizePermissionsPayload(
     isPrimaryOwner: boolean;
     isSelf: boolean;
     plan: string;
+    overrides?: CompanyModuleOverrides;
   }
 ): Result<PersistedModulePermission[]> {
   if (!Array.isArray(permissions) || permissions.length === 0) {
@@ -99,7 +105,11 @@ function normalizePermissionsPayload(
     };
   }
 
-  const planGate = assertPermissionsWithinPlan(permissions, options.plan);
+  const planGate = assertPermissionsWithinCompany(
+    permissions,
+    options.plan,
+    options.overrides ?? EMPTY_MODULE_OVERRIDES
+  );
   if (!planGate.ok) {
     return { data: null, error: { message: planGate.message } };
   }
@@ -131,7 +141,11 @@ function normalizePermissionsPayload(
   };
 }
 
-async function loadCompanyPlan(companyId: string): Promise<Result<string>> {
+async function loadCompanyPlanAndOverrides(
+  companyId: string
+): Promise<
+  Result<{ plan: string; overrides: CompanyModuleOverrides }>
+> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("companies")
@@ -146,8 +160,31 @@ async function loadCompanyPlan(companyId: string): Promise<Result<string>> {
     return { data: null, error: { message: "Empresa não encontrada." } };
   }
 
+  const plan = normalizeCompanyPlan((data as { plan?: string }).plan);
+
+  const { data: overrideRows, error: overrideError } = await supabase
+    .from("company_module_overrides")
+    .select("module_key, enabled")
+    .eq("company_id", companyId);
+
+  if (overrideError) {
+    if (
+      overrideError.message.includes("company_module_overrides") ||
+      overrideError.code === "42P01" ||
+      overrideError.code === "PGRST205"
+    ) {
+      return { data: { plan, overrides: EMPTY_MODULE_OVERRIDES }, error: null };
+    }
+    return { data: null, error: { message: overrideError.message } };
+  }
+
   return {
-    data: normalizeCompanyPlan((data as { plan?: string }).plan),
+    data: {
+      plan,
+      overrides: buildModuleOverrideMap(
+        (overrideRows ?? []) as Array<{ module_key: string; enabled: boolean }>
+      ),
+    },
     error: null,
   };
 }
@@ -255,14 +292,14 @@ export async function getCompanyMemberPermissions(params: {
     ? target.access_profile
     : ACCESS_PROFILES.professional;
 
-  const planResult = await loadCompanyPlan(params.companyId);
+  const planResult = await loadCompanyPlanAndOverrides(params.companyId);
   if (planResult.error || planResult.data == null) {
     return {
       data: null,
       error: planResult.error ?? { message: "Plano da empresa indisponível." },
     };
   }
-  const plan = planResult.data;
+  const { plan, overrides } = planResult.data;
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -285,11 +322,15 @@ export async function getCompanyMemberPermissions(params: {
   const basePermissions =
     stored.length > 0
       ? hydrateModulePermissionsFromStored(stored, accessProfile)
-      : permissionsForProfileInPlan(accessProfile, plan);
+      : permissionsForProfileInCompany(accessProfile, plan, overrides);
 
-  // Runtime: entitlement do plano vence — UI só vê módulos contratados.
-  const { intersectPermissionsWithPlan } = await import("@/lib/plans/access");
-  const scoped = intersectPermissionsWithPlan(basePermissions, plan);
+  // Runtime: teto efetivo da empresa vence — UI só vê módulos contratados.
+  const { intersectPermissionsWithCompany } = await import("@/lib/plans/access");
+  const scoped = intersectPermissionsWithCompany(
+    basePermissions,
+    plan,
+    overrides
+  );
 
   const permissions = protectPrimaryOwnerPermissions(scoped, {
     isPrimaryOwner,
@@ -431,7 +472,7 @@ export async function saveCompanyMemberPermissions(params: {
     return { data: null, error: { message: "Cargo do membro inválido." } };
   }
 
-  const planResult = await loadCompanyPlan(params.companyId);
+  const planResult = await loadCompanyPlanAndOverrides(params.companyId);
   if (planResult.error || planResult.data == null) {
     return {
       data: null,
@@ -444,7 +485,8 @@ export async function saveCompanyMemberPermissions(params: {
   const normalized = normalizePermissionsPayload(params.permissions, {
     isPrimaryOwner,
     isSelf: isPrimaryOwner || target.user_id === authz.user.id,
-    plan: planResult.data,
+    plan: planResult.data.plan,
+    overrides: planResult.data.overrides,
   });
   if (normalized.error || !normalized.data) {
     return { data: null, error: normalized.error };
@@ -672,7 +714,7 @@ export async function updateCompanyMemberBasics(params: {
     updatedProfile &&
     params.accessProfile !== ACCESS_PROFILES.custom
   ) {
-    const planResult = await loadCompanyPlan(params.companyId);
+    const planResult = await loadCompanyPlanAndOverrides(params.companyId);
     if (planResult.error || planResult.data == null) {
       return {
         data: null,
@@ -683,7 +725,11 @@ export async function updateCompanyMemberBasics(params: {
 
     const isPrimaryOwner = target.role === COMPANY_ROLES.owner;
     const matrix = protectPrimaryOwnerPermissions(
-      permissionsForProfileInPlan(params.accessProfile, planResult.data),
+      permissionsForProfileInCompany(
+        params.accessProfile,
+        planResult.data.plan,
+        planResult.data.overrides
+      ),
       {
         isPrimaryOwner,
         isSelf: isPrimaryOwner || target.user_id === authz.user.id,

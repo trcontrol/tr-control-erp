@@ -14,6 +14,10 @@ function planDisplayName(plan: CompanyPlan): string {
 /**
  * Limites comerciais por plano (V1) — separado de PLAN_MODULE_ENTITLEMENTS.
  * Seats são por company_id (tenant). Owner conta no limite.
+ *
+ * IMPORTANTE: seats vinculados ao plano-base (companies.plan), NÃO aos
+ * módulos efetivos. Conceder `users` (ou outros) via company_module_overrides
+ * a um Essencial NÃO aumenta automaticamente o limite de vagas.
  */
 export const PLAN_LIMITS_VERSION = 1 as const;
 

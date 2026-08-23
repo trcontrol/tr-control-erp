@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
+import { CompanyModuleAccessChecklist } from "@/components/admin/company-module-access-checklist";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import {
+  getAdminCompanyModuleAccessAction,
   getAdminCompanySeatUsageAction,
   updateCompanyCommercialAction,
 } from "@/lib/admin/companies-admin-actions";
@@ -28,8 +30,10 @@ import { formatCnpj } from "@/lib/companies/format";
 import {
   isPlanDowngrade,
   isPlanUpgrade,
+  modulesForPlan,
   normalizeCompanyPlan,
 } from "@/lib/plans/entitlements";
+import type { PermissionModuleId } from "@/lib/users/permissions";
 
 type EditCompanyCommercialFormProps = {
   company: AdminCompanyListItem;
@@ -59,6 +63,15 @@ export function EditCompanyCommercialForm({
   const [downgradeAck, setDowngradeAck] = useState(false);
   const [seats, setSeats] = useState<SeatUsageSnapshot | null>(null);
   const [seatsLoading, setSeatsLoading] = useState(true);
+  const [accessLoading, setAccessLoading] = useState(true);
+  const [customized, setCustomized] = useState(company.hasCustomAccess);
+  const [selectedModules, setSelectedModules] = useState<PermissionModuleId[]>(
+    () => [...modulesForPlan(normalizeCompanyPlan(company.plan))]
+  );
+  const [restoreConfirm, setRestoreConfirm] = useState(false);
+  const [pendingPlanChange, setPendingPlanChange] = useState<CompanyPlan | null>(
+    null
+  );
 
   const currentPlan = normalizeCompanyPlan(company.plan);
 
@@ -67,6 +80,8 @@ export function EditCompanyCommercialForm({
     setStatus(parseStatus(company.status));
     setDowngradeAck(false);
     setError(null);
+    setRestoreConfirm(false);
+    setCustomized(company.hasCustomAccess);
   }, [company]);
 
   useEffect(() => {
@@ -81,6 +96,25 @@ export function EditCompanyCommercialForm({
       }
       setSeats(result);
       setSeatsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [company.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setAccessLoading(true);
+    void getAdminCompanyModuleAccessAction(company.id).then((result) => {
+      if (cancelled) return;
+      if ("error" in result) {
+        setAccessLoading(false);
+        setError(result.error);
+        return;
+      }
+      setCustomized(result.overrideRows.length > 0);
+      setSelectedModules(result.entitledModules);
+      setAccessLoading(false);
     });
     return () => {
       cancelled = true;
@@ -108,6 +142,32 @@ export function EditCompanyCommercialForm({
     if (!downgrading) setDowngradeAck(false);
   }, [downgrading]);
 
+  function applyPlanChange(nextPlan: CompanyPlan) {
+    setPlan(nextPlan);
+    setSelectedModules([...modulesForPlan(nextPlan)]);
+    setRestoreConfirm(false);
+    setPendingPlanChange(null);
+  }
+
+  function handlePlanChange(nextPlan: CompanyPlan) {
+    if (nextPlan === plan) return;
+    if (customized) {
+      setPendingPlanChange(nextPlan);
+      return;
+    }
+    applyPlanChange(nextPlan);
+  }
+
+  function handleRestorePlanDefault() {
+    if (!restoreConfirm) {
+      setRestoreConfirm(true);
+      return;
+    }
+    setCustomized(false);
+    setSelectedModules([...modulesForPlan(plan)]);
+    setRestoreConfirm(false);
+  }
+
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -129,6 +189,12 @@ export function EditCompanyCommercialForm({
         companyId: company.id,
         plan,
         status,
+        moduleAccess: {
+          customized,
+          selectedModules: customized
+            ? selectedModules
+            : [...modulesForPlan(plan)],
+        },
       });
 
       if ("error" in result) {
@@ -183,14 +249,14 @@ export function EditCompanyCommercialForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="edit-company-plan">Plano</Label>
+          <Label htmlFor="edit-company-plan">Plano-base</Label>
           <Select
             id="edit-company-plan"
             value={plan}
             onChange={(event) =>
-              setPlan(normalizeCompanyPlan(event.target.value))
+              handlePlanChange(normalizeCompanyPlan(event.target.value))
             }
-            disabled={pending}
+            disabled={pending || accessLoading}
           >
             {COMPANY_PLAN_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -217,9 +283,91 @@ export function EditCompanyCommercialForm({
         </div>
       </div>
 
+      {pendingPlanChange ? (
+        <div className="space-y-3 rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-3 text-sm text-amber-950">
+          <p className="font-medium">Troca de plano com acessos personalizados</p>
+          <p>
+            Ao trocar o plano, os acessos personalizados serão recalculados com
+            base no novo plano. Extras e remoções da sessão atual serão
+            descartados até você personalizar de novo.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => applyPlanChange(pendingPlanChange)}
+              disabled={pending}
+            >
+              Confirmar novo plano
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setPendingPlanChange(null)}
+              disabled={pending}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      <p className="text-xs text-muted-foreground">
+        Acessos:{" "}
+        <span className="font-medium text-[var(--brand-navy)]">
+          {customized ? "personalizado" : "padrão do plano"}
+        </span>
+      </p>
+
+      {!accessLoading ? (
+        <CompanyModuleAccessChecklist
+          plan={plan}
+          customized={customized}
+          selectedModules={selectedModules}
+          onCustomizedChange={setCustomized}
+          onSelectedModulesChange={setSelectedModules}
+          disabled={pending}
+          idPrefix="edit-company"
+        />
+      ) : (
+        <p className="text-sm text-muted-foreground">Carregando acessos…</p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={pending || accessLoading || (!customized && !company.hasCustomAccess)}
+          onClick={handleRestorePlanDefault}
+        >
+          {restoreConfirm
+            ? "Confirmar: restaurar padrão do plano"
+            : "Restaurar padrão do plano"}
+        </Button>
+        {restoreConfirm ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setRestoreConfirm(false)}
+            disabled={pending}
+          >
+            Cancelar restauração
+          </Button>
+        ) : null}
+      </div>
+      {restoreConfirm ? (
+        <p className="text-xs text-amber-900">
+          Isso remove todos os overrides e volta ao preset do plano ao salvar.
+        </p>
+      ) : null}
+
       {upgrading ? (
         <p className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-950">
-          Novos módulos ficarão disponíveis após a atualização.
+          Novos módulos do plano ficarão disponíveis após a atualização. Overrides
+          redundantes serão normalizados.
         </p>
       ) : null}
 
@@ -249,7 +397,7 @@ export function EditCompanyCommercialForm({
         <div className="space-y-3 rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-3 text-sm text-amber-950">
           <p>
             Este downgrade removerá o acesso imediato aos módulos que não fazem
-            parte do novo plano. Os dados históricos não serão apagados.
+            parte do novo teto efetivo. Os dados históricos não serão apagados.
           </p>
           <label className="flex cursor-pointer items-start gap-2">
             <input
@@ -266,7 +414,7 @@ export function EditCompanyCommercialForm({
 
       <p className="text-xs text-muted-foreground">
         Observação: nesta versão, o status Suspensa ainda não bloqueia o acesso
-        ao sistema.
+        ao sistema. Seats continuam no plano-base (não nos módulos extras).
       </p>
 
       {error ? (
@@ -288,6 +436,7 @@ export function EditCompanyCommercialForm({
           type="submit"
           disabled={
             pending ||
+            accessLoading ||
             Boolean(seatBlock) ||
             (downgrading && !downgradeAck && !seatBlock)
           }

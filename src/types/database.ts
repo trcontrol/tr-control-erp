@@ -936,6 +936,41 @@ export type Database = {
           },
         ];
       };
+      company_module_overrides: {
+        Row: {
+          company_id: string;
+          module_key: string;
+          enabled: boolean;
+          created_at: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          company_id: string;
+          module_key: string;
+          enabled: boolean;
+          created_at?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          company_id?: string;
+          module_key?: string;
+          enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "company_module_overrides_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       customers: {
         Row: CustomerRow;
         Insert: CustomerInsert;
@@ -1569,6 +1604,13 @@ export type Database = {
         Args: Record<string, never>;
         Returns: boolean;
       };
+      company_has_module: {
+        Args: {
+          p_company_id: string;
+          p_module: string;
+        };
+        Returns: boolean;
+      };
       create_company_with_owner_invite: {
         Args: {
           p_name: string;
@@ -1582,6 +1624,26 @@ export type Database = {
           p_owner_full_name: string | null;
           p_owner_email: string;
           p_permissions: Json;
+        };
+        Returns: {
+          company_id: string;
+          invite_id: string;
+        };
+      };
+      create_company_with_custom_access_and_owner_invite: {
+        Args: {
+          p_name: string;
+          p_legal_name: string | null;
+          p_slug: string;
+          p_cnpj: string | null;
+          p_email: string | null;
+          p_phone: string | null;
+          p_plan: string;
+          p_status: string;
+          p_owner_full_name: string | null;
+          p_owner_email: string;
+          p_permissions: Json;
+          p_module_overrides?: Json;
         };
         Returns: {
           company_id: string;

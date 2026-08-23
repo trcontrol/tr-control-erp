@@ -48,6 +48,7 @@ export default async function DashboardLayout({
     <TenantProvider
       companies={companies}
       initialCompanyId={initialCompanyId ?? undefined}
+      initialEntitledModules={access?.entitledModules ?? []}
       initialAllowedModules={access?.allowedModules ?? []}
       initialCreatableModules={access?.creatableModules ?? []}
       initialEditableModules={access?.editableModules ?? []}

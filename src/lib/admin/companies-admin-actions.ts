@@ -5,6 +5,7 @@ import {
   createCompanyWithOwnerInvite,
   deleteCompanyForPlatformAdmin,
   getAdminCompanyDeletionCounts,
+  loadCompanyModuleOverridesForAdmin,
   resendInitialOwnerInvite,
   updateCompanyCommercial,
 } from "@/lib/admin/companies-admin";
@@ -21,6 +22,7 @@ import { requirePlatformAdmin } from "@/lib/admin/platform-admin";
 import { ROUTES } from "@/lib/constants";
 import type { SeatUsageSnapshot } from "@/lib/plans/limits";
 import { getCompanySeatUsage } from "@/lib/plans/seats";
+import type { PermissionModuleId } from "@/lib/users/permissions";
 
 export async function createCompanyWithOwnerInviteAction(
   input: CreateCompanyWithOwnerInput
@@ -35,7 +37,7 @@ export async function resendInitialOwnerInviteAction(params: {
   return resendInitialOwnerInvite(params);
 }
 
-/** Super Admin: atualiza somente plan + status. */
+/** Super Admin: atualiza plan + status + overrides de módulos. */
 export async function updateCompanyCommercialAction(
   input: UpdateCompanyCommercialInput
 ): Promise<UpdateCompanyCommercialResult | { error: string }> {
@@ -62,6 +64,31 @@ export async function getAdminCompanySeatUsageAction(
     return { error: result.error };
   }
   return result;
+}
+
+/** Super Admin: overrides + módulos efetivos para o formulário comercial. */
+export async function getAdminCompanyModuleAccessAction(
+  companyId: string
+): Promise<
+  | {
+      plan: string;
+      overrideRows: Array<{ module_key: string; enabled: boolean }>;
+      entitledModules: PermissionModuleId[];
+    }
+  | { error: string }
+> {
+  const result = await loadCompanyModuleOverridesForAdmin(companyId);
+  if ("error" in result) return result;
+  return {
+    plan: result.plan,
+    overrideRows: [...result.overrides.entries()].map(
+      ([module_key, enabled]) => ({
+        module_key,
+        enabled,
+      })
+    ),
+    entitledModules: result.entitledModules,
+  };
 }
 
 /** Super Admin: contagens informativas para o modal de exclusão. */

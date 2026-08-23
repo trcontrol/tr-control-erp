@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import {
   applyViewDependency,
   protectPrimaryOwnerPermissions,
 } from "@/lib/users/permissions";
-import { permissionsForProfileInPlan } from "@/lib/plans/access";
+import { permissionsForProfileInCompany } from "@/lib/plans/access";
 import { useTenant } from "@/providers/tenant-provider";
 
 type UserPermissionsDialogProps = {
@@ -37,8 +37,18 @@ export function UserPermissionsDialog({
   onSaved,
 }: UserPermissionsDialogProps) {
   const router = useRouter();
-  const { company, refreshAccessSnapshot } = useTenant();
+  const { company, entitledModules, refreshAccessSnapshot } = useTenant();
   const plan = company?.plan ?? "essential";
+
+  const profilePermissions = useCallback(
+    (profile: AccessProfileId) => {
+      const base = permissionsForProfileInCompany(profile, plan);
+      if (entitledModules === undefined) return base;
+      const allowed = new Set(entitledModules);
+      return base.filter((row) => allowed.has(row.module));
+    },
+    [plan, entitledModules]
+  );
 
   const [accessProfile, setAccessProfile] = useState<AccessProfileId>(
     ACCESS_PROFILES.professional
@@ -72,7 +82,7 @@ export function UserPermissionsDialog({
       if (result.error || !result.data) {
         const profile = initialProfile ?? user.accessProfile;
         const next = protectPrimaryOwnerPermissions(
-          permissionsForProfileInPlan(profile, plan),
+          profilePermissions(profile),
           {
             isPrimaryOwner: user.isPrimaryOwner,
             isSelf: user.isCurrentUser,
@@ -85,12 +95,11 @@ export function UserPermissionsDialog({
         return;
       }
 
-      const companyPlan = result.data.plan ?? plan;
       const profile = initialProfile ?? result.data.accessProfile;
       const next =
         initialProfile && initialProfile !== result.data.accessProfile
           ? protectPrimaryOwnerPermissions(
-              permissionsForProfileInPlan(initialProfile, companyPlan),
+              profilePermissions(initialProfile),
               {
                 isPrimaryOwner: user.isPrimaryOwner,
                 isSelf: user.isCurrentUser,
@@ -111,7 +120,7 @@ export function UserPermissionsDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, user, initialProfile, plan]);
+  }, [open, user, initialProfile, plan, profilePermissions]);
 
   async function handleSave() {
     if (!user) return;
@@ -178,6 +187,7 @@ export function UserPermissionsDialog({
               accessProfile={accessProfile}
               permissions={permissions}
               plan={plan}
+              entitledModules={entitledModules}
               onAccessProfileChange={setAccessProfile}
               onPermissionsChange={setPermissions}
               protectPrimaryOwner={isProtectedSelfOwner}

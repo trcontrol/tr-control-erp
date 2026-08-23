@@ -184,7 +184,14 @@ export function AdminCompaniesBoard({
                         {company.cnpj ? formatCnpj(company.cnpj) : "—"}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
-                        {companyPlanLabel(company.plan)}
+                        <span className="inline-flex flex-wrap items-center gap-1.5">
+                          {companyPlanLabel(company.plan)}
+                          {company.hasCustomAccess ? (
+                            <span className="rounded border border-[var(--brand-navy)]/15 bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--brand-navy)]">
+                              Personalizado
+                            </span>
+                          ) : null}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {companyStatusLabel(company.status)}

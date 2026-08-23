@@ -284,4 +284,31 @@
   #reports-print-root .shadow-card-hover {
     box-shadow: none !important;
   }
+
+  #sale-receipt-root {
+    color: #11203b;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    max-width: 210mm;
+    margin: 0 auto;
+  }
+
+  #sale-receipt-root .shadow-card,
+  #sale-receipt-root .shadow-card-hover {
+    box-shadow: none !important;
+  }
+
+  #sale-receipt-root .sale-receipt-table {
+    page-break-inside: auto;
+  }
+
+  #sale-receipt-root .sale-receipt-table tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  #sale-receipt-root .sale-receipt-table thead {
+    display: table-header-group;
+  }
 }

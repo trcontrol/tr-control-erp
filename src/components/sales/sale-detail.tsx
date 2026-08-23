@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Loader2,
   Pencil,
+  Printer,
   Trash2,
   XCircle,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import {
   SALE_STATUS,
   financeDetailPath,
   saleEditPath,
+  saleReceiptPath,
 } from "@/lib/constants";
 import {
   cancelSale,
@@ -180,6 +182,12 @@ export function SaleDetail({ sale, companyId }: SaleDetailProps) {
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link href={saleReceiptPath(current.id)}>
+                <Printer className="h-4 w-4" />
+                Imprimir comprovante
+              </Link>
+            </Button>
             {isDraft ? (
               <>
                 {canEdit ? (

@@ -123,6 +123,10 @@ export function saleEditPath(id: string) {
   return `/sales/${id}/edit`;
 }
 
+export function saleReceiptPath(id: string) {
+  return `/sales/${id}/comprovante`;
+}
+
 export function opportunityDetailPath(id: string) {
   return `/funnel/${id}`;
 }

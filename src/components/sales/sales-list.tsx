@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Eye, Loader2, Pencil, Plus, Search, ShoppingBag } from "lucide-react";
+import { Eye, Loader2, Pencil, Plus, Printer, Search, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -19,6 +19,7 @@ import {
   SALE_STATUS_OPTIONS,
   saleDetailPath,
   saleEditPath,
+  saleReceiptPath,
 } from "@/lib/constants";
 import { listCustomers } from "@/lib/customers/actions";
 import { listSales, type SaleListItem } from "@/lib/sales/actions";
@@ -233,6 +234,14 @@ export function SalesList() {
                             <Eye className="h-4 w-4" />
                           </Link>
                         </Button>
+                        <Button asChild variant="ghost" size="icon">
+                          <Link
+                            href={saleReceiptPath(sale.id)}
+                            title="Imprimir comprovante"
+                          >
+                            <Printer className="h-4 w-4" />
+                          </Link>
+                        </Button>
                         {canEdit && sale.status === SALE_STATUS.draft ? (
                           <Button asChild variant="ghost" size="icon">
                             <Link href={saleEditPath(sale.id)}>
@@ -269,9 +278,19 @@ export function SalesList() {
                       {formatCurrency(sale.total_amount)}
                     </span>
                   </div>
-                  <Button asChild variant="outline" className="w-full">
-                    <Link href={saleDetailPath(sale.id)}>Ver detalhes</Link>
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button asChild variant="outline" className="flex-1">
+                      <Link href={saleDetailPath(sale.id)}>Ver detalhes</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="icon">
+                      <Link
+                        href={saleReceiptPath(sale.id)}
+                        title="Imprimir comprovante"
+                      >
+                        <Printer className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}

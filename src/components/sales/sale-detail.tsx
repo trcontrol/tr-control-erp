@@ -45,7 +45,7 @@ import {
   PAYMENT_CONDITIONS,
   paymentConditionLabel,
 } from "@/lib/sales/installments";
-import { formatStockQuantity } from "@/lib/products/format";
+import { formatStockQuantity, formatProductType } from "@/lib/products/format";
 import { PERMISSION_MODULES } from "@/lib/users/permissions";
 import { useTenant } from "@/providers/tenant-provider";
 
@@ -425,9 +425,7 @@ export function SaleDetail({ sale, companyId }: SaleDetailProps) {
                         {item.product?.name ?? "Item"}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {item.product?.product_type === "service"
-                          ? "Serviço"
-                          : "Produto"}
+                        {formatProductType(item.product?.product_type)}
                         {item.product?.internal_code || item.product?.sku
                           ? ` · ${item.product?.internal_code || item.product?.sku}`
                           : ""}

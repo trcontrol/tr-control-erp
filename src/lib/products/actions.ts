@@ -1,10 +1,31 @@
 import { createClient } from "@/lib/supabase/client";
 import { PRODUCT_IMAGES_BUCKET } from "@/lib/constants";
+import { validateProductTypeInput } from "@/lib/products/format";
 import type { Product, ProductInsert, ProductUpdate } from "@/types/database";
 
 type Result<T> =
   | { data: T; error: null }
   | { data: null; error: { message: string } };
+
+function productTypeErrorMessage(error: string) {
+  if (error === "Campo obrigatório") {
+    return "Informe o tipo do produto.";
+  }
+  return `Tipo do produto: ${error}.`;
+}
+
+function assertValidProductType(
+  productType: string | null | undefined
+): Result<string> {
+  const validated = validateProductTypeInput(productType);
+  if (validated.error) {
+    return {
+      data: null,
+      error: { message: productTypeErrorMessage(validated.error) },
+    };
+  }
+  return { data: validated.value, error: null };
+}
 
 export async function listProducts(params: {
   companyId: string;
@@ -79,10 +100,18 @@ export async function getProduct(
 export async function createProduct(
   payload: ProductInsert
 ): Promise<Result<Product>> {
+  const typeResult = assertValidProductType(payload.product_type);
+  if (typeResult.error) {
+    return { data: null, error: typeResult.error };
+  }
+
   const supabase = createClient();
   const { data, error } = await supabase
     .from("products")
-    .insert(payload as never)
+    .insert({
+      ...payload,
+      product_type: typeResult.data,
+    } as never)
     .select("*")
     .single();
 
@@ -98,10 +127,20 @@ export async function updateProduct(
   productId: string,
   payload: ProductUpdate
 ): Promise<Result<Product>> {
+  const nextPayload: ProductUpdate = { ...payload };
+
+  if (payload.product_type !== undefined) {
+    const typeResult = assertValidProductType(payload.product_type);
+    if (typeResult.error) {
+      return { data: null, error: typeResult.error };
+    }
+    nextPayload.product_type = typeResult.data;
+  }
+
   const supabase = createClient();
   const { data, error } = await supabase
     .from("products")
-    .update(payload as never)
+    .update(nextPayload as never)
     .eq("company_id", companyId)
     .eq("id", productId)
     .select("*")
@@ -161,11 +200,13 @@ export async function uploadProductImage(
 
 export async function listProductFilterOptions(
   companyId: string
-): Promise<Result<{ categories: string[]; brands: string[] }>> {
+): Promise<
+  Result<{ categories: string[]; brands: string[]; productTypes: string[] }>
+> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("products")
-    .select("category, brand")
+    .select("category, brand, product_type")
     .eq("company_id", companyId);
 
   if (error) {
@@ -175,6 +216,7 @@ export async function listProductFilterOptions(
   const rows = (data ?? []) as Array<{
     category: string | null;
     brand: string | null;
+    product_type: string | null;
   }>;
 
   const categories = Array.from(
@@ -193,5 +235,13 @@ export async function listProductFilterOptions(
     )
   ).sort((a, b) => a.localeCompare(b, "pt-BR"));
 
-  return { data: { categories, brands }, error: null };
+  const productTypes = Array.from(
+    new Set(
+      rows
+        .map((item) => item.product_type?.trim() ?? "")
+        .filter((value): value is string => Boolean(value))
+    )
+  ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+  return { data: { categories, brands, productTypes }, error: null };
 }

@@ -274,14 +274,18 @@ export const PRODUCT_STATUS_OPTIONS = [
   { value: PRODUCT_STATUS.inactive, label: "Inativo" },
 ] as const;
 
+/** Valores legacy ainda presentes no banco (compatibilidade / display). */
 export const PRODUCT_TYPES = {
   product: "product",
   service: "service",
 } as const;
 
-export type ProductItemType =
-  (typeof PRODUCT_TYPES)[keyof typeof PRODUCT_TYPES];
+/** @deprecated Preferir string livre; mantido só para labels legacy. */
+export type ProductItemType = string;
 
+export const PRODUCT_TYPE_MAX_LENGTH = 60;
+
+/** Labels legacy para display; não restringem valores válidos. */
 export const PRODUCT_TYPE_OPTIONS = [
   { value: PRODUCT_TYPES.product, label: "Produto" },
   { value: PRODUCT_TYPES.service, label: "Serviço" },

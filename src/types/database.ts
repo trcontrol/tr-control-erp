@@ -406,7 +406,7 @@ export type FinancialEntryUpdate = Partial<
 export type ProductRow = {
   id: string;
   company_id: string;
-  product_type: "product" | "service" | string;
+  product_type: string;
   internal_code: string | null;
   sku: string | null;
   barcode: string | null;

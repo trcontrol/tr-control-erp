@@ -15,7 +15,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   PRODUCT_STATUS_OPTIONS,
-  PRODUCT_TYPE_OPTIONS,
   ROUTES,
   TRACK_STOCK_OPTIONS,
   productEditPath,
@@ -26,6 +25,7 @@ import {
   calculateProfitMargin,
   formatCurrency,
   formatPercent,
+  formatProductType,
   formatStockQuantity,
   isLowStock,
 } from "@/lib/products/format";
@@ -130,7 +130,7 @@ export function ProductDetail({ product, companyId }: ProductDetailProps) {
             <div>
               <CardTitle>{product.name}</CardTitle>
               <CardDescription>
-                {labelFromOptions(PRODUCT_TYPE_OPTIONS, product.product_type)}
+                {formatProductType(product.product_type)}
                 {" · "}
                 {labelFromOptions(PRODUCT_STATUS_OPTIONS, product.status)}
                 {product.category ? ` · ${product.category}` : ""}
@@ -188,7 +188,7 @@ export function ProductDetail({ product, companyId }: ProductDetailProps) {
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <InfoItem
             label="Tipo"
-            value={labelFromOptions(PRODUCT_TYPE_OPTIONS, product.product_type)}
+            value={formatProductType(product.product_type)}
           />
           <InfoItem
             label="Controlar estoque?"

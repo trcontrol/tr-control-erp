@@ -24,7 +24,6 @@ import {
 import {
   PRODUCT_CATEGORIES,
   PRODUCT_STATUS_OPTIONS,
-  PRODUCT_TYPE_OPTIONS,
   ROUTES,
   productDetailPath,
   productEditPath,
@@ -37,6 +36,7 @@ import {
   calculateProfitMargin,
   formatCurrency,
   formatPercent,
+  formatProductType,
   formatStockQuantity,
   isLowStock,
   toNumberAmount,
@@ -52,18 +52,12 @@ function statusLabel(status: string) {
   );
 }
 
-function typeLabel(productType?: string | null) {
-  const value = productType || "product";
-  return (
-    PRODUCT_TYPE_OPTIONS.find((item) => item.value === value)?.label ?? value
-  );
-}
-
 export function ProductsList() {
   const { company } = useTenant();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
+  const [productTypes, setProductTypes] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [productType, setProductType] = useState("all");
@@ -102,6 +96,7 @@ export function ProductsList() {
         )
       );
       setBrands(filtersResult.data.brands);
+      setProductTypes(filtersResult.data.productTypes);
     }
 
     if (productsResult.error) {
@@ -162,9 +157,9 @@ export function ProductsList() {
           onChange={(e) => setProductType(e.target.value)}
         >
           <option value="all">Todos os tipos</option>
-          {PRODUCT_TYPE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
+          {productTypes.map((item) => (
+            <option key={item} value={item}>
+              {formatProductType(item)}
             </option>
           ))}
         </Select>
@@ -262,7 +257,7 @@ export function ProductsList() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        {typeLabel(product.product_type)}
+                        {formatProductType(product.product_type)}
                       </td>
                       <td className="px-4 py-3">
                         <div>{product.internal_code || "—"}</div>
@@ -332,7 +327,7 @@ export function ProductsList() {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">{product.name}</CardTitle>
                     <CardDescription>
-                      {typeLabel(product.product_type)} ·{" "}
+                      {formatProductType(product.product_type)} ·{" "}
                       {statusLabel(product.status)} ·{" "}
                       {formatCurrency(product.sale_price)}
                     </CardDescription>

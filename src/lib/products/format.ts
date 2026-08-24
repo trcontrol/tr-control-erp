@@ -1,4 +1,8 @@
 import {
+  PRODUCT_TYPE_MAX_LENGTH,
+  PRODUCT_TYPE_OPTIONS,
+} from "@/lib/constants";
+import {
   formatCurrency,
   formatCurrencyInput,
   parseCurrencyInput,
@@ -11,6 +15,43 @@ export {
   parseCurrencyInput,
   toNumberAmount,
 };
+
+/**
+ * Display de product_type:
+ * product → Produto, service → Serviço, demais → texto cru.
+ * Não força fallback para "Produto" quando o valor é custom/vazio tratado.
+ */
+export function formatProductType(value?: string | null) {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed) return "—";
+
+  const legacy = PRODUCT_TYPE_OPTIONS.find((item) => item.value === trimmed);
+  return legacy?.label ?? trimmed;
+}
+
+export function normalizeProductTypeInput(value: string | null | undefined) {
+  return (value ?? "").trim();
+}
+
+export function validateProductTypeInput(value: string | null | undefined): {
+  value: string;
+  error: string | null;
+} {
+  const normalized = normalizeProductTypeInput(value);
+
+  if (!normalized) {
+    return { value: "", error: "Campo obrigatório" };
+  }
+
+  if (normalized.length > PRODUCT_TYPE_MAX_LENGTH) {
+    return {
+      value: normalized,
+      error: `Máximo de ${PRODUCT_TYPE_MAX_LENGTH} caracteres`,
+    };
+  }
+
+  return { value: normalized, error: null };
+}
 
 export function calculateProfitMargin(
   costPrice: number | string | null | undefined,

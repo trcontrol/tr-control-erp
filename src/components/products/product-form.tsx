@@ -22,14 +22,12 @@ import {
   PRODUCT_CATEGORIES,
   PRODUCT_STATUS,
   PRODUCT_STATUS_OPTIONS,
-  PRODUCT_TYPE_OPTIONS,
-  PRODUCT_TYPES,
+  PRODUCT_TYPE_MAX_LENGTH,
   PRODUCT_UNITS,
   ROUTES,
   TRACK_STOCK_OPTIONS,
   productDetailPath,
   stockProductHistoryPath,
-  type ProductItemType,
 } from "@/lib/constants";
 import {
   createProduct,
@@ -44,12 +42,13 @@ import {
   formatStockInput,
   parseCurrencyInput,
   parseStockInput,
+  validateProductTypeInput,
 } from "@/lib/products/format";
 import { useTenant } from "@/providers/tenant-provider";
 import type { Product, ProductInsert } from "@/types/database";
 
 type ProductFormState = {
-  product_type: ProductItemType;
+  product_type: string;
   internal_code: string;
   sku: string;
   barcode: string;
@@ -86,22 +85,16 @@ function toFormState(
   product?: Product,
   options?: { requireTracksStock?: boolean }
 ): ProductFormState {
-  const productType =
-    product?.product_type === PRODUCT_TYPES.service
-      ? PRODUCT_TYPES.service
-      : PRODUCT_TYPES.product;
   const tracksStock = options?.requireTracksStock
     ? "true"
     : product == null
-      ? productType === PRODUCT_TYPES.service
-        ? "false"
-        : "true"
+      ? "true"
       : product.tracks_stock === false
         ? "false"
         : "true";
 
   return {
-    product_type: productType,
+    product_type: product?.product_type ?? "",
     internal_code: product?.internal_code ?? "",
     sku: product?.sku ?? "",
     barcode: product?.barcode ?? "",
@@ -168,10 +161,6 @@ export function ProductForm({
   ) {
     setForm((current) => {
       const next = { ...current, [key]: value };
-      if (key === "product_type" && mode === "create" && !requireTracksStock) {
-        next.tracks_stock =
-          value === PRODUCT_TYPES.service ? "false" : "true";
-      }
       if (requireTracksStock) {
         next.tracks_stock = "true";
       }
@@ -190,9 +179,12 @@ export function ProductForm({
     const maxStock = form.max_stock
       ? parseStockInput(form.max_stock)
       : null;
+    const productTypeValidation = validateProductTypeInput(form.product_type);
 
     if (!form.name.trim()) nextErrors.name = "Campo obrigatório";
-    if (!form.product_type) nextErrors.product_type = "Campo obrigatório";
+    if (productTypeValidation.error) {
+      nextErrors.product_type = productTypeValidation.error;
+    }
     if (!form.tracks_stock) nextErrors.tracks_stock = "Campo obrigatório";
     if (Number.isNaN(cost) || cost < 0) nextErrors.cost_price = "Valor inválido";
     if (Number.isNaN(sale) || sale < 0) nextErrors.sale_price = "Valor inválido";
@@ -270,9 +262,11 @@ export function ProductForm({
 
     setLoading(true);
 
+    const productTypeValidation = validateProductTypeInput(form.product_type);
+
     const payload: ProductInsert = {
       company_id: company.id,
-      product_type: form.product_type,
+      product_type: productTypeValidation.value,
       internal_code: form.internal_code.trim() || null,
       sku: form.sku.trim() || null,
       barcode: form.barcode.trim() || null,
@@ -423,23 +417,15 @@ export function ProductForm({
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="product_type">Tipo *</Label>
-              <Select
+              <Input
                 id="product_type"
                 value={form.product_type}
-                onChange={(e) =>
-                  updateField(
-                    "product_type",
-                    e.target.value as ProductItemType
-                  )
-                }
+                maxLength={PRODUCT_TYPE_MAX_LENGTH}
+                placeholder="Ex.: Produto, Serviço, Suplemento, Acessório..."
+                autoComplete="off"
+                onChange={(e) => updateField("product_type", e.target.value)}
                 required
-              >
-                {PRODUCT_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
+              />
               <FieldError message={fieldErrors.product_type} />
             </div>
             <div className="space-y-2">

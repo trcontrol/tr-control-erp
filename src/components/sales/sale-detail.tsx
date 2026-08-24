@@ -141,6 +141,10 @@ export function SaleDetail({ sale, companyId }: SaleDetailProps) {
     router.refresh();
   }
 
+  function startConfirmDelete() {
+    setConfirmingDelete(true);
+  }
+
   async function handleDelete() {
     setLoadingAction("delete");
     setError(null);
@@ -188,68 +192,35 @@ export function SaleDetail({ sale, companyId }: SaleDetailProps) {
                 Imprimir comprovante
               </Link>
             </Button>
-            {isDraft ? (
-              <>
-                {canEdit ? (
-                  <Button asChild variant="outline">
-                    <Link href={saleEditPath(current.id)}>
-                      <Pencil className="h-4 w-4" />
-                      Editar
-                    </Link>
-                  </Button>
-                ) : null}
-                {canEdit ? (
-                  <Button
-                    onClick={() => void handleConfirm()}
-                    disabled={loadingAction !== null}
-                  >
-                    {loadingAction === "confirm" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4" />
-                    )}
-                    Confirmar venda
-                  </Button>
-                ) : null}
-                {canDelete ? (
-                  !confirmingDelete ? (
-                    <Button
-                      variant="destructive"
-                      onClick={() => setConfirmingDelete(true)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Excluir
-                    </Button>
-                  ) : (
-                    <>
-                      <Button
-                        variant="destructive"
-                        disabled={loadingAction !== null}
-                        onClick={() => void handleDelete()}
-                      >
-                        {loadingAction === "delete" ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                        Confirmar exclusão
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => setConfirmingDelete(false)}
-                      >
-                        Voltar
-                      </Button>
-                    </>
-                  )
-                ) : null}
-              </>
+
+            {isDraft && canEdit ? (
+              <Button asChild variant="outline">
+                <Link href={saleEditPath(current.id)}>
+                  <Pencil className="h-4 w-4" />
+                  Editar
+                </Link>
+              </Button>
+            ) : null}
+
+            {isDraft && canEdit ? (
+              <Button
+                onClick={() => void handleConfirm()}
+                disabled={loadingAction !== null || confirmingDelete}
+              >
+                {loadingAction === "confirm" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                Confirmar venda
+              </Button>
             ) : null}
 
             {isConfirmed && canEdit ? (
               !confirmingCancel ? (
                 <Button
                   variant="destructive"
+                  disabled={loadingAction !== null}
                   onClick={() => setConfirmingCancel(true)}
                 >
                   <XCircle className="h-4 w-4" />
@@ -257,6 +228,10 @@ export function SaleDetail({ sale, companyId }: SaleDetailProps) {
                 </Button>
               ) : (
                 <>
+                  <p className="w-full text-sm text-muted-foreground">
+                    Esta ação cancelará a venda e fará as reversões necessárias
+                    de estoque e financeiro.
+                  </p>
                   <Button
                     variant="destructive"
                     disabled={loadingAction !== null}
@@ -272,6 +247,43 @@ export function SaleDetail({ sale, companyId }: SaleDetailProps) {
                   <Button
                     variant="outline"
                     onClick={() => setConfirmingCancel(false)}
+                  >
+                    Voltar
+                  </Button>
+                </>
+              )
+            ) : null}
+
+            {isDraft && canDelete ? (
+              !confirmingDelete ? (
+                <Button
+                  variant="destructive"
+                  disabled={loadingAction !== null}
+                  onClick={startConfirmDelete}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Excluir venda
+                </Button>
+              ) : (
+                <>
+                  <p className="w-full text-sm text-muted-foreground">
+                    Esta ação remove definitivamente o rascunho e seus itens.
+                  </p>
+                  <Button
+                    variant="destructive"
+                    disabled={loadingAction !== null}
+                    onClick={() => void handleDelete()}
+                  >
+                    {loadingAction === "delete" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    Excluir venda
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setConfirmingDelete(false)}
                   >
                     Voltar
                   </Button>
@@ -357,6 +369,9 @@ export function SaleDetail({ sale, companyId }: SaleDetailProps) {
             <CardDescription>
               Plano de pagamento ({schedules.length} parcela
               {schedules.length === 1 ? "" : "s"})
+              {current.status !== SALE_STATUS.draft
+                ? " · somente leitura"
+                : ""}
             </CardDescription>
           </CardHeader>
           <CardContent>

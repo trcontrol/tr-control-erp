@@ -190,10 +190,14 @@ export function PurchaseDetail({ purchase, companyId }: PurchaseDetailProps) {
                       onClick={() => setConfirmingDelete(true)}
                     >
                       <Trash2 className="h-4 w-4" />
-                      Excluir
+                      Excluir compra
                     </Button>
                   ) : (
                     <>
+                      <p className="w-full text-sm text-muted-foreground">
+                        Esta ação remove o rascunho e seus itens. Não há efeito
+                        em estoque ou financeiro.
+                      </p>
                       <Button
                         variant="destructive"
                         disabled={loadingAction !== null}
@@ -204,7 +208,7 @@ export function PurchaseDetail({ purchase, companyId }: PurchaseDetailProps) {
                         ) : (
                           <Trash2 className="h-4 w-4" />
                         )}
-                        Confirmar exclusão
+                        Excluir compra
                       </Button>
                       <Button
                         variant="outline"

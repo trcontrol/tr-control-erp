@@ -10,6 +10,7 @@
  * Relatórios leem via purchase-query + client próprio (sem exigir purchases.view).
  */
 import { PURCHASE_STATUS } from "@/lib/constants";
+import { resolveDraftDeleteResult } from "@/lib/domain/draft-delete";
 import { assertMemberPermission } from "@/lib/plans/require-module-access";
 import { calcLineTotal } from "@/lib/purchases/format";
 import {
@@ -383,18 +384,20 @@ export async function deletePurchaseDraft(
   if (!authz.ok) return deny(authz.message);
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("purchases")
     .delete()
     .eq("company_id", companyId)
     .eq("id", purchaseId)
-    .eq("status", PURCHASE_STATUS.draft);
+    .eq("status", PURCHASE_STATUS.draft)
+    .select("id")
+    .maybeSingle<{ id: string }>();
 
-  if (error) {
-    return { data: null, error: { message: mapPgError(error.message) } };
-  }
-
-  return { data: true, error: null };
+  return resolveDraftDeleteResult(
+    data?.id,
+    "purchase",
+    error ? mapPgError(error.message) : null
+  );
 }
 
 export async function confirmPurchase(

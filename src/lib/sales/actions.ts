@@ -10,6 +10,7 @@
  * Relatórios leem via sale-query + client próprio (sem exigir sales.view).
  */
 import { SALE_STATUS } from "@/lib/constants";
+import { resolveDraftDeleteResult } from "@/lib/domain/draft-delete";
 import { assertMemberPermission } from "@/lib/plans/require-module-access";
 import { calcLineTotal } from "@/lib/sales/format";
 import {
@@ -523,18 +524,20 @@ export async function deleteSaleDraft(
   if (!authz.ok) return deny(authz.message);
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("sales")
     .delete()
     .eq("company_id", companyId)
     .eq("id", saleId)
-    .eq("status", SALE_STATUS.draft);
+    .eq("status", SALE_STATUS.draft)
+    .select("id")
+    .maybeSingle<{ id: string }>();
 
-  if (error) {
-    return { data: null, error: { message: mapPgError(error.message) } };
-  }
-
-  return { data: true, error: null };
+  return resolveDraftDeleteResult(
+    data?.id,
+    "sale",
+    error ? mapPgError(error.message) : null
+  );
 }
 
 export async function confirmSale(

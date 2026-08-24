@@ -107,32 +107,22 @@ export function SaleReceipt({ sale, company }: SaleReceiptProps) {
 
   return (
     <div className="mx-auto max-w-[210mm] bg-white px-6 py-8 text-[var(--brand-navy)] sm:px-10 sm:py-10">
-      <header className="flex flex-col gap-4 border-b border-[var(--brand-navy)]/10 pb-6 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-4">
-          <CompanyLogo company={company} />
-          <div className="min-w-0 space-y-1">
-            <p className="text-lg font-bold leading-tight">{company.name}</p>
-            {legalName ? (
-              <p className="text-sm text-muted-foreground">{legalName}</p>
-            ) : null}
-            {company.cnpj ? (
-              <p className="text-sm text-muted-foreground">
-                CNPJ {formatCnpj(company.cnpj)}
-              </p>
-            ) : null}
-            {companyPhone ? (
-              <p className="text-sm text-muted-foreground">
-                {formatPhone(companyPhone)}
-              </p>
-            ) : null}
-            {companyAddress ? (
-              <p className="text-sm text-muted-foreground">{companyAddress}</p>
-            ) : null}
-          </div>
-        </div>
-      </header>
+      {/* Brand header: use <div> (not <header>) so global print CSS does not hide it */}
+      <div className="sale-receipt-brand break-inside-avoid border-b border-[var(--brand-navy)]/10 pb-5 text-center">
+        {/* eslint-disable-next-line @next/next/no-img-element -- native <img> for reliable print/PDF */}
+        <img
+          src="/brand/logo-tr-control-erp-display.png"
+          alt="TR Control ERP — Gestão que impulsiona."
+          width={922}
+          height={339}
+          className="mx-auto h-auto w-[160px] max-w-full object-contain sm:w-[180px]"
+        />
+        <p className="mt-2 text-[11px] font-medium tracking-wide text-muted-foreground">
+          Gestão que impulsiona.
+        </p>
+      </div>
 
-      <div className="py-6 text-center">
+      <div className="break-inside-avoid py-5 text-center">
         <h1 className="text-xl font-bold uppercase tracking-wide text-[var(--brand-navy)]">
           Comprovante de Venda
         </h1>
@@ -146,6 +136,29 @@ export function SaleReceipt({ sale, company }: SaleReceiptProps) {
             Venda em rascunho — sem validade financeira.
           </p>
         ) : null}
+      </div>
+
+      <div className="mb-6 flex items-start gap-4 border-b border-[var(--brand-navy)]/10 pb-5">
+        <CompanyLogo company={company} />
+        <div className="min-w-0 space-y-1">
+          <p className="text-lg font-bold leading-tight">{company.name}</p>
+          {legalName ? (
+            <p className="text-sm text-muted-foreground">{legalName}</p>
+          ) : null}
+          {company.cnpj ? (
+            <p className="text-sm text-muted-foreground">
+              CNPJ {formatCnpj(company.cnpj)}
+            </p>
+          ) : null}
+          {companyPhone ? (
+            <p className="text-sm text-muted-foreground">
+              {formatPhone(companyPhone)}
+            </p>
+          ) : null}
+          {companyAddress ? (
+            <p className="text-sm text-muted-foreground">{companyAddress}</p>
+          ) : null}
+        </div>
       </div>
 
       <section className="mb-6 grid gap-2 rounded-lg border border-[var(--brand-navy)]/8 bg-[var(--brand-navy)]/[0.02] p-4 sm:grid-cols-2">
@@ -309,7 +322,7 @@ export function SaleReceipt({ sale, company }: SaleReceiptProps) {
       ) : null}
 
       <footer className="mt-8 border-t border-[var(--brand-navy)]/10 pt-4 text-center text-xs text-muted-foreground">
-        <p>Comprovante de venda — documento não fiscal.</p>
+        <p>Documento emitido pelo TR Control ERP — documento não fiscal.</p>
         {isDraft ? (
           <p className="mt-1">
             Venda em rascunho — sem validade financeira.

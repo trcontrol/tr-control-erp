@@ -311,4 +311,17 @@
   #sale-receipt-root .sale-receipt-table thead {
     display: table-header-group;
   }
+
+  #sale-receipt-root .sale-receipt-brand {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  #sale-receipt-root .sale-receipt-brand img {
+    display: block;
+    max-width: 180px;
+    height: auto;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }
